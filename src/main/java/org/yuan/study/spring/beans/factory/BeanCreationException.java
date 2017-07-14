@@ -7,7 +7,13 @@ public class BeanCreationException extends FatalBeanException {
 	
 	/**  */
 	private String beanName;
+	
 
+	public BeanCreationException(String beanName, String message) {
+		super(message);
+		this.beanName = beanName;
+	}
+	
 	public BeanCreationException(String beanName, String message, Throwable cause) {
 		super(message, cause);
 		this.beanName = beanName;
