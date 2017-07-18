@@ -48,7 +48,34 @@ public abstract class StringUtils {
 			return null;
 		}
 		
-		return (String[]) collection.toArray(new String[collection.size()]);
+		return collection.toArray(new String[collection.size()]);
 	}
 	
+	/**
+	 * Check whether the given String has actual text.
+	 * @param str
+	 * @return
+	 */
+	public static boolean hasText(String str) {
+		if (!hasLength(str)) {
+			return false;
+		}
+		
+		for (char ch : str.toCharArray()) {
+			if (!Character.isWhitespace(ch)) {
+				return true;
+			}
+		}
+		
+		return false;
+	}
+	
+	/**
+	 * Check that the given String is neither null nor of length 0.
+	 * @param str
+	 * @return
+	 */
+	public static boolean hasLength(String str) {
+		return (str != null && str.length() > 0);
+	}
 }

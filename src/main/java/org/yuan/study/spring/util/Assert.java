@@ -3,6 +3,17 @@ package org.yuan.study.spring.util;
 public abstract class Assert {
 
 	/**
+	 * Assert that a string has valid text content.
+	 * @param str
+	 * @param message
+	 */
+	public static void hasText(String str, String message) {
+		if (!StringUtils.hasText(str)) {
+			throw new IllegalArgumentException(message);
+		}
+	}
+	
+	/**
 	 * Assert that an object is not null.
 	 * @param object
 	 * @param message
