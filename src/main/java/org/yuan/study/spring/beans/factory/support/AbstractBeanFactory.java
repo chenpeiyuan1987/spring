@@ -12,6 +12,7 @@ import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.springframework.beans.factory.DisposableBean;
 import org.yuan.study.spring.beans.BeansException;
 import org.yuan.study.spring.beans.factory.BeanCreationException;
 import org.yuan.study.spring.beans.factory.BeanCurrentlyInCreationException;
@@ -27,6 +28,7 @@ import org.yuan.study.spring.beans.factory.NoSuchBeanDefinitionException;
 import org.yuan.study.spring.beans.factory.config.BeanDefinition;
 import org.yuan.study.spring.beans.factory.config.BeanPostProcessor;
 import org.yuan.study.spring.beans.factory.config.ConfigurableBeanFactory;
+import org.yuan.study.spring.beans.factory.config.DestructionAwareBeanPostProcessor;
 import org.yuan.study.spring.util.Assert;
 import org.yuan.study.spring.util.StringUtils;
 
@@ -41,17 +43,26 @@ public abstract class AbstractBeanFactory implements ConfigurableBeanFactory {
 	/** Cache of singletons: bean name --> bean instance */
 	private final Map<String,Object> singletonCache = new HashMap<String,Object>();
 	
-	/**  */
+	/** Names of beans that are currently in creation */
 	private final Set<String> currentlyInCreation = Collections.synchronizedSet(new HashSet<String>());
 	
-	/**  */
+	/** BeanPostProcessors to apply in createBean */
 	private final List<BeanPostProcessor> beanPostProcessors = new ArrayList<BeanPostProcessor>();
 	
-	/**  */
+	/** Indicates whether any DestructionAwareBeanPostProcessors have been registered */
+	private boolean hasDestructionAwareBeanPostProcessors;
+	
+	/** Disposable bean instances: bean name --> disposable instance */
 	private final Map<String,Object> disposableBeans = new HashMap<String,Object>();
 	
-	/**  */
+	/** Map from alias to canonical bean name */
 	private final Map<String,String> aliasMap = new HashMap<String,String>();
+	
+	/** Map between dependent bean names: bean name --> dependent bean name */
+	private final Map<String,Set<String>> dependentBeanMap = new HashMap<String,Set<String>>();
+	
+	/**  */
+	private final Map<Class<?>,PropertyEditor> customEditors = new HashMap<Class<?>,PropertyEditor>();
 	
 	public AbstractBeanFactory() {
 	}
@@ -298,7 +309,9 @@ public abstract class AbstractBeanFactory implements ConfigurableBeanFactory {
 	public void addBeanPostProcessor(BeanPostProcessor beanPostProcessor) {
 		Assert.notNull(beanPostProcessor, "BeanPostProcessor must not be null");
 		this.beanPostProcessors.add(beanPostProcessor);
-		// TODO
+		if (beanPostProcessor instanceof DestructionAwareBeanPostProcessor) {
+			this.hasDestructionAwareBeanPostProcessors = true;
+		}
 	}
 
 	@Override
@@ -354,8 +367,9 @@ public abstract class AbstractBeanFactory implements ConfigurableBeanFactory {
 
 	@Override
 	public void registerCustomEditor(Class<?> requiredType, PropertyEditor propertyEditor) {
-		// TODO Auto-generated method stub
-		
+		Assert.notNull(requiredType, "Required type must not be null");
+		Assert.notNull(propertyEditor, "PropertyEditor must not be null");
+		this.customEditors.put(requiredType,propertyEditor);
 	}
 
 	@Override
@@ -375,9 +389,32 @@ public abstract class AbstractBeanFactory implements ConfigurableBeanFactory {
 
 	@Override
 	public void setParentBeanFactory(BeanFactory parentBeanFactory) {
+		if (this.parentBeanFactory != null && this.parentBeanFactory != parentBeanFactory) {
+			throw new IllegalStateException(String.format("Already associated with parent BeanFactory: %s", this.parentBeanFactory));
+		}
 		this.parentBeanFactory = parentBeanFactory;
 	}
 	
+	protected void registerDependentBean(String beanName, String dependentBeanName) {
+		synchronized (this.dependentBeanMap) {
+			Set<String> dependencies = this.dependentBeanMap.get(beanName);
+			if (dependencies == null) {
+				dependencies = new HashSet<String>();
+				this.dependentBeanMap.put(beanName, dependencies);
+			}
+			dependencies.add(dependentBeanName);
+		}
+	}
+	
+	protected void registerDisposableBean(String beanName, DisposableBean bean) {
+		synchronized (this.disposableBeans) {
+			this.disposableBeans.put(beanName, bean);
+		}
+	}
+	
+	protected void registerDisposableBeanIfNecessary(String beanName, Object bean, RootBeanDefinition mergedBeanDefinition) {
+		
+	}
 	
 	//-----------------------------------------------------------
 	// Implementation methods
@@ -550,7 +587,28 @@ public abstract class AbstractBeanFactory implements ConfigurableBeanFactory {
 	}
 	
 	protected void destroyBean(String beanName, Object bean) {
-		// TODO
+		Set<String> dependencies = null;
+		synchronized (this.dependentBeanMap) {
+			dependencies = this.dependentBeanMap.remove(beanName);
+		}
+		
+		if (dependencies != null) {
+			if (logger.isDebugEnabled()) {
+				logger.debug(String.format("Retrieved dependent beans for bean '%s': ", beanName, dependencies));
+			}
+			for (String dependentBeanName : dependencies) {
+				destroyDisposableBean(dependentBeanName);
+			}
+		}
+		
+		if (bean instanceof DisposableBean) {
+			try {
+				((DisposableBean) bean).destroy();
+			}
+			catch (Throwable ex) {
+				logger.error(String.format("Destroy method on bean with name '%s' threw an exception", beanName), ex);
+			}
+		}
 	}
 	
 	//-----------------------------------------------------------
