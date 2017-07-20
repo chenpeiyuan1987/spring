@@ -5,5 +5,5 @@ public interface DisposableBean {
 	/**
 	 * 
 	 */
-	void destroy();
+	void destroy() throws Exception;
 }

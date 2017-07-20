@@ -219,8 +219,62 @@ public abstract class AbstractBeanFactory implements ConfigurableBeanFactory {
 	 * @param bean
 	 * @param mergedBeanDefinition
 	 */
-	protected void registerDisposableBeanIfNecessary(String beanName, Object bean, RootBeanDefinition mergedBeanDefinition) {
-		// TODO
+	protected void registerDisposableBeanIfNecessary(final String beanName, final Object bean, final RootBeanDefinition mergedBeanDefinition) {
+		if (mergedBeanDefinition.isSingleton()) {
+			final boolean isDisposableBean = (bean instanceof DisposableBean);
+			final boolean hasDestroyMethod = (mergedBeanDefinition.getDestroyMethodName() != null);
+			
+			if (isDisposableBean || hasDestroyMethod || hasDestructionAwareBeanPostProcessors()) {
+				int counter = 1;
+				String id = beanName;
+				synchronized (this.disposableBeans) {
+					while (this.disposableBeans.containsKey(id)) {
+						counter++;
+						id = beanName + "#" + counter;
+					}
+				}
+				
+				registerDisposableBean(id, new DisposableBean() {
+
+					@Override
+					public void destroy() throws Exception {
+						if (logger.isDebugEnabled()) {
+							logger.debug(String.format("Applying DestructionAwareBeanPostProcessor to bean with name '%s'", beanName));
+						}
+						if (hasDestructionAwareBeanPostProcessors()) {
+							for (BeanPostProcessor beanPostProcessor : getBeanPostProcessors()) {
+								if (beanPostProcessor instanceof DestructionAwareBeanPostProcessor) {
+									((DestructionAwareBeanPostProcessor) beanPostProcessor).postProcessBeforeDestruction(bean, beanName);
+								}
+							}
+						}
+						
+						if (isDisposableBean) {
+							if (logger.isDebugEnabled()) {
+								logger.debug(String.format("Invoking destroy() on bean with name '%s'", beanName));
+							}
+							((DisposableBean) bean).destroy();
+						}
+						
+						if (hasDestroyMethod) {
+							if (logger.isDebugEnabled()) {
+								logger.debug(String.format("Invoking custom destroy method on bean with name '%s'", beanName));
+							}
+							invokeCustomDestroyMethod(beanName, bean, mergedBeanDefinition.getDestroyMethodName(), 
+								mergedBeanDefinition.isEnforceDestroyMethod());
+						}
+					}
+					
+				});
+			}
+			
+			String[] dependsOn = mergedBeanDefinition.getDependsOn();
+			if (dependsOn != null) {
+				for (String dependOn : dependsOn) {
+					registerDependentBean(dependOn, beanName);
+				}
+			}
+		}
 	}
 	
 	/**
