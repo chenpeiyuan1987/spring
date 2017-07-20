@@ -1,6 +1,9 @@
 package org.yuan.study.spring.beans.factory.support;
 
 import java.beans.PropertyEditor;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -12,8 +15,11 @@ import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.springframework.beans.factory.DisposableBean;
+import org.yuan.study.spring.beans.BeanUtils;
+import org.yuan.study.spring.beans.BeanWrapper;
+import org.yuan.study.spring.beans.BeanWrapperImpl;
 import org.yuan.study.spring.beans.BeansException;
+import org.yuan.study.spring.beans.TypeMismatchException;
 import org.yuan.study.spring.beans.factory.BeanCreationException;
 import org.yuan.study.spring.beans.factory.BeanCurrentlyInCreationException;
 import org.yuan.study.spring.beans.factory.BeanDefinitionStoreException;
@@ -22,6 +28,7 @@ import org.yuan.study.spring.beans.factory.BeanFactoryUtils;
 import org.yuan.study.spring.beans.factory.BeanIsAbstractException;
 import org.yuan.study.spring.beans.factory.BeanIsNotAFactoryException;
 import org.yuan.study.spring.beans.factory.BeanNotOfRequiredTypeException;
+import org.yuan.study.spring.beans.factory.DisposableBean;
 import org.yuan.study.spring.beans.factory.FactoryBean;
 import org.yuan.study.spring.beans.factory.FactoryBeanNotInitializedException;
 import org.yuan.study.spring.beans.factory.NoSuchBeanDefinitionException;
@@ -64,32 +71,44 @@ public abstract class AbstractBeanFactory implements ConfigurableBeanFactory {
 	/**  */
 	private final Map<Class<?>,PropertyEditor> customEditors = new HashMap<Class<?>,PropertyEditor>();
 	
+	/**
+	 * Create a new AbstractBeanFactory.
+	 */
 	public AbstractBeanFactory() {
 	}
 
+	/**
+	 * Create a new AbstractBeanFactory with the given parent.
+	 * @param parentBeanFactory
+	 */
 	public AbstractBeanFactory(BeanFactory parentBeanFactory) {
 		this.parentBeanFactory = parentBeanFactory;
 	}
 	
 	
 	//-------------------------------------------------------------------
-	// Implementation of BeanFactory interface
+	// Implementation methods
 	//-------------------------------------------------------------------
 	
-	@Override
-	public Object getBean(String name) throws BeansException {
-		return getBean(name, null, null);
-	}
-
-	@Override
-	public Object getBean(String name, Class<?> requiredType) throws BeansException {
-		return getBean(name, requiredType, null);
-	}
-	
+	/**
+	 * 
+	 * @param name
+	 * @param args
+	 * @return
+	 * @throws BeansException
+	 */
 	public Object getBean(String name, Object[] args) throws BeansException {
 		return getBean(name, null, args);
 	}
 	
+	/**
+	 * 
+	 * @param name
+	 * @param requiredType
+	 * @param args
+	 * @return
+	 * @throws BeansException
+	 */
 	public Object getBean(String name, Class<?> requiredType, Object[] args) throws BeansException {
 		String beanName = transformedBeanName(name);
 		Object bean = null;
@@ -166,7 +185,473 @@ public abstract class AbstractBeanFactory implements ConfigurableBeanFactory {
 		}
 		return bean;
 	}
+	
+	/**
+	 * 
+	 * @param beanName
+	 * @param dependentBeanName
+	 */
+	protected void registerDependentBean(String beanName, String dependentBeanName) {
+		synchronized (this.dependentBeanMap) {
+			Set<String> dependencies = this.dependentBeanMap.get(beanName);
+			if (dependencies == null) {
+				dependencies = new HashSet<String>();
+				this.dependentBeanMap.put(beanName, dependencies);
+			}
+			dependencies.add(dependentBeanName);
+		}
+	}
+	
+	/**
+	 * 
+	 * @param beanName
+	 * @param bean
+	 */
+	protected void registerDisposableBean(String beanName, DisposableBean bean) {
+		synchronized (this.disposableBeans) {
+			this.disposableBeans.put(beanName, bean);
+		}
+	}
+	
+	/**
+	 * 
+	 * @param beanName
+	 * @param bean
+	 * @param mergedBeanDefinition
+	 */
+	protected void registerDisposableBeanIfNecessary(String beanName, Object bean, RootBeanDefinition mergedBeanDefinition) {
+		// TODO
+	}
+	
+	/**
+	 * 
+	 * @param name
+	 * @return
+	 */
+	protected boolean isFactoryDereference(String name) {
+		return BeanFactoryUtils.isFactoryDereference(name);
+	}
+	
+	/**
+	 * 
+	 * @param name
+	 * @return
+	 */
+	protected String transformedBeanName(String name) {
+		String beanName = BeanFactoryUtils.transformedBeanName(name);
+		
+		synchronized (this.aliasMap) {
+			String canonicalName = beanName;
+			String resolvedName = null;
+			do {
+				resolvedName = (String) this.aliasMap.get(canonicalName);
+				if (resolvedName != null) {
+					canonicalName = resolvedName;
+				}
+			} while (resolvedName != null);
+			return canonicalName;
+		}
+	}
+	
+	/**
+	 * 
+	 * @param name
+	 * @param bean
+	 * @return
+	 */
+	protected Object getObjectForSharedInstance(String name, Object bean) {
+		String beanName = transformedBeanName(name);
+		
+		if (isFactoryDereference(name) && !(bean instanceof FactoryBean)) {
+			throw new BeanIsNotAFactoryException(beanName, bean.getClass());
+		}
+		
+		if (bean instanceof FactoryBean) {
+			if (!isFactoryDereference(name)) {
+				FactoryBean factory = (FactoryBean) bean;
+				if (logger.isDebugEnabled()) {
+					logger.debug(String.format("Bean with name '%s' is a factory bean", beanName));
+				}
+				try {
+					bean = factory.getObject();
+				}
+				catch (Exception ex) {
+					throw new BeanCreationException(beanName, "FactoryBean threw exception on object creation", ex);
+				}
+				if (bean == null) {
+					throw new FactoryBeanNotInitializedException(beanName, "FactoryBean returned null object: " + 
+						"probably not fully initialized (maybe due to circular bean reference)");
+				}
+			}
+			else {
+				if (logger.isDebugEnabled()) {
+					logger.debug(String.format("Calling code asked for FactoryBean instance for name '%s'", beanName));
+				}
+			}
+		}
+		
+		return bean;
+	}
+	
+	/**
+	 * 
+	 * @param name
+	 * @param includingAncestors
+	 * @return
+	 */
+	protected RootBeanDefinition getMergedBeanDefinition(String name, boolean includingAncestors) {
+		String beanName = transformedBeanName(name);
+		
+		if (includingAncestors && !containsBeanDefinition(beanName) 
+			&& getParentBeanFactory() instanceof AbstractBeanFactory) {
+			return ((AbstractBeanFactory) getParentBeanFactory()).getMergedBeanDefinition(beanName, true);
+		}
+		
+		return getMergedBeanDefinition(beanName, getBeanDefinition(beanName));
+	}
+	
+	/**
+	 * 
+	 * @param beanName
+	 * @param bd
+	 * @return
+	 */
+	protected RootBeanDefinition getMergedBeanDefinition(String beanName, BeanDefinition bd) {
+		if (bd instanceof RootBeanDefinition) {
+			return (RootBeanDefinition) bd;
+		}
+		else if (bd instanceof ChildBeanDefinition) {
+			ChildBeanDefinition cbd = (ChildBeanDefinition) bd;
+			RootBeanDefinition pbd = null;
+			try {
+				if (!beanName.equals(cbd.getParentName())) {
+					pbd = getMergedBeanDefinition(cbd.getParentName(), true);
+				}
+				else {
+					if (getParentBeanFactory() instanceof AbstractBeanFactory) {
+						AbstractBeanFactory parentFactory = (AbstractBeanFactory) getParentBeanFactory();
+						pbd = parentFactory.getMergedBeanDefinition(cbd.getParentName(), true);
+					}
+					else {
+						throw new NoSuchBeanDefinitionException(cbd.getParentName(), 
+							String.format("Parent name '%s' is equals to bean name '%s': cannot be resolved without an AbstractBeanFactory parent", cbd.getParentName(), beanName));
+					}
+				}
+			}
+			catch (NoSuchBeanDefinitionException ex) {
+				throw new BeanDefinitionStoreException(cbd.getResourceDescription(), beanName, 
+					String.format("Could not resolve parent bean definition '%s'", cbd.getParentName()), ex);
+			}
+			
+			RootBeanDefinition rbd = new RootBeanDefinition(pbd);
+			rbd.overrideFrom(cbd);
+			
+			try {
+				rbd.validate();
+			}
+			catch (BeanDefinitionValidationException ex) {
+				throw new BeanDefinitionStoreException(rbd.getResourceDescription(), beanName, 
+					"Validation of bean definition failed", ex);
+			}
+			
+			return rbd;
+		}
+		else {
+			throw new BeanDefinitionStoreException(bd.getResourceDescription(), beanName, 
+				"Definition is neither a RootBeanDefinition nor a ChildBeanDefinition");
+		}
+	}
+	
+	/**
+	 * 
+	 * @param mergedBeanDefinition
+	 * @param beanName
+	 * @param requiredType
+	 * @param args
+	 */
+	protected void checkMergedBeanDefinition(RootBeanDefinition mergedBeanDefinition, String beanName, Class<?> requiredType, Object[] args) {
+		if (mergedBeanDefinition.isAbstract()) {
+			throw new BeanIsAbstractException(beanName);
+		}
+		
+		if (mergedBeanDefinition.hasBeanClass()) {
+			Class<?> beanClass = mergedBeanDefinition.getBeanClass();
+			if (requiredType != null && mergedBeanDefinition.getFactoryMethodName() == null 
+				&& !FactoryBean.class.isAssignableFrom(beanClass) && !requiredType.isAssignableFrom(beanClass)) {
+				throw new BeanNotOfRequiredTypeException(beanName, requiredType, beanClass);
+			}
+		}
+		
+		if (args != null) {
+			if (mergedBeanDefinition.isSingleton()) {
+				throw new BeanDefinitionStoreException("Cannot specify arguments in the getBean() method when referring to a singleton bean definition");
+			}
+			else if (mergedBeanDefinition.getFactoryMethodName() == null) {
+				throw new BeanDefinitionStoreException("Can only specify arguments in the getBean() method in conjunction with a factory method");
+			}
+		}
+	}
+	
+	/**
+	 * 
+	 * @param beanName
+	 * @param singletonObject
+	 */
+	protected void addSingleton(String beanName, Object singletonObject) {
+		Assert.hasText(beanName, "Bean name must not be empty");
+		Assert.notNull(singletonObject, "Singleton object must not be null");
+		synchronized (this.singletonCache) {
+			this.singletonCache.put(beanName, singletonObject);
+		}
+	}
+	
+	/**
+	 * 
+	 * @param beanName
+	 */
+	protected void removeSingleton(String beanName) {
+		Assert.hasText(beanName, "Bean name must not be empty");
+		synchronized (this.singletonCache) {
+			this.singletonCache.remove(beanName);
+		}
+	}
+	
+	/**
+	 * 
+	 * @param beanName
+	 */
+	private void destroyDisposableBean(String beanName) {
+		removeSingleton(beanName);
+		
+		Object disposableBean = null;
+		synchronized (this.disposableBeans) {
+			disposableBean = this.disposableBeans.remove(beanName);
+		}
+		destroyBean(beanName, disposableBean);
+	}
+	
+	/**
+	 * 
+	 * @param beanName
+	 * @return
+	 */
+	protected boolean isSingletonCurrentlyInCreation(String beanName) {
+		return this.currentlyInCreation.contains(beanName);
+	}
+	
+	/**
+	 * 
+	 * @param beanName
+	 * @param bean
+	 */
+	protected void destroyBean(String beanName, Object bean) {
+		Set<String> dependencies = null;
+		synchronized (this.dependentBeanMap) {
+			dependencies = this.dependentBeanMap.remove(beanName);
+		}
+		
+		if (dependencies != null) {
+			if (logger.isDebugEnabled()) {
+				logger.debug(String.format("Retrieved dependent beans for bean '%s': ", beanName, dependencies));
+			}
+			for (String dependentBeanName : dependencies) {
+				destroyDisposableBean(dependentBeanName);
+			}
+		}
+		
+		if (bean instanceof DisposableBean) {
+			try {
+				((DisposableBean) bean).destroy();
+			}
+			catch (Throwable ex) {
+				logger.error(String.format("Destroy method on bean with name '%s' threw an exception", beanName), ex);
+			}
+		}
+	}
+	
+	/**
+	 * 
+	 * @return
+	 */
+	protected boolean hasDestructionAwareBeanPostProcessors() {
+		return this.hasDestructionAwareBeanPostProcessors;
+	}
+	
+	/**
+	 * 
+	 * @param beanWrapper
+	 */
+	protected void initBeanWrapper(BeanWrapper beanWrapper) {
+		for (Entry<Class<?>,PropertyEditor> entry : getCustomEditors().entrySet()) {
+			beanWrapper.registerCustomEditor(entry.getKey(), entry.getValue());
+		}
+	}
+	
+	/**
+	 * 
+	 * @param value
+	 * @param targetType
+	 * @return
+	 * @throws TypeMismatchException
+	 */
+	protected Object doTypeConversionIfNecessary(Object value, Class<?> targetType) throws TypeMismatchException {
+		BeanWrapperImpl bw = new BeanWrapperImpl();
+		initBeanWrapper(bw);
+		return doTypeConversionIfNecessary(value, targetType, bw);
+	}
+	
+	/**
+	 * 
+	 * @param value
+	 * @param targetType
+	 * @param bw
+	 * @return
+	 * @throws TypeMismatchException
+	 */
+	protected Object doTypeConversionIfNecessary(Object value, Class<?> targetType, BeanWrapperImpl bw) throws TypeMismatchException {
+		if (!getCustomEditors().isEmpty()) {
+			synchronized (getCustomEditors()) {
+				return bw.doTypeConversionIfNecessary(value, targetType);
+			}
+		}
+		else {
+			return bw.doTypeConversionIfNecessary(value, targetType);
+		}
+	}
+	
+	/**
+	 * 
+	 * @param beanName
+	 * @param bean
+	 * @param destroyMethodName
+	 * @param enforceDestroyMethod
+	 */
+	protected void invokeCustomDestroyMethod(String beanName, Object bean, String destroyMethodName, boolean enforceDestroyMethod) {
+		Method destroyMethod = BeanUtils.findDeclaredMethodWithMinimalParameters(bean.getClass(), destroyMethodName);
+		if (destroyMethod == null) {
+			if (enforceDestroyMethod) {
+				logger.error(String.format("Couldn't find a destroy method named '%s' on bean with name '%s'", destroyMethodName, beanName));
+			}
+		}
+		else {
+			Class<?>[] paramTypes = destroyMethod.getParameterTypes();
+			if (paramTypes.length > 1) {
+				logger.error(String.format(
+					"Method '%s' of bean '%s' has more than one parameter - not supported as destroy method", 
+					destroyMethodName, beanName));
+			}
+			else if (paramTypes.length == 1 && !paramTypes[0].equals(boolean.class)) {
+				logger.error(String.format(
+					"Method '%s' of bean '%s' has a non-boolean parameter - not supported as destroy method", 
+					destroyMethodName, beanName));
+			}
+			else {
+				Object[] args = new Object[paramTypes.length];
+				if (paramTypes.length == 1) {
+					args[0] = Boolean.TRUE;
+				}
+				if (!Modifier.isPublic(destroyMethod.getModifiers())) {
+					destroyMethod.setAccessible(true);
+				}
+				try {
+					destroyMethod.invoke(bean, args);
+				}
+				catch (InvocationTargetException ex) {
+					logger.error(String.format("Couldn't invoke destroy method '%s' of bean with name '%s'", destroyMethodName, beanName), ex.getTargetException());
+				}
+				catch (Throwable ex) {
+					logger.error(String.format("Couldn't invoke destroy method '%s' of bean with name '%s'", destroyMethodName, beanName), ex);
+				}
+				
+			}
+		}
+	}
+	
+	/**
+	 * 
+	 * @return
+	 */
+	public int getSingletonCount() {
+		synchronized (this.singletonCache) {
+			return this.singletonCache.size();
+		}
+	}
+	
+	/**
+	 * 
+	 * @return
+	 */
+	public String[] getSingletonNames() {
+		synchronized (this.singletonCache) {
+			return StringUtils.toStringArray(this.singletonCache.keySet());
+		}
+	}
+	
+	/**
+	 * 
+	 * @param name
+	 * @return
+	 * @throws BeansException
+	 */
+	public RootBeanDefinition getMergedBeanDefinition(String name) throws BeansException {
+		return getMergedBeanDefinition(name, false);
+	}
+	
+	/**
+	 * 
+	 * @return
+	 */
+	public Map<Class<?>,PropertyEditor> getCustomEditors() {
+		return this.customEditors;
+	}
 
+	/**
+	 * 
+	 * @param name
+	 * @return
+	 * @throws NoSuchBeanDefinitionException
+	 */
+	public boolean isFactoryBean(String name) throws NoSuchBeanDefinitionException {
+		String beanName = transformedBeanName(name);
+		
+		synchronized (this.singletonCache) {
+			Object beanInstance = this.singletonCache.get(beanName);
+			if (beanInstance != null) {
+				return (beanInstance instanceof FactoryBean);
+			}
+		}
+		
+		if (!containsBeanDefinition(beanName) && getParentBeanFactory() instanceof AbstractBeanFactory) {
+			return ((AbstractBeanFactory) getParentBeanFactory()).isFactoryBean(name);
+		}
+		
+		RootBeanDefinition bd = getMergedBeanDefinition(beanName, false);
+		return (bd.hasBeanClass() && FactoryBean.class.equals(bd.getBeanClass()));
+	}
+	
+	/**
+	 * 
+	 * @return
+	 */
+	public List<BeanPostProcessor> getBeanPostProcessors() {
+		return this.beanPostProcessors;
+	}
+	
+	
+	//-------------------------------------------------------------------
+	// Implementation of BeanFactory interface
+	//-------------------------------------------------------------------
+	
+	@Override
+	public Object getBean(String name) throws BeansException {
+		return getBean(name, null, null);
+	}
+
+	@Override
+	public Object getBean(String name, Class<?> requiredType) throws BeansException {
+		return getBean(name, requiredType, null);
+	}
+	
 	@Override
 	public Class<?> getType(String name) {
 		try {
@@ -395,221 +880,6 @@ public abstract class AbstractBeanFactory implements ConfigurableBeanFactory {
 		this.parentBeanFactory = parentBeanFactory;
 	}
 	
-	protected void registerDependentBean(String beanName, String dependentBeanName) {
-		synchronized (this.dependentBeanMap) {
-			Set<String> dependencies = this.dependentBeanMap.get(beanName);
-			if (dependencies == null) {
-				dependencies = new HashSet<String>();
-				this.dependentBeanMap.put(beanName, dependencies);
-			}
-			dependencies.add(dependentBeanName);
-		}
-	}
-	
-	protected void registerDisposableBean(String beanName, DisposableBean bean) {
-		synchronized (this.disposableBeans) {
-			this.disposableBeans.put(beanName, bean);
-		}
-	}
-	
-	protected void registerDisposableBeanIfNecessary(String beanName, Object bean, RootBeanDefinition mergedBeanDefinition) {
-		
-	}
-	
-	//-----------------------------------------------------------
-	// Implementation methods
-	//-----------------------------------------------------------
-	
-	/**
-	 * 
-	 * @param name
-	 * @return
-	 */
-	protected boolean isFactoryDereference(String name) {
-		return BeanFactoryUtils.isFactoryDereference(name);
-	}
-	
-	/**
-	 * 
-	 * @param name
-	 * @return
-	 */
-	protected String transformedBeanName(String name) {
-		return BeanFactoryUtils.transformedBeanName(name);
-	}
-	
-	/**
-	 * 
-	 * @param name
-	 * @param bean
-	 * @return
-	 */
-	protected Object getObjectForSharedInstance(String name, Object bean) {
-		String beanName = transformedBeanName(name);
-		
-		if (isFactoryDereference(name) && !(bean instanceof FactoryBean)) {
-			throw new BeanIsNotAFactoryException(beanName, bean.getClass());
-		}
-		
-		if (bean instanceof FactoryBean) {
-			if (!isFactoryDereference(name)) {
-				FactoryBean factory = (FactoryBean) bean;
-				if (logger.isDebugEnabled()) {
-					logger.debug(String.format("Bean with name '%s' is a factory bean", beanName));
-				}
-				try {
-					bean = factory.getObject();
-				}
-				catch (Exception ex) {
-					throw new BeanCreationException(beanName, "FactoryBean threw exception on object creation", ex);
-				}
-				if (bean == null) {
-					throw new FactoryBeanNotInitializedException(beanName, "FactoryBean returned null object: " + 
-						"probably not fully initialized (maybe due to circular bean reference)");
-				}
-			}
-			else {
-				if (logger.isDebugEnabled()) {
-					logger.debug(String.format("Calling code asked for FactoryBean instance for name '%s'", beanName));
-				}
-			}
-		}
-		
-		return bean;
-	}
-	
-	protected RootBeanDefinition getMergedBeanDefinition(String name, boolean includingAncestors) {
-		String beanName = transformedBeanName(name);
-		
-		if (includingAncestors && !containsBeanDefinition(beanName) 
-			&& getParentBeanFactory() instanceof AbstractBeanFactory) {
-			return ((AbstractBeanFactory) getParentBeanFactory()).getMergedBeanDefinition(beanName, true);
-		}
-		
-		return getMergedBeanDefinition(beanName, getBeanDefinition(beanName));
-	}
-	
-	protected RootBeanDefinition getMergedBeanDefinition(String beanName, BeanDefinition bd) {
-		if (bd instanceof RootBeanDefinition) {
-			return (RootBeanDefinition) bd;
-		}
-		else if (bd instanceof ChildBeanDefinition) {
-			ChildBeanDefinition cbd = (ChildBeanDefinition) bd;
-			RootBeanDefinition pbd = null;
-			try {
-				if (!beanName.equals(cbd.getParentName())) {
-					pbd = getMergedBeanDefinition(cbd.getParentName(), true);
-				}
-				else {
-					if (getParentBeanFactory() instanceof AbstractBeanFactory) {
-						AbstractBeanFactory parentFactory = (AbstractBeanFactory) getParentBeanFactory();
-						pbd = parentFactory.getMergedBeanDefinition(cbd.getParentName(), true);
-					}
-					else {
-						throw new NoSuchBeanDefinitionException(cbd.getParentName(), 
-							String.format("Parent name '%s' is equals to bean name '%s': cannot be resolved without an AbstractBeanFactory parent", cbd.getParentName(), beanName));
-					}
-				}
-			}
-			catch (NoSuchBeanDefinitionException ex) {
-				throw new BeanDefinitionStoreException(cbd.getResourceDescription(), beanName, 
-					String.format("Could not resolve parent bean definition '%s'", cbd.getParentName()), ex);
-			}
-			
-			RootBeanDefinition rbd = new RootBeanDefinition(pbd);
-			rbd.overrideFrom(cbd);
-			
-			try {
-				rbd.validate();
-			}
-			catch (BeanDefinitionValidationException ex) {
-				throw new BeanDefinitionStoreException(rbd.getResourceDescription(), beanName, 
-					"Validation of bean definition failed", ex);
-			}
-			
-			return rbd;
-		}
-		else {
-			throw new BeanDefinitionStoreException(bd.getResourceDescription(), beanName, "Definition is neither a RootBeanDefinition nor a ChildBeanDefinition");
-		}
-	}
-	
-	protected void checkMergedBeanDefinition(RootBeanDefinition mergedBeanDefinition, String beanName, Class<?> requiredType, Object[] args) {
-		if (mergedBeanDefinition.isAbstract()) {
-			throw new BeanIsAbstractException(beanName);
-		}
-		
-		if (mergedBeanDefinition.hasBeanClass()) {
-			Class<?> beanClass = mergedBeanDefinition.getBeanClass();
-			if (requiredType != null && mergedBeanDefinition.getFactoryMethodName() == null 
-				&& !FactoryBean.class.isAssignableFrom(beanClass) && !requiredType.isAssignableFrom(beanClass)) {
-				throw new BeanNotOfRequiredTypeException(beanName, requiredType, beanClass);
-			}
-		}
-		
-		if (args != null) {
-			if (mergedBeanDefinition.isSingleton()) {
-				throw new BeanDefinitionStoreException("Cannot specify arguments in the getBean() method when referring to a singleton bean definition");
-			}
-			else if (mergedBeanDefinition.getFactoryMethodName() == null) {
-				throw new BeanDefinitionStoreException("Can only specify arguments in the getBean() method in conjunction with a factory method");
-			}
-		}
-	}
-	
-	protected void addSingleton(String beanName, Object singletonObject) {
-		Assert.hasText(beanName, "Bean name must not be empty");
-		Assert.notNull(singletonObject, "Singleton object must not be null");
-		synchronized (this.singletonCache) {
-			this.singletonCache.put(beanName, singletonObject);
-		}
-	}
-	
-	protected void removeSingleton(String beanName) {
-		Assert.hasText(beanName, "Bean name must not be empty");
-		synchronized (this.singletonCache) {
-			this.singletonCache.remove(beanName);
-		}
-	}
-	
-	private void destroyDisposableBean(String beanName) {
-		removeSingleton(beanName);
-		
-		Object disposableBean = null;
-		synchronized (this.disposableBeans) {
-			disposableBean = this.disposableBeans.remove(beanName);
-		}
-		destroyBean(beanName, disposableBean);
-	}
-	
-	protected boolean isSingletonCurrentlyInCreation(String beanName) {
-		return this.currentlyInCreation.contains(beanName);
-	}
-	
-	protected void destroyBean(String beanName, Object bean) {
-		Set<String> dependencies = null;
-		synchronized (this.dependentBeanMap) {
-			dependencies = this.dependentBeanMap.remove(beanName);
-		}
-		
-		if (dependencies != null) {
-			if (logger.isDebugEnabled()) {
-				logger.debug(String.format("Retrieved dependent beans for bean '%s': ", beanName, dependencies));
-			}
-			for (String dependentBeanName : dependencies) {
-				destroyDisposableBean(dependentBeanName);
-			}
-		}
-		
-		if (bean instanceof DisposableBean) {
-			try {
-				((DisposableBean) bean).destroy();
-			}
-			catch (Throwable ex) {
-				logger.error(String.format("Destroy method on bean with name '%s' threw an exception", beanName), ex);
-			}
-		}
-	}
 	
 	//-----------------------------------------------------------
 	// Abstract methods to be implemented by subclasses
