@@ -7,5 +7,12 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 		super();
 		// TODO
 	}
+	
+	public RootBeanDefinition(Class<?> beanClass, int autowireMode, boolean dependencyCheck) {
+		super();
+		// TODO
+	}
+	
+	
 
 }

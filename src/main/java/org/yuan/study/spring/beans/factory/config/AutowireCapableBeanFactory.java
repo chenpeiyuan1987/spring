@@ -1,55 +1,61 @@
 package org.yuan.study.spring.beans.factory.config;
 
+import org.yuan.study.spring.beans.BeansException;
 import org.yuan.study.spring.beans.factory.BeanFactory;
 
 public interface AutowireCapableBeanFactory extends BeanFactory {
 	
-	/**  */
+	/** Constant that indicates determining an appropriate autowire strategy through introspection of the bean class. */
 	int AUTOWIRE_AUTODETECT = 1;
-	/**  */
+	/** Constant that indicates autowiring bean properties by name. */
 	int AUTOWIRE_BY_NAME = 2;
-	/**  */
+	/** Constant that indicates autowiring bean properties by type. */
 	int AUTOWIRE_BY_TYPE = 3;
-	/**  */
+	/** Constant that indicates autowiring a constructor. */
 	int AUTOWIRE_CONSTRUCTOR = 4;
 	
 	/**
 	 * 
-	 * @param bean
-	 * @param name
+	 * @param existingBean
+	 * @param beanName
 	 * @return
+	 * @throws BeansException
 	 */
-	Object applyBeanPostProcessorsAfterInitialization(Object bean, String name);
+	Object applyBeanPostProcessorsAfterInitialization(Object existingBean, String beanName) throws BeansException;
 	
 	/**
 	 * 
-	 * @param bean
-	 * @param name
+	 * @param existingBean
+	 * @param beanName
 	 * @return
+	 * @throws BeansException
 	 */
-	Object applyBeanPostProcessorsBeforeInitialization(Object bean, String name);
+	Object applyBeanPostProcessorsBeforeInitialization(Object existingBean, String beanName) throws BeansException;
 
 	/**
 	 * 
-	 * @param bean
-	 * @param name
+	 * @param existingBean
+	 * @param beanName
+	 * @throws BeansException
 	 */
-	void applyBeanPropertyValues(Object bean, String name);
+	void applyBeanPropertyValues(Object existingBean, String beanName) throws BeansException;
 	
 	/**
 	 * 
-	 * @param clazz
-	 * @param mode
-	 * @param check
+	 * @param beanClass
+	 * @param autowireMode
+	 * @param dependencyCheck
 	 * @return
+	 * @throws BeansException
 	 */
-	Object autowire(Class<?> clazz, int mode, boolean check);
+	Object autowire(Class<?> beanClass, int autowireMode, boolean dependencyCheck) throws BeansException;
 	
 	/**
 	 * 
-	 * @param bean
-	 * @param mode
-	 * @param check
+	 * @param existingBean
+	 * @param autowireMode
+	 * @param dependencyCheck
+	 * @throws BeansException
 	 */
-	void autowireBeanProperties(Object bean, int mode, boolean check);
+	void autowireBeanProperties(Object existingBean, int autowireMode, boolean dependencyCheck) throws BeansException;
 }

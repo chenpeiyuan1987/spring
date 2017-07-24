@@ -79,6 +79,22 @@ public abstract class AbstractBeanDefinition implements BeanDefinition {
 	public String[] getDependsOn() {
 		return null;
 	}
+	
+	/**
+	 * 
+	 * @param singleton
+	 */
+	public void setSingleton(boolean singleton) {
+		
+	}
+	
+	/**
+	 * 
+	 * @return
+	 */
+	public int getResolvedAutowireMode() {
+		return 0;
+	}
 	//--------------------------------------------------------------
 	// Implementation of BeanDefinition interface
 	//--------------------------------------------------------------
