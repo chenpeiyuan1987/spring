@@ -14,7 +14,7 @@ import org.yuan.study.spring.beans.factory.config.BeanDefinition;
 public abstract class AbstractAutowireCapableBeanFactory 
 	extends AbstractBeanFactory implements AutowireCapableBeanFactory {
 	
-	private Instantia
+	private InstantiationStrategy instantiationStrategy = new CglibSubclassingInstantiationStrategy();
 	
 	/***/
 	private boolean allowCircularReferences = true;
@@ -37,6 +37,22 @@ public abstract class AbstractAutowireCapableBeanFactory
 	//-----------------------------------------------------------------
 	// Implementation methods
 	//-----------------------------------------------------------------
+	
+	/**
+	 * 
+	 * @return
+	 */
+	public InstantiationStrategy getInstantiationStrategy() {
+		return instantiationStrategy;
+	}
+
+	/**
+	 * 
+	 * @param instantiationStrategy
+	 */
+	public void setInstantiationStrategy(InstantiationStrategy instantiationStrategy) {
+		this.instantiationStrategy = instantiationStrategy;
+	}
 	
 	/**
 	 * 
