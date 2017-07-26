@@ -2,6 +2,16 @@ package org.yuan.study.spring.beans;
 
 public class BeanWrapperImpl extends PropertyEditorRegistrySupport implements BeanWrapper {
 
+	/**
+	 * 
+	 */
+	public BeanWrapperImpl() {
+	}
+
+	/**
+	 * 
+	 * @param bean
+	 */
 	public BeanWrapperImpl(Object bean) {
 	}
 	

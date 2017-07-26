@@ -6,5 +6,5 @@ public interface BeanFactoryAware {
 	 * 
 	 * @param beanFactory
 	 */
-	void setBeanFactory(BeanFactory beanFactory)
+	void setBeanFactory(BeanFactory beanFactory);
 }

@@ -160,7 +160,10 @@ public abstract class AbstractAutowireCapableBeanFactory
 	 * @throws BeansException
 	 */
 	protected BeanWrapper instantiateBean(String beanName, RootBeanDefinition mergedBeanDefinition) throws BeansException {
-		return null;
+		Object beanInstance = getInstantiationStrategy().instantiate(mergedBeanDefinition, beanName, this);
+		BeanWrapper bw = new BeanWrapperImpl(beanInstance);
+		initBeanWrapper(bw);
+		return bw;
 	}
 	
 	//-----------------------------------------------------------------
