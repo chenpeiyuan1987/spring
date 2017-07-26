@@ -13,6 +13,8 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 		// TODO
 	}
 	
-	
+	public boolean hasConstructorArgumentValues() {
+		return false;
+	}
 
 }

@@ -5,6 +5,24 @@ import org.yuan.study.spring.beans.factory.config.BeanDefinition;
 import org.yuan.study.spring.beans.factory.config.ConstructorArgumentValues;
 
 public abstract class AbstractBeanDefinition implements BeanDefinition {
+	/**  */
+	public static final int AUTOWIRE_AUTODETECT = 0;
+	/**  */
+	public static final int AUTOWIRE_BY_NAME = 1;
+	/**  */
+	public static final int AUTOWIRE_BY_TYPE = 2;
+	/**  */
+	public static final int AUTOWIRE_CONSTRUCTOR = 3;
+	/**  */
+	public static final int AUTOWIRE_NO = 4;
+	/**  */
+	public static final int DEPENDENCY_CHECK_ALL = 5;
+	/**  */
+	public static final int DEPENDENCY_CHECK_NONE = 6;
+	/**  */
+	public static final int DEPENDENCY_CHECK_OBJECTS = 7;
+	/**  */
+	public static final int DEPENDENCY_CHECK_SIMPLE = 8;
 	
 	//----------------------------------------------------------------
 	// Implementation methods

@@ -19,4 +19,9 @@ public class BeanCreationException extends FatalBeanException {
 		this.beanName = beanName;
 	}
 	
+	public BeanCreationException(String resourceDescription, String beanName, String message, Throwable cause) {
+		super(message, cause);
+		this.beanName = beanName;
+	}
+	
 }
