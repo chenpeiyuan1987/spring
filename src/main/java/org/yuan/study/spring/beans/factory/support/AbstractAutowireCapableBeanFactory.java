@@ -1,11 +1,17 @@
 package org.yuan.study.spring.beans.factory.support;
 
+import java.beans.PropertyDescriptor;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.TreeSet;
 
+import org.springframework.beans.BeanUtils;
+import org.springframework.util.StringUtils;
 import org.yuan.study.spring.beans.BeanWrapper;
 import org.yuan.study.spring.beans.BeanWrapperImpl;
 import org.yuan.study.spring.beans.BeansException;
+import org.yuan.study.spring.beans.MutablePropertyValues;
+import org.yuan.study.spring.beans.PropertyValues;
 import org.yuan.study.spring.beans.factory.BeanCreationException;
 import org.yuan.study.spring.beans.factory.BeanFactory;
 import org.yuan.study.spring.beans.factory.BeanFactoryAware;
@@ -45,6 +51,7 @@ public abstract class AbstractAutowireCapableBeanFactory
 		this();
 		setParentBeanFactory(parentBeanFactory);
 	}
+	
 	
 	//-----------------------------------------------------------------
 	// Implementation methods
@@ -119,7 +126,25 @@ public abstract class AbstractAutowireCapableBeanFactory
 	 * @throws BeansException
 	 */
 	protected void populateBean(String beanName, RootBeanDefinition mergedBeanDefinition, BeanWrapper bw) throws BeansException {
+		PropertyValues pvs = mergedBeanDefinition.getPropertyValues();
 		
+		if (mergedBeanDefinition.getResolvedAutowireMode() == RootBeanDefinition.AUTOWIRE_BY_NAME 
+			|| mergedBeanDefinition.getResolvedAutowireMode() == RootBeanDefinition.AUTOWIRE_BY_TYPE) {
+			MutablePropertyValues mpvs = new MutablePropertyValues(pvs);
+			
+			if (mergedBeanDefinition.getResolvedAutowireMode() == RootBeanDefinition.AUTOWIRE_BY_NAME) {
+				autowireByName(beanName, mergedBeanDefinition, bw, mpvs);
+			}
+			
+			if (mergedBeanDefinition.getResolvedAutowireMode() == RootBeanDefinition.AUTOWIRE_BY_TYPE) {
+				autowireByType(beanName, mergedBeanDefinition, bw, mpvs);
+			}
+			
+			pvs = mpvs;
+		}
+		
+		checkDependencies(beanName, mergedBeanDefinition, bw, pvs);
+		applyPropertyValues(beanName, mergedBeanDefinition, bw, pvs);
 	}
 	
 	/**
@@ -164,6 +189,45 @@ public abstract class AbstractAutowireCapableBeanFactory
 		BeanWrapper bw = new BeanWrapperImpl(beanInstance);
 		initBeanWrapper(bw);
 		return bw;
+	}
+	
+	protected void autowireByName(String beanName, RootBeanDefinition mergedBeanDefinition, 
+		BeanWrapper bw, MutablePropertyValues pvs) throws BeansException {
+		// TODO
+	}
+	
+	protected void autowireByType(String beanName, RootBeanDefinition mergedBeanDefinition, 
+		BeanWrapper bw, MutablePropertyValues pvs) throws BeansException {
+		
+	}
+	
+	protected void checkDependencies(String beanName, RootBeanDefinition mergedBeanDefinition, 
+		BeanWrapper bw, PropertyValues pvs) {
+		// TODO
+		
+	}
+	
+	protected void applyPropertyValues(String beanName, RootBeanDefinition mergedBeanDefinition, 
+		BeanWrapper bw, PropertyValues pvs) {
+		// TODO
+	}
+	
+	protected String[] unsatisfiedNonSimpleProperties(RootBeanDefinition mergedBeanDefinition, BeanWrapper bw) {
+		Set<String> result = new TreeSet<String>();
+		PropertyValues pvs = mergedBeanDefinition.getPropertyValues();
+		PropertyDescriptor[] pds = bw.getPropertyDescriptors();
+		for (PropertyDescriptor pd : pds) {
+			if (pd.getWriteMethod() != null && !isExcludedFromDependencyCheck(pd) 
+				&& !pvs.contains(pd.getName()) && !BeanUtils.isSimpleProperty(pd.getPropertyType())) {
+				result.add(pd.getName());
+			}
+		}
+		return StringUtils.toStringArray(result);
+	}
+	
+	protected boolean isExcludedFromDependencyCheck(PropertyDescriptor pd) {
+		// TODO
+		return false;
 	}
 	
 	//-----------------------------------------------------------------
