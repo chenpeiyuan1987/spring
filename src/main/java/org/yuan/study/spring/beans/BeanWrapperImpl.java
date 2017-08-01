@@ -1,5 +1,7 @@
 package org.yuan.study.spring.beans;
 
+import java.beans.PropertyDescriptor;
+
 public class BeanWrapperImpl extends PropertyEditorRegistrySupport implements BeanWrapper {
 
 	/**
@@ -31,6 +33,11 @@ public class BeanWrapperImpl extends PropertyEditorRegistrySupport implements Be
 		// TODO Auto-generated method stub
 		return null;
 	}
-	
+
+	@Override
+	public PropertyDescriptor[] getPropertyDescriptors() {
+		// TODO Auto-generated method stub
+		return null;
+	}
 	
 }

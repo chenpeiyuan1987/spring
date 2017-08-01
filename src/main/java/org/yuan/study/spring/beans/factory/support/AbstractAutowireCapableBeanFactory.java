@@ -1,23 +1,28 @@
 package org.yuan.study.spring.beans.factory.support;
 
 import java.beans.PropertyDescriptor;
+import java.lang.reflect.Constructor;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.TreeSet;
 
-import org.springframework.beans.BeanUtils;
-import org.springframework.util.StringUtils;
+import org.yuan.study.spring.beans.BeanUtils;
 import org.yuan.study.spring.beans.BeanWrapper;
 import org.yuan.study.spring.beans.BeanWrapperImpl;
 import org.yuan.study.spring.beans.BeansException;
 import org.yuan.study.spring.beans.MutablePropertyValues;
+import org.yuan.study.spring.beans.PropertyValue;
 import org.yuan.study.spring.beans.PropertyValues;
 import org.yuan.study.spring.beans.factory.BeanCreationException;
 import org.yuan.study.spring.beans.factory.BeanFactory;
 import org.yuan.study.spring.beans.factory.BeanFactoryAware;
 import org.yuan.study.spring.beans.factory.BeanNameAware;
+import org.yuan.study.spring.beans.factory.UnsatisfiedDependencyException;
 import org.yuan.study.spring.beans.factory.config.AutowireCapableBeanFactory;
 import org.yuan.study.spring.beans.factory.config.BeanDefinition;
+import org.yuan.study.spring.beans.factory.config.BeanPostProcessor;
+import org.yuan.study.spring.beans.factory.config.ConstructorArgumentValues;
+import org.yuan.study.spring.util.StringUtils;
 
 public abstract class AbstractAutowireCapableBeanFactory 
 	extends AbstractBeanFactory implements AutowireCapableBeanFactory {
@@ -152,7 +157,75 @@ public abstract class AbstractAutowireCapableBeanFactory
 	 * @throws BeansException
 	 */
 	protected BeanWrapper autowireConstructor(String beanName, RootBeanDefinition mergedBeanDefinition) throws BeansException {
-		return null;
+		ConstructorArgumentValues cargs = mergedBeanDefinition.getConstructorArgumentValues();
+		ConstructorArgumentValues resolvedValues = new ConstructorArgumentValues();
+		
+		BeanWrapperImpl bw = new BeanWrapperImpl();
+		initBeanWrapper(bw);
+		
+		int minNrOfArgs = 0;
+		if (cargs != null) {
+			minNrOfArgs = resolveConstructorArguments(beanName, mergedBeanDefinition, cargs, resolvedValues);
+		}
+		
+		Constructor<?>[] candidates = mergedBeanDefinition.getBeanClass().getDeclaredConstructors();
+		AutowireUtils.sortConstructors(candidates);
+		
+		Constructor<?> constructorToUse = null;
+		Object[] argsToUse = null;
+		int minTypeDiffWeight = Integer.MAX_VALUE;
+		
+		for (int i = 0; i < candidates.length; i++) {
+			Constructor<?> constructor = candidates[i];
+			
+			if (constructorToUse != null 
+				&& constructorToUse.getParameterTypes().length > constructor.getParameterTypes().length) {
+				break;
+			}
+			
+			if (constructor.getParameterTypes().length < minNrOfArgs) {
+				throw new BeanCreationException(mergedBeanDefinition.getResourceDescription(), beanName, 
+					String.format("%s constructor arguments specified but no matching constructor found in bean '%s' (hint: specify index and/or type arguments for simple parameters to avoid type ambiguities)", minNrOfArgs, beanName));
+			}
+			
+			try {
+				Class<?>[] argTypes = constructor.getParameterTypes();
+				ArgumentsHolder args = createArgumentArray(beanName, mergedBeanDefinition, resolvedValues, bw, argTypes, "constructor");
+				
+				int typeDiffWeight = args.getTypeDifferenceWeight(argTypes);
+				
+				if (typeDiffWeight < minTypeDiffWeight) {
+					constructorToUse = constructor;
+					argsToUse = args.arguments;
+					minTypeDiffWeight = typeDiffWeight;
+				}
+			}
+			catch (UnsatisfiedDependencyException ex) {
+				if (logger.isDebugEnabled()) {
+					logger.debug(String.format("Ignoring constructor [%s] of bean '%s': %s", constructor, beanName, ex.getMessage()));
+				}
+				if (i == candidates.length - 1 && constructorToUse == null) {
+					throw ex;
+				}
+				else {
+					
+				}
+			}
+		}
+		
+		if (constructorToUse == null) {
+			throw new BeanCreationException(
+				mergedBeanDefinition.getResourceDescription(), beanName, "Could not resolve matching constructor");
+		}
+		
+		Object beanInstance = this.instantiationStrategy.instantiate(
+			mergedBeanDefinition, beanName, this, constructorToUse, argsToUse);
+		bw.setWrappedInstance(beanInstance);
+		if (logger.isDebugEnabled()) {
+			logger.debug(String.format("Bean '%s' instantiated via constructor [%s]", beanName, constructorToUse));
+		}
+		
+		return bw;
 	}
 	
 	/**
@@ -163,6 +236,19 @@ public abstract class AbstractAutowireCapableBeanFactory
 	 * @throws BeanException
 	 */
 	protected Object applyBeanPostProcessorsBeforeInstantiation(Class<?> beanClass, String beanName) throws BeansException {
+		if (logger.isDebugEnabled()) {
+			logger.debug(String.format("Invoking BeanPostProcessors before instantiation of bean '%s'", beanName));
+		}
+		
+		for (BeanPostProcessor beanProcessor : getBeanPostProcessors()) {
+			if (beanProcessor instanceof InstantiationAwareBeanPostProcessor) {
+				Object result = ((InstantiationAwareBeanPostProcessor) beanProcessor).postProcessBeforeInstantiation(beanClass, beanName);
+				if (result != null) {
+					return result;
+				}
+			}
+		}
+		
 		return null;
 	}
 	
@@ -174,7 +260,16 @@ public abstract class AbstractAutowireCapableBeanFactory
 	 * @throws Throwable
 	 */
 	protected void invokeInitMethods(String beanName, Object bean, RootBeanDefinition mergedBeanDefinition) throws Throwable {
+		if (bean instanceof InitializingBean) {
+			if (logger.isDebugEnabled()) {
+				logger.debug(String.format("Invoking afterPropertiesSet() on bean with name '%s'", beanName) );
+			}
+			((InitializingBean) bean).
+		}
 		
+		if (mergedBeanDefinition != null && mergedBeanDefinition.get) {
+			
+		}
 	}
 	
 	/**
@@ -208,8 +303,33 @@ public abstract class AbstractAutowireCapableBeanFactory
 	}
 	
 	protected void applyPropertyValues(String beanName, RootBeanDefinition mergedBeanDefinition, 
-		BeanWrapper bw, PropertyValues pvs) {
-		// TODO
+		BeanWrapper bw, PropertyValues pvs) throws BeansException {
+		if (pvs == null) {
+			return;
+		}
+		
+		BeanDefinitionValueResolver valueResolver = new BeanDefinitionValueResolver(this, beanName, mergedBeanDefinition);
+		
+		MutablePropertyValues deepCopy = new MutablePropertyValues();
+		PropertyValue[] pvArray = pvs.getPropertyValues();
+		for (PropertyValue pv : pvArray) {
+			Object resolvedValue = valueResolver.resolveValueIfNecessary(String.format("bean property '%s'", pv.getName()), pv.getValue());
+			deepCopy.addPropertyValue(pv.getName(), resolvedValue);
+		}
+		
+		try {
+			if (!getCustomEditors().isEmpty()) {
+				synchronized (this) {
+					bw.setPropertyValues(deepCopy);
+				}
+			}
+			else {
+				bw.setPropertyValues(deepCopy);
+			}
+		}
+		catch (BeansException ex) {
+			throw new BeanCreationException(mergedBeanDefinition.getResourceDescription(), beanName, "Error setting property values", ex);
+		}
 	}
 	
 	protected String[] unsatisfiedNonSimpleProperties(RootBeanDefinition mergedBeanDefinition, BeanWrapper bw) {
@@ -230,27 +350,64 @@ public abstract class AbstractAutowireCapableBeanFactory
 		return false;
 	}
 	
+	private ArgumentsHolder createArgumentArray(String beanName, RootBeanDefinition mergedBeanDefinition, 
+		ConstructorArgumentValues resolvedValues, BeanWrapperImpl bw, Class<?>[] argTypes, String methodType) throws UnsatisfiedDependencyException {
+		// TODO
+		return null;
+	}
+	
+	private int resolveConstructorArguments(String beanName, RootBeanDefinition mergedBeanDefinition, 
+		ConstructorArgumentValues cargs, ConstructorArgumentValues resolvedValues) {
+		// TODO
+		return 0;
+	}
+	
 	//-----------------------------------------------------------------
 	// Implementation of AutowireCapableBeanFactory interface
 	//-----------------------------------------------------------------
 	
 	@Override
 	public Object applyBeanPostProcessorsAfterInitialization(Object existingBean, String beanName)
-			throws BeansException {
-		// TODO Auto-generated method stub
-		return null;
+		throws BeansException {
+		if (logger.isDebugEnabled()) {
+			logger.debug(String.format("Invoking BeanPostProcessors before initialization of bean '%s'", beanName));
+		}
+		Object result = existingBean;
+		for (BeanPostProcessor beanPostProcessor : getBeanPostProcessors()) {
+			result = beanPostProcessor.postProcessBeforeInitialization(result, beanName);
+			if (result == null) {
+				throw new BeanCreationException(beanName, String.format(
+					"postProcessBeforeInitialization method of BeanPostProcessor [%s] returned null for bean [%s] with name [%s]", 
+					beanPostProcessor, result, beanName));
+			}
+		}
+		return result;
 	}
 
 	@Override
 	public Object applyBeanPostProcessorsBeforeInitialization(Object existingBean, String beanName)
-			throws BeansException {
-		// TODO Auto-generated method stub
-		return null;
+		throws BeansException {
+		if (logger.isDebugEnabled()) {
+			logger.debug(String.format("Invoking BeanPostProcessors after initialization of bean '%s'", beanName));
+		}
+		Object result = existingBean;
+		for (BeanPostProcessor beanPostProcessor : getBeanPostProcessors()) {
+			result = beanPostProcessor.postProcessAfterInitialization(result, beanName);
+			if (result == null) {
+				throw new BeanCreationException(beanName, String.format(
+					"postProcessAfterInitialization method of BeanPostProcessor [%s] returned null for bean [%s] with name [%s]", 
+					beanPostProcessor, result, beanName));
+			}
+		}
+		return result;
 	}
 
 	@Override
 	public void applyBeanPropertyValues(Object existingBean, String beanName) throws BeansException {
-		// TODO Auto-generated method stub
+		RootBeanDefinition bd = getMergedBeanDefinition(beanName, true);
+		BeanWrapper bw = new BeanWrapperImpl(existingBean);
+		initBeanWrapper(bw);
+		applyPropertyValues(beanName, bd, bw, bd.getPropertyValues());
 		
 	}
 
@@ -270,7 +427,7 @@ public abstract class AbstractAutowireCapableBeanFactory
 
 	@Override
 	public void autowireBeanProperties(Object existingBean, int autowireMode, boolean dependencyCheck)
-			throws BeansException {
+		throws BeansException {
 		// TODO Auto-generated method stub
 		
 	}
@@ -378,4 +535,30 @@ public abstract class AbstractAutowireCapableBeanFactory
 		return bean;
 	}
 
+	//---------------------------------------------------------------------------------
+	// Private inner class for internal use
+	//---------------------------------------------------------------------------------
+	
+	private static class ArgumentsHolder {
+		
+		public Object rawArguments[];
+		
+		public Object arguments[];
+
+		public ArgumentsHolder(int size) {
+			this.rawArguments = new Object[size];
+			this.arguments = new Object[size];
+		}
+		
+		public ArgumentsHolder(Object[] args) {
+			this.rawArguments = args;
+			this.arguments = args;
+		}
+		
+		public int getTypeDifferenceWeight(Class<?>[] argTypes) {
+			int typeDiffWeight = AutowireUtils.getTypeDifferenceWeight(argTypes, this.arguments);
+			int rawTypeDiffWeight = AutowireUtils.getTypeDifferenceWeight(argTypes, this.rawArguments) - 1024;
+			return (rawTypeDiffWeight < typeDiffWeight ? rawTypeDiffWeight : typeDiffWeight);
+		}
+	}
 }

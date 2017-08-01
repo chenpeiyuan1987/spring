@@ -14,5 +14,11 @@ public interface BeanWrapper extends PropertyAccessor, PropertyEditorRegistry {
 	 * 
 	 * @return
 	 */
+	Object setWrappedInstance(Object object);
+	
+	/**
+	 * 
+	 * @return
+	 */
 	PropertyDescriptor[] getPropertyDescriptors();
 }

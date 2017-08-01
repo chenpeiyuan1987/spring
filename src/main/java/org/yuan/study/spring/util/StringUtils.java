@@ -78,4 +78,24 @@ public abstract class StringUtils {
 	public static boolean hasLength(String str) {
 		return (str != null && str.length() > 0);
 	}
+	
+	/**
+	 * 
+	 * @param arr
+	 * @param delim
+	 * @return
+	 */
+	public static String arrayToDelimitedString(Object[] arr, String delim) {
+		if (ObjectUtils.isEmpty(arr)) {
+			return "";
+		}
+		StringBuffer sb = new StringBuffer();
+		for (int i = 0; i < arr.length; i++) {
+			if (i > 0) {
+				sb.append(delim);
+			}
+			sb.append(arr[i]);
+		}
+		return sb.toString();
+	}
 }

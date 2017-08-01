@@ -14,4 +14,9 @@ public class BeanUtils {
 		// TODO
 		return null;
 	}
+	
+	public static boolean isSimpleProperty(Class<?> clazz) {
+		// TODO
+		return false;
+	}
 }
