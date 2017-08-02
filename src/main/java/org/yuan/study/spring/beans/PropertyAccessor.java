@@ -54,12 +54,12 @@ public interface PropertyAccessor {
 	 * The preferred way to perform a batch update.
 	 * @param pvs
 	 */
-	void setPropertyValues(PropertyValues pvs);
+	void setPropertyValues(PropertyValues pvs) throws BeansException;
 	
 	/**
 	 * Perform a batch update with full control over behavior.
 	 * @param pvs
 	 * @param ignoreUnknown
 	 */
-	void setPropertyValues(PropertyValues pvs, boolean ignoreUnknown);
+	void setPropertyValues(PropertyValues pvs, boolean ignoreUnknown) throws BeansException;
 }
