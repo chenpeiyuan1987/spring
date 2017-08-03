@@ -18,6 +18,8 @@ import java.util.Set;
 import java.util.SortedSet;
 
 import org.springframework.core.io.Resource;
+import org.yuan.study.spring.beans.propertyeditors.ClassEditor;
+import org.yuan.study.spring.beans.propertyeditors.FileEditor;
 
 public class PropertyEditorRegistrySupport implements PropertyEditorRegistry {
 	
@@ -119,8 +121,8 @@ public class PropertyEditorRegistrySupport implements PropertyEditorRegistry {
 	protected void registerDefaultEditors() {
 		this.defaultEditors = new HashMap<Class<?>, PropertyEditor>(32);
 		
-		this.defaultEditors.put(Class.class, null);
-		this.defaultEditors.put(File.class, null);
+		this.defaultEditors.put(Class.class, new ClassEditor());
+		this.defaultEditors.put(File.class, new FileEditor());
 		this.defaultEditors.put(InputStream.class, null);
 		this.defaultEditors.put(Locale.class, null);
 		this.defaultEditors.put(Properties.class, null);
