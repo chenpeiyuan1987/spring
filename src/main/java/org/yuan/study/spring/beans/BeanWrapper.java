@@ -12,9 +12,8 @@ public interface BeanWrapper extends PropertyAccessor, PropertyEditorRegistry {
 	
 	/**
 	 * Change the wrapped JavaBean object.
-	 * @return
 	 */
-	Object setWrappedInstance(Object object);
+	void setWrappedInstance(Object object);
 	
 	/**
 	 * Obtain the PropertyDescriptors for the wrapped object.
@@ -64,5 +63,5 @@ public interface BeanWrapper extends PropertyAccessor, PropertyEditorRegistry {
 	/**
 	 * Set whether to extract the old property value when applying a property editor to a new value for a property.
 	 */
-	void setExtractOldValueForEditor();
+	void setExtractOldValueForEditor(boolean extractOldValueForEditor);
 }

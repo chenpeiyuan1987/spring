@@ -1,9 +1,13 @@
 package org.yuan.study.spring.beans;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.springframework.beans.BeanInstantiationException;
 import org.yuan.study.spring.util.Assert;
 
 public class BeanUtils {
@@ -109,5 +113,57 @@ public class BeanUtils {
 		Assert.notNull(valueType, "valueType must not be null");
 		return (targetType.isAssignableFrom(valueType) 
 			|| targetType.equals(primitiveWrapperTypeMap.get(valueType)));
+	}
+	
+	/**
+	 * 
+	 * @param clazz
+	 * @return
+	 */
+	public static Object instantiateClass(Class<?> clazz) throws BeanInstantiationException {
+		Assert.notNull(clazz, "Class must not be null");
+		if (clazz.isInterface()) {
+			throw new BeanInstantiationException(clazz, "Specified class is an interface");
+		}
+		try {
+			return instantiateClass(clazz.getDeclaredConstructor((Class[]) null), null);
+		}
+		catch (NoSuchMethodException ex) {
+			throw new BeanInstantiationException(clazz, "No default constructor found", ex);
+		}
+	}
+	
+	/**
+	 * Convenience method to instantiate a class using the given constructor.
+	 * @param ctor
+	 * @param args
+	 * @return
+	 * @throws BeanInstantiationException
+	 */
+	public static Object instantiateClass(Constructor<?> ctor, Object[] args) throws BeanInstantiationException {
+		Assert.notNull(ctor, "Constructor must not be null");
+		try {
+			if (!Modifier.isPublic(ctor.getModifiers()) 
+				|| !Modifier.isPublic(ctor.getDeclaringClass().getModifiers())) {
+				ctor.setAccessible(true);
+			}
+			return ctor.newInstance(args);
+		}
+		catch (InstantiationException ex) {
+			throw new BeanInstantiationException(ctor.getDeclaringClass(),
+				"Is it an abstract class?", ex);
+		}
+		catch (IllegalAccessException ex) {
+			throw new BeanInstantiationException(ctor.getDeclaringClass(),
+				"Has the class definition changed? Is the constructor accessible?", ex);
+		}
+		catch (IllegalArgumentException ex) {
+			throw new BeanInstantiationException(ctor.getDeclaringClass(),
+				"Illegal arguments for constructor", ex);
+		}
+		catch (InvocationTargetException ex) {
+			throw new BeanInstantiationException(ctor.getDeclaringClass(),
+				"Constructor threw exception", ex.getTargetException());
+		}
 	}
 }

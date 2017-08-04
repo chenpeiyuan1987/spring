@@ -2,8 +2,6 @@ package org.yuan.study.spring.beans;
 
 import java.util.Map;
 
-import org.springframework.beans.PropertyValue;
-
 public interface PropertyAccessor {
 	
 	/**
