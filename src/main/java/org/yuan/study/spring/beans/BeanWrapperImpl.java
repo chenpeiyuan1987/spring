@@ -6,14 +6,19 @@ import java.beans.PropertyEditor;
 import java.beans.PropertyEditorManager;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.springframework.beans.NotReadablePropertyException;
 import org.springframework.util.StringUtils;
 import org.yuan.study.spring.util.Assert;
 
@@ -268,6 +273,39 @@ public class BeanWrapperImpl extends PropertyEditorRegistrySupport implements Be
 	}
 	
 	/**
+	 * Create a new nested BeanWrapper instance.
+	 * @param object
+	 * @param nestedPath
+	 * @return
+	 */
+	protected BeanWrapperImpl newNestedBeanWrapper(Object object, String nestedPath) {
+		return new BeanWrapperImpl(object, nestedPath, this);
+	}
+	
+	/**
+	 * 
+	 * @param propertyName
+	 * @return
+	 * @throws BeansException
+	 */
+	protected PropertyDescriptor getPropertyDescriptorInternal(String propertyName) throws BeansException {
+		Assert.state(this.cachedIntrospectionResults != null, "BeanWrapper does not hold a bean instance");
+		Assert.notNull(propertyName, "Property name must not be null");
+		// TODO
+		return null;
+	}
+	
+	/**
+	 * 
+	 * @param nestedProperty
+	 * @return
+	 */
+	private BeanWrapperImpl getNestedBeanWrapper(String nestedProperty) {
+		// TODO
+		return null;
+	}
+	
+	/**
 	 * 
 	 * @param propertyName
 	 * @param oldValue
@@ -279,6 +317,125 @@ public class BeanWrapperImpl extends PropertyEditorRegistrySupport implements Be
 		return null;
 	}
 	
+	/**
+	 * 
+	 * @param tokens
+	 * @return
+	 * @throws BeansException
+	 */
+	private Object getPropertyValue(PropertyTokenHolder tokens) throws BeansException {
+		String propertyName = tokens.canonicalName;
+		String actualName = tokens.actualName;
+		PropertyDescriptor propertyDescriptor = getPropertyDescriptorInternal(tokens.actualName);
+		if (propertyDescriptor == null || propertyDescriptor.getReadMethod() == null) {
+			// TODO
+		}
+		Method readMethod = propertyDescriptor.getReadMethod();
+		if (logger.isDebugEnabled()) {
+			logger.debug(String.format("About to invoke read method [%s] on object of class [%s]", readMethod, this.object.getClass().getName()));
+		}
+		try {
+			if (!Modifier.isPrivate(readMethod.getDeclaringClass().getModifiers())) {
+				readMethod.setAccessible(true);
+			}
+			Object value = readMethod.invoke(this.object, (Object[]) null);
+			if (tokens.keys != null) {
+				for (String  key : tokens.keys) {
+					if (value == null) {
+						// TODO
+					}
+					else if (value.getClass().isArray()) {
+						value = Array.get(value, Integer.parseInt(key));
+					}
+					else if (value instanceof List) {
+						List<?> list = (List<?>) value;
+						value = list.get(Integer.parseInt(key));
+					} 
+					else if (value instanceof Set) {
+						Set<?> set = (Set<?>) value;
+						int index = Integer.parseInt(key);
+						if (index < 0 || index >= set.size()) {
+							throw new InvalidPropertyException(getRootClass(), this.nestedPath + propertyName, 
+								String.format("Cannot get element with index %s from Set of size %s, accessed using property path '%s'", index, set.size(), propertyName));
+						}
+						int i = 0;
+						for (Object elem : set) {
+							if (i == index) {
+								value = elem;
+								break;
+							}
+							i++;
+						}
+					}
+					else if (value instanceof Map) {
+						Map<?,?> map = (Map<?,?>) value;
+						value = map.get(key);
+					}
+					else {
+						throw new InvalidPropertyException(getRootClass(), this.nestedPath + propertyName, 
+							String.format("Property referenced in indexed property path '%s' is neither an array nor a List nor a Set nor a Map; returned value was [%s]", propertyName, value));
+					}
+				}
+			}
+			return value;
+		} 
+		catch (InvocationTargetException ex) {
+			throw new InvalidPropertyException(getRootClass(), this.nestedPath + propertyName, 
+				String.format("Getter for property '%s' threw exception", actualName), ex);
+		}
+		catch (IllegalAccessException ex) {
+			throw new InvalidPropertyException(getRootClass(), this.nestedPath + propertyName, 
+					String.format("Illegal attempt to get property '%s' threw exception", actualName), ex);
+		}
+		catch (IndexOutOfBoundsException ex) {
+			throw new InvalidPropertyException(getRootClass(), this.nestedPath + propertyName, 
+					String.format("Index of out of bounds in property path '%s'", propertyName), ex);
+		}
+		catch (NumberFormatException ex) {
+			throw new InvalidPropertyException(getRootClass(), this.nestedPath + propertyName, 
+					String.format("Invalid index in property path '%s'", propertyName), ex);
+		}
+	}
+	
+	/**
+	 * Parse the given property name into the corresponding property name tokens.
+	 * @param propertyName
+	 * @return
+	 */
+	private PropertyTokenHolder getPropertyNameTokens(String propertyName) {
+		PropertyTokenHolder tokens = new PropertyTokenHolder();
+		String actualName = null;
+		List<String> keys = new ArrayList<String>(2);
+		int searchIndex = 0;
+		while (searchIndex != -1) {
+			int keyStart = propertyName.indexOf(PROPERTY_KEY_PREFIX, searchIndex);
+			searchIndex = -1;
+			if (keyStart != -1) {
+				int keyEnd = propertyName.indexOf(PROPERTY_KEY_SUFFIX, keyStart + PROPERTY_KEY_PREFIX.length());
+				if (keyEnd != -1) {
+					if (actualName == null) {
+						actualName = propertyName.substring(0, keyStart);
+					}
+					String key = propertyName.substring(keyStart + PROPERTY_KEY_PREFIX.length(), keyEnd);
+					if ((key.startsWith("'") && key.endsWith("'")) || (key.startsWith("\"") && key.endsWith("\""))) {
+						key = key.substring(1, key.length() - 1);
+					}
+					keys.add(key);
+					searchIndex = keyEnd + PROPERTY_KEY_SUFFIX.length();
+				}
+			}
+		}
+		tokens.actualName = (actualName != null ? actualName : propertyName);
+		tokens.canonicalName = tokens.actualName;
+		if (!keys.isEmpty()) {
+			tokens.canonicalName += 
+				PROPERTY_KEY_PREFIX + 
+				StringUtils.collectionToDelimitedString(keys, PROPERTY_KEY_SUFFIX + PROPERTY_KEY_PREFIX) + 
+				PROPERTY_KEY_SUFFIX;
+			tokens.keys = StringUtils.toStringArray(keys);
+		}
+		return tokens;
+	}
 	//---------------------------------------------------------
 	// Implementation of BeanWrapper interfacee
 	//---------------------------------------------------------
@@ -356,7 +513,7 @@ public class BeanWrapperImpl extends PropertyEditorRegistrySupport implements Be
 
 	@Override
 	public void setPropertyValue(String propertyName, Object value) throws BeansException {
-		
+		// TODO
 	}
 
 	@Override
