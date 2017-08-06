@@ -52,13 +52,13 @@ public interface BeanWrapper extends PropertyAccessor, PropertyEditorRegistry {
 	 * Determine whether the specified property is readable.
 	 * @return
 	 */
-	boolean isReadableProperty();
+	boolean isReadableProperty(String propertyName);
 	
 	/**
 	 * Determine whether the specified property is writable.
 	 * @return
 	 */
-	boolean isWritableProperty();
+	boolean isWritableProperty(String propertyName);
 	
 	/**
 	 * Set whether to extract the old property value when applying a property editor to a new value for a property.

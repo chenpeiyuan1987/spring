@@ -11,6 +11,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -18,7 +19,7 @@ import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.springframework.beans.NotReadablePropertyException;
+import org.springframework.beans.NullValueInNestedPathException;
 import org.springframework.util.StringUtils;
 import org.yuan.study.spring.util.Assert;
 
@@ -283,7 +284,8 @@ public class BeanWrapperImpl extends PropertyEditorRegistrySupport implements Be
 	}
 	
 	/**
-	 * 
+	 * Internal version of getPropertyDescriptor: 
+	 * Returns null if not found rather than throwing an exception.
 	 * @param propertyName
 	 * @return
 	 * @throws BeansException
@@ -291,18 +293,75 @@ public class BeanWrapperImpl extends PropertyEditorRegistrySupport implements Be
 	protected PropertyDescriptor getPropertyDescriptorInternal(String propertyName) throws BeansException {
 		Assert.state(this.cachedIntrospectionResults != null, "BeanWrapper does not hold a bean instance");
 		Assert.notNull(propertyName, "Property name must not be null");
-		// TODO
-		return null;
+		BeanWrapperImpl nestedBw = getBeanWrapperForPropertyPath(propertyName);
+		return nestedBw.cachedIntrospectionResults.getPropertyDescriptor(getFinalPath(nestedBw, propertyName));
 	}
 	
 	/**
-	 * 
+	 * Recursively navigate to return a BeanWrapper for the nested property path.
+	 * @param propertyPath
+	 * @return
+	 */
+	protected BeanWrapperImpl getBeanWrapperForPropertyPath(String propertyPath) {
+		int pos = PropertyAccessorUtils.getFirstNestedPropertySeparatorIndex(propertyPath);
+		if (pos > -1) {
+			String nestedProperty = propertyPath.substring(0, pos);
+			String nestedPath = propertyPath.substring(pos + 1);
+			BeanWrapperImpl nestedBw = getNestedBeanWrapper(nestedProperty);
+			return nestedBw.getBeanWrapperForPropertyPath(nestedPath);
+		} 
+		else {
+			return this;
+		}
+	}
+	
+	/**
+	 * Get the last component of the path. Also works if not nested.
+	 * @param bw
+	 * @param nestedPath
+	 * @return
+	 */
+	private String getFinalPath(BeanWrapper bw, String nestedPath) {
+		if (bw == this) {
+			return nestedPath;
+		}
+		return nestedPath.substring(PropertyAccessorUtils.getLastNestedPropertySeparatorIndex(nestedPath) + 1);
+	}
+	
+	/**
+	 * Retrieve a BeanWrapper for the given nested property.
+	 * Create a new one if not found in the cache.
 	 * @param nestedProperty
 	 * @return
 	 */
 	private BeanWrapperImpl getNestedBeanWrapper(String nestedProperty) {
-		// TODO
-		return null;
+		if (this.nestedBeanWrappers == null) {
+			this.nestedBeanWrappers = new HashMap<String,BeanWrapperImpl>();
+		}
+		
+		PropertyTokenHolder tokens = getPropertyNameTokens(nestedProperty);
+		String cannoicalName = tokens.canonicalName;
+		Object propertyValue = getPropertyValue(tokens);
+		if (propertyValue == null) {
+			throw new NullValueInNestedPathException(getRootClass(), this.nestedPath + cannoicalName);
+		}
+		
+		BeanWrapperImpl nestedBw = (BeanWrapperImpl) this.nestedBeanWrappers.get(cannoicalName);
+		if (nestedBw == null || nestedBw.getWrappedInstance() != propertyValue) {
+			if (logger.isDebugEnabled()) {
+				logger.debug(String.format("Creating new nested BeanWrapper for property '%s'", cannoicalName));
+			}
+			nestedBw = newNestedBeanWrapper(propertyValue, this.nestedPath + cannoicalName + NESTED_PROPERTY_SEPARATOR);
+			copyDefaultEditorsTo(nestedBw);
+			copyCustomEditorsTo(nestedBw, cannoicalName);
+			this.nestedBeanWrappers.put(cannoicalName, nestedBw);
+		} else {
+			if (logger.isDebugEnabled()) {
+				logger.debug(String.format("Using cached nested BeanWrapper for property '%s'", cannoicalName));
+			}
+		}
+		
+		return nestedBw;
 	}
 	
 	/**
@@ -313,8 +372,8 @@ public class BeanWrapperImpl extends PropertyEditorRegistrySupport implements Be
 	 * @return
 	 */
 	private PropertyChangeEvent createPropertyChangeEvent(String propertyName, Object oldValue, Object newValue) {
-		// TODO
-		return null;
+		return new PropertyChangeEvent((this.rootObject != null ? this.rootObject : "constructor"), 
+			(propertyName != null ? this.nestedPath + propertyName : null), oldValue, newValue);
 	}
 	
 	/**
@@ -328,7 +387,7 @@ public class BeanWrapperImpl extends PropertyEditorRegistrySupport implements Be
 		String actualName = tokens.actualName;
 		PropertyDescriptor propertyDescriptor = getPropertyDescriptorInternal(tokens.actualName);
 		if (propertyDescriptor == null || propertyDescriptor.getReadMethod() == null) {
-			// TODO
+			throw new NotReadablePropertyException(getRootClass(), this.nestedPath + propertyName);
 		}
 		Method readMethod = propertyDescriptor.getReadMethod();
 		if (logger.isDebugEnabled()) {
@@ -342,7 +401,8 @@ public class BeanWrapperImpl extends PropertyEditorRegistrySupport implements Be
 			if (tokens.keys != null) {
 				for (String  key : tokens.keys) {
 					if (value == null) {
-						// TODO
+						throw new NullValueInNestedPathException(getRootClass(), this.nestedPath + propertyName, 
+							String.format("Cannot access indexed value of property referenced in indexed property path '%s': returned null", propertyName));
 					}
 					else if (value.getClass().isArray()) {
 						value = Array.get(value, Integer.parseInt(key));
@@ -436,6 +496,12 @@ public class BeanWrapperImpl extends PropertyEditorRegistrySupport implements Be
 		}
 		return tokens;
 	}
+	
+	private void setPropertyValue(PropertyTokenHolder tokens, Object newValue) throws BeansException {
+		
+	}
+	
+	
 	//---------------------------------------------------------
 	// Implementation of BeanWrapper interfacee
 	//---------------------------------------------------------
@@ -458,8 +524,12 @@ public class BeanWrapperImpl extends PropertyEditorRegistrySupport implements Be
 
 	@Override
 	public PropertyDescriptor getPropertyDescriptor(String propertyName) {
-		// TODO
-		return null;
+		PropertyDescriptor pd = getPropertyDescriptorInternal(propertyName);
+		if (pd == null) {
+			throw new InvalidPropertyException(getRootClass(), this.nestedPath + propertyName, 
+				String.format("No property '%s' found", propertyName));
+		}
+		return pd;
 	}
 
 	@Override
@@ -473,14 +543,42 @@ public class BeanWrapperImpl extends PropertyEditorRegistrySupport implements Be
 	}
 
 	@Override
-	public boolean isReadableProperty() {
-		// TODO Auto-generated method stub
+	public boolean isReadableProperty(String propertyName) {
+		try {
+			PropertyDescriptor pd = getPropertyDescriptorInternal(propertyName);
+			if (pd != null) {
+				if (pd.getReadMethod() != null) {
+					return true;
+				}
+			}
+			else {
+				getPropertyValue(propertyName);
+				return true;
+			}
+		}
+		catch (InvalidPropertyException ex) {
+			
+		}
 		return false;
 	}
 
 	@Override
-	public boolean isWritableProperty() {
-		// TODO Auto-generated method stub
+	public boolean isWritableProperty(String propertyName) {
+		try {
+			PropertyDescriptor pd = getPropertyDescriptorInternal(propertyName);
+			if (pd != null) {
+				if (pd.getWriteMethod() != null) {
+					return true;
+				}
+			}
+			else {
+				getPropertyValue(propertyName);
+				return true;
+			}
+		}
+		catch (InvalidPropertyException ex) {
+			
+		}
 		return false;
 	}
 
@@ -490,8 +588,26 @@ public class BeanWrapperImpl extends PropertyEditorRegistrySupport implements Be
 	}
 	
 	@Override
-	public Class<?> getPropertyType(String propertyPath) {
-		// TODO
+	public Class<?> getPropertyType(String propertyName) {
+		try {
+			PropertyDescriptor pd = getPropertyDescriptorInternal(propertyName);
+			if (pd != null) {
+				return pd.getPropertyType();
+			}
+			else {
+				Object value = getPropertyValue(propertyName);
+				if (value != null) {
+					return value.getClass();
+				}
+				
+				Class<?> editorType = guessPropertyTypeFromEditors(propertyName);
+				if (editorType != null) {
+					return editorType;
+				}
+			}
+		} 
+		catch (InvalidPropertyException ex) {
+		}
 		return null;
 	}
 	
@@ -513,9 +629,16 @@ public class BeanWrapperImpl extends PropertyEditorRegistrySupport implements Be
 
 	@Override
 	public void setPropertyValue(String propertyName, Object value) throws BeansException {
-		// TODO
+		BeanWrapperImpl nestedBw = null;
+		try {
+			nestedBw = getBeanWrapperForPropertyPath(propertyName);
+		} catch (NotReadablePropertyException ex) {
+			throw new NotWritablePropertyException(getRootClass(), this.nestedPath + propertyName, String.format("Nested property in path '%s' does not exist", propertyName), ex);
+		}
+		PropertyTokenHolder tokens = getPropertyNameTokens(getFinalPath(nestedBw, propertyName));
+		nestedBw.setPropertyValue(tokens, value);
 	}
-
+	
 	@Override
 	public void setPropertyValues(Map<String, Object> map) throws BeansException {
 		setPropertyValues(new MutablePropertyValues(map));
