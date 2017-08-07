@@ -12,5 +12,10 @@ public class NotWritablePropertyException extends BeansException {
 		super(message);
 		// TODO Auto-generated constructor stub
 	}
+	
+	public NotWritablePropertyException(Class<?> beanClass, String propertyName) {
+		super("");
+		// TODO Auto-generated constructor stub
+	}
 
 }
