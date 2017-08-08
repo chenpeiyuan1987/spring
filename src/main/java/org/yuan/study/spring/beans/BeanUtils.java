@@ -7,7 +7,6 @@ import java.lang.reflect.Modifier;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.springframework.beans.BeanInstantiationException;
 import org.yuan.study.spring.util.Assert;
 
 public class BeanUtils {
@@ -113,6 +112,18 @@ public class BeanUtils {
 		Assert.notNull(valueType, "valueType must not be null");
 		return (targetType.isAssignableFrom(valueType) 
 			|| targetType.equals(primitiveWrapperTypeMap.get(valueType)));
+	}
+	
+	/**
+	 * Determine if the given type is assignable from the given value, assuming setting by reflection. 
+	 * Considers primitive wrapper classes as assignable to the corresponding primitive types.
+	 * @param type
+	 * @param value
+	 * @return
+	 */
+	public static boolean isAssignable(Class<?> type, Object value) {
+		Assert.notNull(type, "type must not be null");
+		return (value != null ? isAssignable(type, value.getClass()) : !type.isPrimitive());
 	}
 	
 	/**

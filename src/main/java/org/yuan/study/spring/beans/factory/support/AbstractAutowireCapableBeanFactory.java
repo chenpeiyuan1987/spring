@@ -6,9 +6,6 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.TreeSet;
 
-import org.springframework.beans.factory.InitializingBean;
-import org.springframework.beans.factory.config.InstantiationAwareBeanPostProcessor;
-import org.springframework.beans.factory.support.BeanDefinitionValueResolver;
 import org.yuan.study.spring.beans.BeanUtils;
 import org.yuan.study.spring.beans.BeanWrapper;
 import org.yuan.study.spring.beans.BeanWrapperImpl;
@@ -270,7 +267,7 @@ public abstract class AbstractAutowireCapableBeanFactory
 			((InitializingBean) bean).
 		}
 		
-		if (mergedBeanDefinition != null && mergedBeanDefinition.get) {
+		if (mergedBeanDefinition != null && mergedBeanDefinition.getInitMethodName() != null) {
 			
 		}
 	}
