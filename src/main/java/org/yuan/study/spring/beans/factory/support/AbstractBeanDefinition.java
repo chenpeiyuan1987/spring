@@ -1,5 +1,8 @@
 package org.yuan.study.spring.beans.factory.support;
 
+import java.lang.reflect.Constructor;
+
+import org.springframework.util.ClassUtils;
 import org.yuan.study.spring.beans.MutablePropertyValues;
 import org.yuan.study.spring.beans.factory.config.AutowireCapableBeanFactory;
 import org.yuan.study.spring.beans.factory.config.BeanDefinition;
@@ -61,26 +64,92 @@ public abstract class AbstractBeanDefinition implements BeanDefinition {
 	
 	private String resourceDescription;
 	
-	
+	/**
+	 * Create a new AbstractBeanDefinition with default settings.
+	 */
 	protected AbstractBeanDefinition() {
-		
+		this(null, null);
 	}
 	
+	/**
+	 * Create a new AbstractBeanDefinition with the given constructor argument values and property values.
+	 * @param cargs
+	 * @param pvs
+	 */
 	protected AbstractBeanDefinition(ConstructorArgumentValues cargs, MutablePropertyValues pvs) {
-		
+		setConstructorArgumentValues(cargs);
+		setPropertyValues(pvs);
 	}
+	
+	/**
+	 * Create a new AbstractBeanDefinition as deep copy of the given bean definition.
+	 * @param original
+	 */
+	protected AbstractBeanDefinition(AbstractBeanDefinition original) {
+		this.beanClass = original.beanClass;
+		
+		setAbstract(original.isAbstract());
+		setSingleton(original.isSingleton());
+		setLazyInit(original.isLazyInit());
+		setAutowireMode(original.getAutowireMode());
+		setDependencyCheck(original.getDependencyCheck());
+		setDependsOn(original.getDependsOn());
+		
+		setConstructorArgumentValues(new ConstructorArgumentValues(original.getConstructorArgumentValues()));
+		setPropertyValues(new MutablePropertyValues(original.getPropertyValues()));
+		setMethodOverrides(new MethodOverrides(original.getMethodOverrides()));
+		
+		setFactoryBeanName(original.getFactoryBeanName());
+		setFactoryMethodName(original.getFactoryMethodName());
+		setInitMethodName(original.getInitMethodName());
+		setEnforceInitMethod(original.isEnforceInitMethod());
+		setDestroyMethodName(original.getDestroyMethodName());
+		setEnforceDestroyMethod(original.isEnforceDestroyMethod());
+		
+		setResourceDescription(original.getResourceDescription());
+	}
+	
 	
 	//----------------------------------------------------------------
 	// Implementation methods
 	//----------------------------------------------------------------
 	
-	
 	/**
-	 * 
+	 * Override settings in this bean definition from the given bean definition.
 	 * @param other
 	 */
 	public void overrideFrom(AbstractBeanDefinition other) {
-		// TODO
+		if (other.beanClass != null) {
+			this.beanClass = other.beanClass;
+		}
+		
+		setAbstract(other.isAbstract());
+		setSingleton(other.isSingleton());
+		setLazyInit(other.isLazyInit());
+		setAutowireMode(other.getAutowireMode());
+		setDependencyCheck(other.getDependencyCheck());
+		setDependsOn(other.getDependsOn());
+		
+		getConstructorArgumentValues().addArgumentValues(other.getConstructorArgumentValues());;
+		getPropertyValues().addPropertyValues(other.getPropertyValues());
+		getMethodOverrides().addOverrides(other.getMethodOverrides());
+		
+		if (other.getFactoryBeanName() != null) {
+			setFactoryBeanName(other.getFactoryBeanName());
+		}
+		if (other.getFactoryMethodName() != null) {
+			setFactoryMethodName(other.getFactoryMethodName());
+		}
+		if (other.getInitMethodName() != null) {
+			setInitMethodName(other.getInitMethodName());
+			setEnforceInitMethod(other.isEnforceInitMethod());
+		}
+		if (other.getDestroyMethodName() != null) {
+			setDestroyMethodName(other.getDestroyMethodName());
+			setEnforceDestroyMethod(other.isEnforceDestroyMethod());
+		}
+		
+		setResourceDescription(other.getResourceDescription());
 	}
 	
 	/**
@@ -265,11 +334,22 @@ public abstract class AbstractBeanDefinition implements BeanDefinition {
 	}
 
 	/**
-	 * 
+	 * Validate this bean definition.
 	 * @throws BeanDefinitionValidationException
 	 */
 	public void validate() throws BeanDefinitionValidationException {
-		// TODO
+		if (this.lazyInit && !this.singleton) {
+			throw new BeanDefinitionValidationException("Lazy initialization is only applicable to singleton beans");
+		}
+		if (!getMethodOverrides().isEmpty() && getFactoryMethodName() != null) {
+			throw new BeanDefinitionValidationException(
+				"Cannot combine static factory method with method overrides: the static factory method must create the instance.");
+		}
+		if (hasBeanClass()) {
+			for (MethodOverride methodOverride : getMethodOverrides().getOverrides()) {
+				validateMethodOverride(methodOverride);
+			}
+		}
 	}
 	
 	/**
@@ -290,7 +370,8 @@ public abstract class AbstractBeanDefinition implements BeanDefinition {
 			throw new IllegalStateException("No bean class specified on bean definition");
 		}
 		if (!(this.beanClass instanceof Class)) {
-			throw new IllegalStateException(String.format("Bean class name [%s] has not been resolved into an actual Class", this.beanClass));
+			throw new IllegalStateException(
+				String.format("Bean class name [%s] has not been resolved into an actual Class", this.beanClass));
 		}
 		return (Class<?>) this.beanClass;
 	}
@@ -338,12 +419,60 @@ public abstract class AbstractBeanDefinition implements BeanDefinition {
 	}
 	
 	/**
-	 * 
+	 * Return the resolved autowire code,
+	 * (resolving AUTOWIRE_AUTODETECT to AUTOWIRE_CONSTRUCTOR or AUTOWIRE_BY_TYPE).
 	 * @return
 	 */
 	public int getResolvedAutowireMode() {
-		return 0;
+		if (this.autowireMode == AUTOWIRE_AUTODETECT) {
+			Constructor<?>[] constructors = getBeanClass().getConstructors();
+			for (Constructor<?> constructor : constructors) {
+				if (constructor.getParameterTypes().length == 0) {
+					return AUTOWIRE_BY_TYPE;
+				}
+			}
+			return AUTOWIRE_CONSTRUCTOR;
+		}
+		return this.autowireMode;
 	}
+	
+	/**
+	 * Return the class name of the wrapped bean.
+	 * @return
+	 */
+	public String getBeanClassName() {
+		if (this.beanClass instanceof Class) {
+			return ((Class<?>)this.beanClass).getName();
+		}
+		else {
+			return (String) this.beanClass;
+		}
+	}
+	
+	/**
+	 * Specify the class name for this bean.
+	 * @param beanClassName
+	 */
+	public void setBeanClassName(String beanClassName) {
+		this.beanClass = beanClassName;
+	}
+	
+	/**
+	 * Validate the give
+	 * @throws BeanDefinitionValidationException
+	 */
+	protected void validateMethodOverride(MethodOverride mo) throws BeanDefinitionValidationException {
+		int count = ClassUtils.getMethodCountForName(getBeanClass(), mo.getMethodName());
+		if (count == 0) {
+			throw new BeanDefinitionValidationException(String.format(
+				"Invalid method override: no method with name '%s' on class [%s]", mo.getMethodName(), getBeanClassName()));
+		}
+		else if (count == 1) {
+			mo.setOverloaded(false);
+		}
+	}
+	
+	
 	//--------------------------------------------------------------
 	// Implementation of BeanDefinition interface
 	//--------------------------------------------------------------
@@ -376,5 +505,29 @@ public abstract class AbstractBeanDefinition implements BeanDefinition {
 	@Override
 	public boolean isSingleton() {
 		return singleton;
+	}
+
+	
+	//--------------------------------------------------------------
+	// Implementation of Object methods
+	//--------------------------------------------------------------
+	
+	@Override
+	public String toString() {
+		StringBuffer sb = new StringBuffer("class [");
+		sb.append(getBeanClassName()).append("]");
+		sb.append("; abstract=").append(this.abstractFlag);
+		sb.append("; singleton=").append(this.singleton);
+		sb.append("; lazyInit=").append(this.lazyInit);
+		sb.append("; autowire=").append(this.autowireMode);
+		sb.append("; dependencyCheck=").append(this.dependencyCheck);
+		sb.append("; factoryBeanName=").append(this.factoryBeanName);
+		sb.append("; factoryMethodName=").append(this.factoryMethodName);
+		sb.append("; initMethodName=").append(this.initMethodName);
+		sb.append("; destroyMethodName=").append(this.destroyMethodName);
+		if (this.resourceDescription != null) {
+			sb.append("; defined in ").append(this.resourceDescription);
+		}
+		return sb.toString();
 	}
 }

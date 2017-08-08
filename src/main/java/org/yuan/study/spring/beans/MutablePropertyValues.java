@@ -90,7 +90,7 @@ public class MutablePropertyValues implements PropertyValues, Serializable {
 	 * @param other
 	 * @return
 	 */
-	public MutablePropertyValues addPropertyValue(Map<String,Object> other) {
+	public MutablePropertyValues addPropertyValues(Map<String,Object> other) {
 		if (other != null) {
 			for (Entry<String,Object> entry : other.entrySet()) {
 				PropertyValue pv = new PropertyValue(entry.getKey(), entry.getValue());
@@ -105,7 +105,7 @@ public class MutablePropertyValues implements PropertyValues, Serializable {
 	 * @param other
 	 * @return
 	 */
-	public MutablePropertyValues addPropertyValue(PropertyValues other) {
+	public MutablePropertyValues addPropertyValues(PropertyValues other) {
 		if (other != null) {
 			PropertyValue[] pvs = other.getPropertyValues();
 			for (PropertyValue pv : pvs) {
