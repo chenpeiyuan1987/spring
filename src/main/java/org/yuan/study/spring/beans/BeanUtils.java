@@ -177,4 +177,39 @@ public class BeanUtils {
 				"Constructor threw exception", ex.getTargetException());
 		}
 	}
+	
+	/**
+	 * 
+	 * @param clazz
+	 * @param methodName
+	 * @param paramTypes
+	 * @return
+	 */
+	public static Method findMethod(Class<?> clazz, String methodName, Class<?>[] paramTypes) {
+		try {
+			return clazz.getMethod(methodName, paramTypes);
+		}
+		catch (NoSuchMethodException ex) {
+			return findDeclaredMethod(clazz, methodName, paramTypes);
+		}
+	}
+	
+	/**
+	 * 
+	 * @param clazz
+	 * @param methodName
+	 * @param paramTypes
+	 * @return
+	 */
+	public static Method findDeclaredMethod(Class<?> clazz, String methodName, Class<?>[] paramTypes) {
+		try {
+			return clazz.getDeclaredMethod(methodName, paramTypes);
+		} 
+		catch (NoSuchMethodException ex) {
+			if (clazz.getSuperclass() != null) {
+				return findDeclaredMethod(clazz.getSuperclass(), methodName, paramTypes);
+			}
+			return null;
+		}
+	}
 }
