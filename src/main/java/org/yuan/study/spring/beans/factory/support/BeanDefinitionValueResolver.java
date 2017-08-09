@@ -10,15 +10,13 @@ import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.springframework.beans.factory.config.BeanDefinitionHolder;
-import org.springframework.beans.factory.config.RuntimeBeanReference;
-import org.springframework.beans.factory.config.TypedStringValue;
-import org.springframework.beans.factory.support.ManagedList;
-import org.springframework.beans.factory.support.ManagedMap;
-import org.springframework.beans.factory.support.ManagedSet;
 import org.yuan.study.spring.beans.BeanWrapper;
 import org.yuan.study.spring.beans.BeansException;
+import org.yuan.study.spring.beans.factory.BeanCreationException;
 import org.yuan.study.spring.beans.factory.config.BeanDefinition;
+import org.yuan.study.spring.beans.factory.config.BeanDefinitionHolder;
+import org.yuan.study.spring.beans.factory.config.RuntimeBeanReference;
+import org.yuan.study.spring.beans.factory.config.TypedStringValue;
 
 public class BeanDefinitionValueResolver {
 	
@@ -37,9 +35,9 @@ public class BeanDefinitionValueResolver {
 	 * @param beanDefinition
 	 */
 	public BeanDefinitionValueResolver(AbstractBeanFactory beanFactory, String beanName, BeanDefinition beanDefinition) {
+		this.beanName = beanName;
 		this.beanFactory = beanFactory;
 		this.beanDefinition = beanDefinition;
-		this.beanName = beanName;
 	}
 	
 	/**
@@ -51,12 +49,15 @@ public class BeanDefinitionValueResolver {
 	public Object resolveValueIfNecessary(String argName, Object value) throws BeansException {
 		if (value instanceof BeanDefinitionHolder) {
 			BeanDefinitionHolder beanDefinitionHolder = (BeanDefinitionHolder) value;
+			return resolveInnerBeanDefinition(argName, beanDefinitionHolder.getBeanName(), beanDefinitionHolder.getBeanDefinition());
 		}
 		if (value instanceof BeanDefinition) {
 			BeanDefinition beanDefinition = (BeanDefinition) value;
+			return resolveInnerBeanDefinition(argName, "(inner bean)", beanDefinition);
 		}
 		if (value instanceof RuntimeBeanReference) {
 			RuntimeBeanReference runtimeBeanReference = (RuntimeBeanReference) value;
+			return resolveReference(argName, runtimeBeanReference);
 		}
 		if (value instanceof ManagedList) {
 			return resolveManagedList(argName, (List<?>)value);
@@ -69,17 +70,74 @@ public class BeanDefinitionValueResolver {
 		}
 		if (value instanceof TypedStringValue) {
 			TypedStringValue typedStringValue = (TypedStringValue) value;
+			try {
+				return beanFactory.doTypeConversionIfNecessary(typedStringValue.getValue(), typedStringValue.getTargetType());
+			}
+			catch (Throwable ex) {
+				throw new BeanCreationException(beanDefinition.getResourceDescription(), this.beanName, 
+					"Error converting typed String value for" + argName, ex);
+			}
 		}
 		
 		return value;
 	}
 	
+	/**
+	 * Resolve an inner bean definition
+	 * @param argName
+	 * @param innerBeanName
+	 * @param innerBd
+	 * @return
+	 * @throws BeansException
+	 */
 	private Object resolveInnerBeanDefinition(String argName, String innerBeanName, BeanDefinition innerBd) throws BeansException {
-		
+		if (logger.isDebugEnabled()) {
+			logger.debug(String.format("Resolving inner bean definition '%s' of bean '%s'", innerBeanName, this.beanName));
+		}
+		try {
+			RootBeanDefinition mergedBeanDefinition = this.beanFactory.getMergedBeanDefinition(innerBeanName, innerBd);
+			Object innerBean = this.beanFactory.createBean(innerBeanName, mergedBeanDefinition, null);
+			if (mergedBeanDefinition.isSingleton()) {
+				this.beanFactory.registerDependentBean(innerBeanName, this.beanName);
+			}
+			return this.beanFactory.getObjectForSharedInstance(innerBeanName, innerBean);
+		}
+		catch (BeansException ex) {
+			throw new BeanCreationException(this.beanDefinition.getResourceDescription(), this.beanName, String.format("Cannot create inner bean '%s' while setting %s", innerBeanName, argName), ex);
+		}
 	}
 	
+	/**
+	 * Resolve a reference to another bean in the factory.
+	 * @param argName
+	 * @param runtimeBeanReference
+	 * @return
+	 * @throws BeansException
+	 */
 	private Object resolveReference(String argName, RuntimeBeanReference runtimeBeanReference) throws BeansException {
-		
+		if (logger.isDebugEnabled()) {
+			
+		}
+		try {
+			if (runtimeBeanReference.isToParent()) {
+				if (this.beanFactory.getParentBeanFactory() == null) {
+					throw new BeanCreationException(this.beanDefinition.getResourceDescription(), this.beanName, 
+						String.format("Can't resolve reference to bean '%s' in parent factory: no parent factory available", runtimeBeanReference.getBeanName()));
+				}
+				return this.beanFactory.getParentBeanFactory().getBean(runtimeBeanReference.getBeanName());
+			}
+			else {
+				Object bean = this.beanFactory.getBean(runtimeBeanReference.getBeanName());
+				if (this.beanDefinition.isSingleton()) {
+					this.beanFactory.registerDependentBean(runtimeBeanReference.getBeanName(), this.beanName);
+				}
+				return bean;
+			}
+		}
+		catch (BeansException ex) {
+			throw new BeanCreationException(this.beanDefinition.getResourceDescription(), this.beanName, 
+				String.format("Cannot resolve reference to bean '%s' while setting %s", runtimeBeanReference.getBeanName(), argName), ex);
+		}
 	}
 	
 	/**
