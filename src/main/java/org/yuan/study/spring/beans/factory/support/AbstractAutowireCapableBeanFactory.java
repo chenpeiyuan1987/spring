@@ -2,10 +2,17 @@ package org.yuan.study.spring.beans.factory.support;
 
 import java.beans.PropertyDescriptor;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.HashSet;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeSet;
 
+import org.springframework.beans.factory.InitializingBean;
+import org.springframework.beans.factory.config.InstantiationAwareBeanPostProcessor;
 import org.yuan.study.spring.beans.BeanUtils;
 import org.yuan.study.spring.beans.BeanWrapper;
 import org.yuan.study.spring.beans.BeanWrapperImpl;
@@ -29,13 +36,19 @@ public abstract class AbstractAutowireCapableBeanFactory
 	
 	private InstantiationStrategy instantiationStrategy = new CglibSubclassingInstantiationStrategy();
 	
-	/**  */
+	/** Whether to automatically try to resolve circular references between beans */
 	private boolean allowCircularReferences = true;
 	
-	/**  */
+	/** 
+	 * Dependency types to ignore on dependency check and autowire, 
+	 * as Set of Class objects: for example, String, Default is none. 
+	 */
 	private final Set<Class<?>> ignoredDependencyTypes = new HashSet<Class<?>>();
 	
-	/**  */
+	/** 
+	 * Dependency interfaces to ignore on dependency check and autowire, 
+	 * as Set of Class objects, By default, only the BeanFactory interface is ignored. 
+	 */
 	private final Set<Class<?>> ignoredDependencyInterfaces = new HashSet<Class<?>>();
 	
 	
@@ -63,7 +76,8 @@ public abstract class AbstractAutowireCapableBeanFactory
 	//-----------------------------------------------------------------
 	
 	/**
-	 * 
+	 * Set the instantiation strategy to use for creating bean instances.
+	 * Default is CglibSubclassingInstantiationStrategy.
 	 * @return
 	 */
 	public InstantiationStrategy getInstantiationStrategy() {
@@ -71,7 +85,7 @@ public abstract class AbstractAutowireCapableBeanFactory
 	}
 
 	/**
-	 * 
+	 * Return the current instantiation strategy.
 	 * @param instantiationStrategy
 	 */
 	public void setInstantiationStrategy(InstantiationStrategy instantiationStrategy) {
@@ -79,7 +93,7 @@ public abstract class AbstractAutowireCapableBeanFactory
 	}
 	
 	/**
-	 * 
+	 * Return whether to allow circular references between beans - and automatically try to resolve them.
 	 * @return
 	 */
 	public boolean isAllowCircularReferences() {
@@ -264,11 +278,11 @@ public abstract class AbstractAutowireCapableBeanFactory
 			if (logger.isDebugEnabled()) {
 				logger.debug(String.format("Invoking afterPropertiesSet() on bean with name '%s'", beanName) );
 			}
-			((InitializingBean) bean).
+			((InitializingBean) bean).afterPropertiesSet();
 		}
 		
 		if (mergedBeanDefinition != null && mergedBeanDefinition.getInitMethodName() != null) {
-			
+			invokeCustomInitMethod(beanName, bean, mergedBeanDefinition.getInitMethodName(), mergedBeanDefinition.isEnforceDestroyMethod());
 		}
 	}
 	
@@ -286,22 +300,114 @@ public abstract class AbstractAutowireCapableBeanFactory
 		return bw;
 	}
 	
+	/**
+	 * 
+	 * @param beanName
+	 * @param mergedBeanDefinition
+	 * @param bw
+	 * @param pvs
+	 * @throws BeansException
+	 */
 	protected void autowireByName(String beanName, RootBeanDefinition mergedBeanDefinition, 
 		BeanWrapper bw, MutablePropertyValues pvs) throws BeansException {
-		// TODO
+		String[] propertyNames = unsatisfiedNonSimpleProperties(mergedBeanDefinition, bw);
+		for (String propertyName : propertyNames) {
+			if (containsBean(propertyName)) {
+				Object bean = getBean(propertyName);
+				pvs.addPropertyValue(propertyName, bean);
+				if (mergedBeanDefinition.isSingleton()) {
+					registerDependentBean(propertyName, beanName);
+				}
+				if (logger.isDebugEnabled()) {
+					logger.debug(String.format(
+						"Added autowiring by name from bean name '%s' via property '%s' to bean named '%s'", beanName, propertyName, propertyName));
+				}
+			} 
+			else {
+				if (logger.isDebugEnabled()) {
+					logger.debug(String.format("Not autowiring property '%s' of bean '%s' by name: no matching bean found", propertyName, beanName));
+				}
+			}
+		}
 	}
 	
 	protected void autowireByType(String beanName, RootBeanDefinition mergedBeanDefinition, 
 		BeanWrapper bw, MutablePropertyValues pvs) throws BeansException {
-		
+		String[] propertyNames = unsatisfiedNonSimpleProperties(mergedBeanDefinition, bw);
+		for (String propertyName : propertyNames) {
+			Class<?> requiredType = bw.getPropertyDescriptor(propertyName).getPropertyType();
+			Map<String,Object> matchingBeans = findMatchingBeans(requiredType);
+			if (matchingBeans != null) {
+				if (matchingBeans.size() == 1) {
+					for (Entry<String,Object> entry : matchingBeans.entrySet()) {
+						String autowiredBeanName = entry.getKey();
+						Object autowiredBean = entry.getValue();
+						pvs.addPropertyValue(propertyName, autowiredBean);
+						if (mergedBeanDefinition.isSingleton()) {
+							registerDependentBean(autowiredBeanName, beanName);
+						}
+						if (logger.isDebugEnabled()) {
+							logger.debug(String.format(
+								"Autowiring by type from bean name '%s' via property '%s' to bean named '%s'", beanName, propertyName, autowiredBeanName));
+						}
+						break;
+					}
+				}
+				else {
+					throw new UnsatisfiedDependencyException(mergedBeanDefinition.getResourceDescription(), beanName, propertyName, 
+						String.format("There are '%s' beans of type [%s] available for autowiring by type: %s. "
+							+ "There should have been exactly 1 to be able to autowire property '%s' of bean '%s'. "
+							+ "Consider using autowiring by name instead.", matchingBeans.size(), requiredType.getName(), matchingBeans.keySet(), propertyName, beanName));
+				}
+			}
+			else {
+				if (logger.isDebugEnabled()) {
+					logger.debug(String.format("Not autowiring property '%s' of bean '%s' by type: no matching bean found", propertyName, beanName));
+				}
+			}
+		}
 	}
 	
+	/**
+	 * Perform a dependency chck that all properties exposed have been set,
+	 * if desired, Dependency checks can be objects (collaborating beans),
+	 * simple (primitives and String), or all (both).
+	 * @param beanName
+	 * @param mergedBeanDefinition
+	 * @param bw
+	 * @param pvs
+	 * @throws UnsatisfiedDependencyException
+	 */
 	protected void checkDependencies(String beanName, RootBeanDefinition mergedBeanDefinition, 
-		BeanWrapper bw, PropertyValues pvs) {
-		// TODO
+		BeanWrapper bw, PropertyValues pvs) throws UnsatisfiedDependencyException {
+		int dependencyCheck = mergedBeanDefinition.getDependencyCheck();
+		if (dependencyCheck == RootBeanDefinition.DEPENDENCY_CHECK_NONE) {
+			return;
+		}
 		
+		PropertyDescriptor[] pds = bw.getPropertyDescriptors();
+		for (PropertyDescriptor pd : pds) {
+			if (pd.getWriteMethod() != null && !isExcludedFromDependencyCheck(pd) && !pvs.contains(pd.getName())) {
+				boolean isSimple = BeanUtils.isSimpleProperty(pd.getPropertyType());
+				boolean unsatisfied = (dependencyCheck == RootBeanDefinition.DEPENDENCY_CHECK_ALL
+					|| (isSimple && dependencyCheck == RootBeanDefinition.DEPENDENCY_CHECK_SIMPLE)
+					|| (!isSimple && dependencyCheck == RootBeanDefinition.DEPENDENCY_CHECK_OBJECTS));
+				if (unsatisfied) {
+					throw new UnsatisfiedDependencyException(mergedBeanDefinition.getResourceDescription(), beanName, pd.getName(), 
+						"Set this property value or disable dependency checking for this bean.");
+				}
+			}
+		}
 	}
 	
+	/**
+	 * 
+	 * @param beanName
+	 * @param mergedBeanDefinition
+	 * @param bw
+	 * @param pvs
+	 * @throws BeansException
+	 */
 	protected void applyPropertyValues(String beanName, RootBeanDefinition mergedBeanDefinition, 
 		BeanWrapper bw, PropertyValues pvs) throws BeansException {
 		if (pvs == null) {
@@ -332,6 +438,12 @@ public abstract class AbstractAutowireCapableBeanFactory
 		}
 	}
 	
+	/**
+	 * 
+	 * @param mergedBeanDefinition
+	 * @param bw
+	 * @return
+	 */
 	protected String[] unsatisfiedNonSimpleProperties(RootBeanDefinition mergedBeanDefinition, BeanWrapper bw) {
 		Set<String> result = new TreeSet<String>();
 		PropertyValues pvs = mergedBeanDefinition.getPropertyValues();
@@ -345,11 +457,28 @@ public abstract class AbstractAutowireCapableBeanFactory
 		return StringUtils.toStringArray(result);
 	}
 	
+	/**
+	 * 
+	 * @param pd
+	 * @return
+	 */
 	protected boolean isExcludedFromDependencyCheck(PropertyDescriptor pd) {
-		// TODO
-		return false;
+		return (AutowireUtils.isExcludedFromDependencyCheck(pd) 
+			|| getIgnoredDependencyTypes().contains(pd.getPropertyType()) 
+			|| AutowireUtils.isSetterDefinedInInterface(pd, getIgnoredDependencyInterfaces()));
 	}
 	
+	/**
+	 * 
+	 * @param beanName
+	 * @param mergedBeanDefinition
+	 * @param resolvedValues
+	 * @param bw
+	 * @param argTypes
+	 * @param methodType
+	 * @return
+	 * @throws UnsatisfiedDependencyException
+	 */
 	private ArgumentsHolder createArgumentArray(String beanName, RootBeanDefinition mergedBeanDefinition, 
 		ConstructorArgumentValues resolvedValues, BeanWrapperImpl bw, Class<?>[] argTypes, String methodType) throws UnsatisfiedDependencyException {
 		// TODO
@@ -360,6 +489,38 @@ public abstract class AbstractAutowireCapableBeanFactory
 		ConstructorArgumentValues cargs, ConstructorArgumentValues resolvedValues) {
 		// TODO
 		return 0;
+	}
+	
+	/**
+	 * 
+	 * @param beanName
+	 * @param bean
+	 * @param initMethodName
+	 * @param enforceInitMethod
+	 * @throws Throwable
+	 */
+	protected void invokeCustomInitMethod(String beanName, Object bean, String initMethodName, boolean enforceInitMethod) throws Throwable {
+		if (logger.isDebugEnabled()) {
+			logger.debug(String.format("Invoking custom init method '%s' on bean with name '%s'", initMethodName, beanName));
+		}
+		Method initMethod = BeanUtils.findMethod(bean.getClass(), initMethodName, null);
+		if (initMethod == null) {
+			if (enforceInitMethod) {
+				throw new NoSuchMethodException(String.format("Couldn't find an init method named '%s' on bean with name '%s'", initMethodName, beanName));
+			}
+			else {
+				return;
+			}
+		}
+		if (!Modifier.isPublic(initMethod.getModifiers())) {
+			initMethod.setAccessible(true);
+		}
+		try {
+			initMethod.invoke(bean, (Object[]) null);
+		}
+		catch (InvocationTargetException ex) {
+			throw ex.getTargetException();
+		}
 	}
 	
 	//-----------------------------------------------------------------
@@ -426,10 +587,14 @@ public abstract class AbstractAutowireCapableBeanFactory
 	}
 
 	@Override
-	public void autowireBeanProperties(Object existingBean, int autowireMode, boolean dependencyCheck)
-		throws BeansException {
-		// TODO Auto-generated method stub
+	public void autowireBeanProperties(Object existingBean, int autowireMode, boolean dependencyCheck) throws BeansException {
+		if (autowireMode != AUTOWIRE_BY_NAME && autowireMode != AUTOWIRE_BY_TYPE) {
+			throw new IllegalArgumentException("Just constants AUTOWIRE_BY_NAME and AUTOWIRE_BY_TYPE allowed");
+		}
 		
+		RootBeanDefinition rootBeanDefinition = new RootBeanDefinition(existingBean.getClass(), autowireMode, dependencyCheck);
+		rootBeanDefinition.setSingleton(false);
+		populateBean(existingBean.getClass().getName(), rootBeanDefinition, new BeanWrapperImpl(existingBean));
 	}
 	
 	
@@ -535,6 +700,20 @@ public abstract class AbstractAutowireCapableBeanFactory
 		return bean;
 	}
 
+	//---------------------------------------------------------------------------------
+	// Abstract method to be implemented by subclasses
+	//---------------------------------------------------------------------------------
+	
+	/**
+	 * Find bean instances that match the required type. Called by autowiring.
+	 * If a subclass cannot obtain information about names by type,
+	 * a corresponding exception should be thrown.
+	 * @param requiredType
+	 * @return
+	 * @throws BeansException
+	 */
+	protected abstract Map<String,Object> findMatchingBeans(Class<?> requiredType) throws BeansException;
+	
 	//---------------------------------------------------------------------------------
 	// Private inner class for internal use
 	//---------------------------------------------------------------------------------
