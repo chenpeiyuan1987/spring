@@ -12,5 +12,10 @@ public class UnsatisfiedDependencyException extends BeanCreationException {
 		super(beanName, message);
 		// TODO Auto-generated constructor stub
 	}
+	
+	public UnsatisfiedDependencyException(String resourceDescription, String beanName, int ctorArgIndex, Class<?> ctorArgType, String message) {
+		super(beanName, message);
+		// TODO Auto-generated constructor stub
+	}
 
 }
