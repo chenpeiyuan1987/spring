@@ -9,6 +9,10 @@ public class BeanDefinitionStoreException extends FatalBeanException {
 		super(message);
 	}
 	
+	public BeanDefinitionStoreException(String message, Throwable ex) {
+		super(message);
+	}
+	
 	public BeanDefinitionStoreException(String resourceDescription, String beanName, String message, Throwable ex) {
 		super(message);
 	}

@@ -8,7 +8,7 @@ import org.yuan.study.spring.beans.factory.BeanFactory;
 public interface InstantiationStrategy {
 
 	/**
-	 * 
+	 * Return an instance of the bean with the given name in this factory.
 	 * @param beanDefinition
 	 * @param beanName
 	 * @param owner
@@ -17,7 +17,7 @@ public interface InstantiationStrategy {
 	Object instantiate(RootBeanDefinition beanDefinition, String beanName, BeanFactory owner);
 	
 	/**
-	 * 
+	 * Return an instance of the bean with the given name in this factory, creating it via the given constructor.
 	 * @param beanDefinition
 	 * @param beanName
 	 * @param owner
@@ -28,7 +28,7 @@ public interface InstantiationStrategy {
 	Object instantiate(RootBeanDefinition beanDefinition, String beanName, BeanFactory owner, Constructor<?> ctor, Object[] args);
 
 	/**
-	 * 
+	 * Return an instance of the bean with the given name in this factory, creating it via the given factory method.
 	 * @param beanDefinition
 	 * @param beanName
 	 * @param owner
