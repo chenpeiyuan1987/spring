@@ -1,7 +1,11 @@
 package org.yuan.study.spring.beans.factory.support;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
+import org.springframework.util.StringUtils;
 import org.yuan.study.spring.beans.BeansException;
 import org.yuan.study.spring.beans.factory.BeanFactory;
 import org.yuan.study.spring.beans.factory.ListableBeanFactory;
@@ -11,6 +15,10 @@ public class DefaultListableBeanFactory
 	extends AbstractAutowireCapableBeanFactory implements ListableBeanFactory, BeanDefinitionRegistry {
 
 	private boolean allowBeanDefinitionOverriding;
+	
+	private final Map<String,BeanDefinition> beanDefinitionMap = new HashMap<String,BeanDefinition>();
+	
+	private final List<String> beanDefinitionNames = new ArrayList<String>();
 	
 	
 	public DefaultListableBeanFactory() {
@@ -30,13 +38,22 @@ public class DefaultListableBeanFactory
 		return allowBeanDefinitionOverriding;
 	}
 
-	public void setAllowBeanDefinitionOverriding(
-			boolean allowBeanDefinitionOverriding) {
+	public void setAllowBeanDefinitionOverriding(boolean allowBeanDefinitionOverriding) {
 		this.allowBeanDefinitionOverriding = allowBeanDefinitionOverriding;
 	}
 	
 	public void preInstantiateSingletons() {
-		
+		// TODO Auto-generated method stub
+	}
+	
+	private boolean isBeanDefinitionTypeMatch(String beanName, Class<?> type) {
+		// TODO Auto-generated method stub
+		return false;
+	}
+	
+	private boolean isBeanTypeMatch(String beanName, Class<?> type) {
+		// TODO Auto-generated method stub
+		return false;
 	}
 	
 	//-----------------------------------------------------------------
@@ -69,54 +86,47 @@ public class DefaultListableBeanFactory
 	
 	@Override
 	public int getBeanDefinitionCount() {
-		// TODO Auto-generated method stub
-		return 0;
+		return beanDefinitionMap.size();
 	}
 
 	@Override
 	public String[] getBeanDefinitionNames() {
-		// TODO Auto-generated method stub
-		return null;
+		return StringUtils.toStringArray(beanDefinitionNames);
 	}
 
 	@Override
 	public String[] getBeanDefinitionNames(Class<?> type) {
-		// TODO Auto-generated method stub
+		// TODO
 		return null;
 	}
 
 	@Override
 	public String[] getBeanNamesForType(Class<?> type) {
-		// TODO Auto-generated method stub
-		return null;
+		return getBeanNamesForType(type, true, true);
 	}
 
 	@Override
 	public String[] getBeanNamesForType(Class<?> type,
-			boolean includePrototypes, boolean includeFactoryBeans) {
+		boolean includePrototypes, boolean includeFactoryBeans) {
 		// TODO Auto-generated method stub
 		return null;
 	}
 
 	@Override
-	public Map<String, Object> getBeansOfType(Class<?> type)
-			throws BeansException {
-		// TODO Auto-generated method stub
-		return null;
+	public Map<String, Object> getBeansOfType(Class<?> type) throws BeansException {
+		return getBeansOfType(type, true, true);
 	}
 
 	@Override
 	public Map<String, Object> getBeansOfType(Class<?> type,
-			boolean includePrototypes, boolean includeFactoryBeans)
-			throws BeansException {
+		boolean includePrototypes, boolean includeFactoryBeans) throws BeansException {
 		// TODO Auto-generated method stub
 		return null;
 	}
 
 	@Override
 	public boolean containsBeanDefinition(String beanName) {
-		// TODO Auto-generated method stub
-		return false;
+		return this.beanDefinitionMap.containsKey(beanName);
 	}
 	
 	
