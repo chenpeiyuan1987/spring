@@ -862,7 +862,7 @@ public abstract class AbstractBeanFactory implements ConfigurableBeanFactory {
 	}
 
 	@Override
-	public void destroySingletons(String beanName) {
+	public void destroySingletons() {
 		if (logger.isInfoEnabled()) {
 			logger.info(String.format("Destroying singletons in factory {%s}", this));
 		}

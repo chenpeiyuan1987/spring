@@ -24,7 +24,7 @@ public interface ConfigurableBeanFactory extends HierarchicalBeanFactory {
 	 * 
 	 * @param beanName
 	 */
-	void destroySingletons(String beanName);
+	void destroySingletons();
 	
 	/**
 	 * 

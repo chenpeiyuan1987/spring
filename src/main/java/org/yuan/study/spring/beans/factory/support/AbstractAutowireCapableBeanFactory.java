@@ -58,8 +58,8 @@ public abstract class AbstractAutowireCapableBeanFactory
 	 */
 	public AbstractAutowireCapableBeanFactory() {
 		super();
-		ignoredDependencyInterface(BeanNameAware.class);
-		ignoredDependencyInterface(BeanFactoryAware.class);
+		ignoreDependencyInterface(BeanNameAware.class);
+		ignoreDependencyInterface(BeanFactoryAware.class);
 	}
 
 	/**
@@ -130,7 +130,7 @@ public abstract class AbstractAutowireCapableBeanFactory
 	 * for example, String. Default is none.
 	 * @param type
 	 */
-	public void ignoredDependencyType(Class<?> type) {
+	public void ignoreDependencyType(Class<?> type) {
 		this.ignoredDependencyTypes.add(type);
 	}
 	
@@ -138,7 +138,7 @@ public abstract class AbstractAutowireCapableBeanFactory
 	 * Ignore the given dependency interface for autowiring.
 	 * @param ifc
 	 */
-	public void ignoredDependencyInterface(Class<?> ifc) {
+	public void ignoreDependencyInterface(Class<?> ifc) {
 		this.ignoredDependencyInterfaces.add(ifc);
 	}
 	
