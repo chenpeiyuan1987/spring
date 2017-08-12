@@ -3,7 +3,7 @@ package org.yuan.study.spring.core.io;
 import java.io.File;
 import java.net.URL;
 
-public interface Resource {
+public interface Resource extends InputStreamSource {
 	
 	/**
 	 * Create a resource relative to this resource.

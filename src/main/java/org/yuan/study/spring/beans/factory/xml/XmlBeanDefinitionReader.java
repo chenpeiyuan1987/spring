@@ -14,6 +14,10 @@ import org.yuan.study.spring.core.io.Resource;
 
 public class XmlBeanDefinitionReader extends AbstractBeanDefinitionReader {
 
+	/**
+	 * 
+	 * @param beanDefinitionRegistry
+	 */
 	public XmlBeanDefinitionReader(BeanDefinitionRegistry beanDefinitionRegistry) {
 		super(beanDefinitionRegistry);
 	}
@@ -22,42 +26,84 @@ public class XmlBeanDefinitionReader extends AbstractBeanDefinitionReader {
 	// Implementation of methods
 	//----------------------------------------------------------------------
 	
+	/**
+	 * 
+	 * @param encodedResource
+	 * @return
+	 */
 	public int loadBeanDefinitions(EncodedResource encodedResource) {
 		// TODO
 		return 0;
 	}
 	
+	/**
+	 * 
+	 * @param inputSource
+	 * @return
+	 */
 	public int loadBeanDefinitions(InputSource inputSource) {
 		// TODO
 		return 0;
 	}
 	
+	/**
+	 * 
+	 * @param inputSource
+	 * @param resourceDescription
+	 * @return
+	 */
 	public int loadBeanDefinitions(InputSource inputSource, String resourceDescription) {
 		// TODO
 		return 0;
 	}
 	
+	/**
+	 * 
+	 * @param doc
+	 * @param resource
+	 * @return
+	 */
 	public int registerBeanDefinitions(Document doc, Resource resource) {
 		// TODO
 		return 0;
 	}
 	
+	/**
+	 * 
+	 * @param entityResolver
+	 */
 	public void setEntityResolver(EntityResolver entityResolver) {
 		// TODO
 	}
 	
+	/**
+	 * 
+	 * @param errorHandler
+	 */
 	public void setErrorHandler(ErrorHandler errorHandler) {
 		// TODO
 	}
 	
+	/**
+	 * 
+	 * @param namespaceAware
+	 */
 	public void setNamespaceAware(boolean namespaceAware) {
 		// TODO
 	}
 	
+	/**
+	 * 
+	 * @param parserClass
+	 */
 	public void setParserClass(Class<?> parserClass) {
 		// TODO
 	}
 	
+	/**
+	 * 
+	 * @param validating
+	 */
 	public void setValidating(boolean validating) {
 		// TODO
 	}
@@ -72,11 +118,21 @@ public class XmlBeanDefinitionReader extends AbstractBeanDefinitionReader {
 		return null;
 	}
 	
+	/**
+	 * 
+	 * @return
+	 */
 	protected DocumentBuilderFactory createDocumentBuilderFactory() {
 		// TODO
 		return null;
 	}
 	
+	/**
+	 * 
+	 * @param inputSource
+	 * @param resource
+	 * @return
+	 */
 	protected int doLoadBeanDefinitions(InputSource inputSource, Resource resource) {
 		// TODO
 		return 0;

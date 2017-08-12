@@ -1,5 +1,6 @@
 package org.yuan.study.spring.beans.factory.support;
 
+import org.yuan.study.spring.beans.factory.BeanDefinitionStoreException;
 import org.yuan.study.spring.core.io.Resource;
 import org.yuan.study.spring.core.io.ResourceLoader;
 
@@ -28,27 +29,27 @@ public interface BeanDefinitionReader {
 	 * @param resource
 	 * @return
 	 */
-	int loadBeanDefinitions(Resource resource);
+	int loadBeanDefinitions(Resource resource) throws BeanDefinitionStoreException;
 	
 	/**
 	 * Load bean definitions from the specified resources.
 	 * @param resources
 	 * @return
 	 */
-	int loadBeanDefinitions(Resource[] resources);
+	int loadBeanDefinitions(Resource[] resources) throws BeanDefinitionStoreException;
 	
 	/**
 	 * Load bean definitions from the specified resource location.
 	 * @param location
 	 * @return
 	 */
-	int loadBeanDefinitions(String location);
+	int loadBeanDefinitions(String location) throws BeanDefinitionStoreException;
 	
 	/**
 	 * Load bean definitions from the specified resource locations.
 	 * @param locations
 	 * @return
 	 */
-	int loadBeanDefinitions(String[] locations);
+	int loadBeanDefinitions(String[] locations) throws BeanDefinitionStoreException;
 	
 }
