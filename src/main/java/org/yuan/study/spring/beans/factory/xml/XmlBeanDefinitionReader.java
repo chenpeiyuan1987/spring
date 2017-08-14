@@ -7,8 +7,6 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 
-import org.springframework.core.io.DescriptiveResource;
-import org.springframework.util.xml.SimpleSaxErrorHandler;
 import org.w3c.dom.Document;
 import org.xml.sax.EntityResolver;
 import org.xml.sax.ErrorHandler;
@@ -19,8 +17,10 @@ import org.yuan.study.spring.beans.BeanUtils;
 import org.yuan.study.spring.beans.factory.BeanDefinitionStoreException;
 import org.yuan.study.spring.beans.factory.support.AbstractBeanDefinitionReader;
 import org.yuan.study.spring.beans.factory.support.BeanDefinitionRegistry;
+import org.yuan.study.spring.core.io.DescriptiveResource;
 import org.yuan.study.spring.core.io.Resource;
 import org.yuan.study.spring.core.io.support.EncodedResource;
+import org.yuan.study.spring.util.xml.SimpleSaxErrorHandler;
 
 public class XmlBeanDefinitionReader extends AbstractBeanDefinitionReader {
 	

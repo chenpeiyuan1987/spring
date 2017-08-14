@@ -1,6 +1,7 @@
 package org.yuan.study.spring.core.io;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.URL;
 
 public interface Resource extends InputStreamSource {
@@ -10,7 +11,7 @@ public interface Resource extends InputStreamSource {
 	 * @param relativePath
 	 * @return
 	 */
-	Resource createRelative(String relativePath);
+	Resource createRelative(String relativePath) throws IOException;
 	
 	/**
 	 * Return whether this resource actually exists in physical form.
@@ -29,7 +30,7 @@ public interface Resource extends InputStreamSource {
 	 * Return a File handle for this resource.
 	 * @return
 	 */
-	File getFile();
+	File getFile() throws IOException;
 	
 	/**
 	 * Return a filename for this resource, 
@@ -42,7 +43,7 @@ public interface Resource extends InputStreamSource {
 	 * Return a URL handle for this resourcee.
 	 * @return
 	 */
-	URL getURL();
+	URL getURL() throws IOException;
 	
 	/**
 	 * Return whether this resource represents a handle with an open stream.
