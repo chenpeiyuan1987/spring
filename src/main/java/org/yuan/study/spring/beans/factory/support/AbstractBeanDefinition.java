@@ -437,6 +437,14 @@ public abstract class AbstractBeanDefinition implements BeanDefinition {
 	}
 	
 	/**
+	 * Specify the class for this bean.
+	 * @param beanClass
+	 */
+	public void setBeanClass(Class<?> beanClass) {
+		this.beanClass = beanClass;
+	}
+	
+	/**
 	 * Return the class name of the wrapped bean.
 	 * @return
 	 */
