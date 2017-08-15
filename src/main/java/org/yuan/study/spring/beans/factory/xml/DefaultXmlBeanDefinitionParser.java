@@ -1,5 +1,7 @@
 package org.yuan.study.spring.beans.factory.xml;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -31,6 +33,8 @@ public class DefaultXmlBeanDefinitionParser implements XmlBeanDefinitionParser {
 	//------------------------------------------------------------------------
 	// 
 	//------------------------------------------------------------------------
+	public static final String BEAN_NAME_DELIMITERS = ",; ";
+	
 	public static final String AUTOWIRE_BY_NAME_VALUE = "byName";
 	public static final String AUTOWIRE_BY_TYPE_VALUE = "byType";
 	public static final String AUTOWIRE_CONSTRUCTOR_VALUE = "constructor";
@@ -50,6 +54,8 @@ public class DefaultXmlBeanDefinitionParser implements XmlBeanDefinitionParser {
 	public static final String BEAN_ELEMENT = "bean";
 	public static final String ID_ATTRIBUTE = "id";
 	public static final String PARENT_ATTRIBUTE = "parent";
+	
+	public static final String CLASS_ATTRIBUTE = "class";
 	
 	public static final String CONSTRUCTOR_ARG_ELEMENT = "constructor-arg";
 	public static final String PROPERTY_ELEMENT = "property";
@@ -192,10 +198,67 @@ public class DefaultXmlBeanDefinitionParser implements XmlBeanDefinitionParser {
 	}
 	
 	protected BeanDefinitionHolder parseBeanDefinitionElement(Element ele, boolean isInnerBean) throws BeanDefinitionStoreException {
+		String id = ele.getAttribute(ID_ATTRIBUTE);
+		String nameAttr = ele.getAttribute(NAME_ATTRIBUTE);
 		
+		List<String> aliases = new ArrayList<String>();
+		if (StringUtils.hasLength(nameAttr)) {
+			String[] nameArr = StringUtils.tokenizeToStringArray(nameAttr, BEAN_NAME_DELIMITERS);
+			aliases.addAll(Arrays.asList(nameArr));
+		}
+		
+		String beanName = id;
+		if (!StringUtils.hasText(beanName) && !aliases.isEmpty()) {
+			beanName = (String) aliases.remove(0);
+			if (logger.isDebugEnabled()) {
+				logger.debug(String.format("No XML 'id' specified - using '%s' as bean name and %s as aliases", beanName, aliases));
+			}
+		}
+		
+		BeanDefinition beanDefinition = parseBeanDefinitionElement(ele, beanName);
+		if (!StringUtils.hasText(beanName) && beanDefinition instanceof AbstractBeanDefinition) {
+			beanName = BeanDefinitionReaderUtils.generateBeanName((AbstractBeanDefinition) beanDefinition, this.beanDefinitionReader.getBeanFactory(), isInnerBean);
+			if (logger.isDebugEnabled()) {
+				logger.debug(String.format("Neither XML 'id' nor 'name' specified - using generated bean name [%s]", beanName));
+			}
+		}
+		
+		String[] aliasesArray = StringUtils.toStringArray(aliases);
+		return new BeanDefinitionHolder(beanDefinition, beanName, aliasesArray);
 	}
 	
-	protected BeanDefinition parseDeanDefinitionElement(Element ele, String beanName) throws BeanDefinitionStoreException {
+	protected BeanDefinition parseBeanDefinitionElement(Element ele, String beanName) throws BeanDefinitionStoreException {
+		String className = null;
+		if (ele.hasAttribute(CLASS_ATTRIBUTE)) {
+			className = ele.getAttribute(CLASS_ATTRIBUTE).trim();
+		}
+		String parent = null;
+		if (ele.hasAttribute(PARENT_ATTRIBUTE)) {
+			parent = ele.getAttribute(PARENT_ATTRIBUTE);
+		}
+		
+		try {
+			ConstructorArgumentValues cargs = parseConstructorArgElements(ele, beanName);
+			MutablePropertyValues pvs = parsePropertyElements(ele, beanName);
+			
+			AbstractBeanDefinition bd = BeanDefinitionReaderUtils;
+			
+		}
+		catch (BeanDefinitionStoreException ex) {
+			throw ex;
+		}
+		catch (ClassNotFoundException ex) {
+			throw new BeanDefinitionStoreException(
+				getResource(), beanName, String.format("Bean class [%s] not found", className), ex);
+		}
+		catch (NoClassDefFoundError ex) {
+			throw new BeanDefinitionStoreException(
+				getResource(), beanName, String.format("Class that bean class [%s] depends on not found", className), ex);
+		}
+		catch (Throwable ex) {
+			throw new BeanDefinitionStoreException(
+				getResource(), beanName, "Unexpected failure during bean definition parsing", ex);
+		}
 		
 	}
 	
