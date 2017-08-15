@@ -35,6 +35,10 @@ public class DefaultXmlBeanDefinitionParser implements XmlBeanDefinitionParser {
 	public static final String AUTOWIRE_CONSTRUCTOR_VALUE = "constructor";
 	public static final String AUTOWIRE_AUTODETECT_VALUE = "autodetect";
 	
+	public static final String DEPENDENCY_CHECK_ALL_ATTRIBUTE_VALUE = "all";
+	public static final String DEPENDENCY_CHECK_SIMPLE_ATTRIBUTE_VALUE = "simple";
+	public static final String DEPENDENCY_CHECK_OBJECTS_ATTRIBUTE_VALUE = "objects";
+	
 	public static final String ALIAS_ELEMENT = "alias";
 	public static final String NAME_ATTRIBUTE = "name";
 	public static final String ALIAS_ATTRIBUTE = "alias";
@@ -42,6 +46,14 @@ public class DefaultXmlBeanDefinitionParser implements XmlBeanDefinitionParser {
 	public static final String BEAN_ELEMENT = "bean";
 	public static final String ID_ATTRIBUTE = "id";
 	public static final String PARENT_ATTRIBUTE = "parent";
+	
+	public static final String CONSTRUCTOR_ARG_ELEMENT = "constructor-arg";
+	public static final String PROPERTY_ELEMENT = "property";
+	public static final String LOOKUP_METHOD_ELEMENT = "lookup-method";
+	public static final String INDEX_ATTRIBUTE = "index";
+	public static final String TYPE_ATTRIBUTE = "type";
+	public static final String REF_ATTRIBUTE = "ref";
+	public static final String VALUE_ATTRIBUTE = "value";
 	
 	public static final String PROP_ELEMENT = "prop";
 	public static final String PROPS_ELEMENT = "props";
@@ -156,26 +168,74 @@ public class DefaultXmlBeanDefinitionParser implements XmlBeanDefinitionParser {
 	}
 	
 	protected int getDependencyCheck(String attr) {
+		int dependencyCheckCode = AbstractBeanDefinition.DEPENDENCY_CHECK_NONE;
+		if (DEPENDENCY_CHECK_ALL_ATTRIBUTE_VALUE.equals(attr)) {
+			dependencyCheckCode = AbstractBeanDefinition.DEPENDENCY_CHECK_ALL;
+		}
+		else if (DEPENDENCY_CHECK_SIMPLE_ATTRIBUTE_VALUE.equals(attr)) {
+			dependencyCheckCode = AbstractBeanDefinition.DEPENDENCY_CHECK_SIMPLE;
+		}
+		else if (DEPENDENCY_CHECK_OBJECTS_ATTRIBUTE_VALUE.equals(attr)) {
+			dependencyCheckCode = AbstractBeanDefinition.DEPENDENCY_CHECK_OBJECTS;
+		}
 		
+		return dependencyCheckCode;
 	}
 	
 	protected int getAutowireMode(String attr) {
 		int autowire = AbstractBeanDefinition.AUTOWIRE_NO;
-		if (AUTOWIRE_BY_NAME_VALUE.) {
+		if (AUTOWIRE_BY_NAME_VALUE.equals(attr)) {
 			autowire = AbstractBeanDefinition.AUTOWIRE_BY_NAME;
-		} else {
-
+		} 
+		else if (AUTOWIRE_BY_TYPE_VALUE.equals(attr)) {
+			autowire = AbstractBeanDefinition.AUTOWIRE_BY_TYPE;
+		}
+		else if (AUTOWIRE_CONSTRUCTOR_VALUE.equals(attr)) {
+			autowire = AbstractBeanDefinition.AUTOWIRE_CONSTRUCTOR;
+		}
+		else if (AUTOWIRE_AUTODETECT_VALUE.equals(attr)) {
+			autowire = AbstractBeanDefinition.AUTOWIRE_AUTODETECT;
 		}
 		
 		return autowire;
 	}
 	
+	/**
+	 * Parse constructor-arg sub-elements of the given bean element.
+	 * @param beanEle
+	 * @param beanName
+	 * @return
+	 * @throws BeanDefinitionStoreException
+	 */
 	protected ConstructorArgumentValues parseConstructorArgElements(Element beanEle, String beanName) throws BeanDefinitionStoreException {
-		
+		NodeList nodeList = beanEle.getChildNodes();
+		ConstructorArgumentValues cargs = new ConstructorArgumentValues();
+		for (int i = 0; i < nodeList.getLength(); i++) {
+			Node node = nodeList.item(i);
+			if (node instanceof Element && CONSTRUCTOR_ARG_ELEMENT.equals(node.getNodeName())) {
+				parseConstructorArgElement((Element)node, beanName, cargs);
+			}
+		}
+		return cargs;
 	}
 	
+	/**
+	 * Parse property sub-elements of the given bean element.
+	 * @param beanEle
+	 * @param beanName
+	 * @return
+	 * @throws BeanDefinitionStoreException
+	 */
 	protected MutablePropertyValues parsePropertyElements(Element beanEle, String beanName) throws BeanDefinitionStoreException {
-		
+		NodeList nodeList = beanEle.getChildNodes();
+		MutablePropertyValues pvs = new MutablePropertyValues();
+		for (int i = 0; i < nodeList.getLength(); i++) {
+			Node node = nodeList.item(i);
+			if (node instanceof Element && PROPERTY_ELEMENT.equals(node.getNodeName())) {
+				parsePropertyElement((Element)node, beanName, pvs);
+			}
+		}
+		return pvs;
 	}
 	
 	protected void parseLookupOverrideSubElements(Element beanEle, String beanName, MethodOverrides overrides) throws BeanDefinitionStoreException {
