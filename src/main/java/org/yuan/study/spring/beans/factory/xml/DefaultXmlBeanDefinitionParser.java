@@ -18,6 +18,7 @@ import org.yuan.study.spring.beans.factory.config.BeanDefinitionHolder;
 import org.yuan.study.spring.beans.factory.config.ConstructorArgumentValues;
 import org.yuan.study.spring.beans.factory.support.AbstractBeanDefinition;
 import org.yuan.study.spring.beans.factory.support.BeanDefinitionReader;
+import org.yuan.study.spring.beans.factory.support.BeanDefinitionReaderUtils;
 import org.yuan.study.spring.beans.factory.support.ManagedList;
 import org.yuan.study.spring.beans.factory.support.ManagedSet;
 import org.yuan.study.spring.beans.factory.support.MethodOverrides;
@@ -38,6 +39,9 @@ public class DefaultXmlBeanDefinitionParser implements XmlBeanDefinitionParser {
 	public static final String DEPENDENCY_CHECK_ALL_ATTRIBUTE_VALUE = "all";
 	public static final String DEPENDENCY_CHECK_SIMPLE_ATTRIBUTE_VALUE = "simple";
 	public static final String DEPENDENCY_CHECK_OBJECTS_ATTRIBUTE_VALUE = "objects";
+	
+	public static final String IMPORT_ELEMENT = "import";
+	public static final String RESOURCE_ATTRIBUTE = "resource";
 	
 	public static final String ALIAS_ELEMENT = "alias";
 	public static final String NAME_ATTRIBUTE = "name";
@@ -147,8 +151,36 @@ public class DefaultXmlBeanDefinitionParser implements XmlBeanDefinitionParser {
 		
 	}
 	
-	protected int parseBeanDefinition(Element root) throws BeanDefinitionStoreException {
-		
+	/**
+	 * Parse the elements at the root level in the document:
+	 * "import", "alias", "bean"
+	 * @param root
+	 * @return
+	 * @throws BeanDefinitionStoreException
+	 */
+	protected int parseBeanDefinitions(Element root) throws BeanDefinitionStoreException {
+		NodeList nodeList = root.getChildNodes();
+		int beanDefinitionCount = 0;
+		for (int i = 0; i < nodeList.getLength(); i++) {
+			Node node = nodeList.item(i);
+			if (node instanceof Element) {
+				Element ele = (Element) node;
+				if (IMPORT_ELEMENT.equals(node.getNodeName())) {
+					importBeanDefinitionResource(ele);
+				}
+				else if (ALIAS_ELEMENT.equals(node.getNodeName())) {
+					String name = ele.getAttribute(NAME_ATTRIBUTE);
+					String alias = ele.getAttribute(ALIAS_ATTRIBUTE);
+					this.beanDefinitionReader.getBeanFactory().registerAlias(name, alias);
+				}
+				else if (BEAN_ELEMENT.equals(node.getNodeName())) {
+					beanDefinitionCount++;
+					BeanDefinitionHolder holder = parseBeanDefinitionElement(ele, false);
+					BeanDefinitionReaderUtils.registerBeanDefinition(holder, this.beanDefinitionReader.getBeanFactory());
+				}
+			}
+		}
+		return beanDefinitionCount;
 	}
 	
 	protected void importBeanDefinitionResource(Element ele) throws BeanDefinitionStoreException {

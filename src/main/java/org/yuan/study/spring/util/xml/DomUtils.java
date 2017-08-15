@@ -64,4 +64,32 @@ public abstract class DomUtils {
 		}
 		return value.toString();
 	}
+	
+	/**
+	 * Return the first child element identified by this name.
+	 * @param ele
+	 * @param childEleName
+	 * @return
+	 */
+	public static Element getChildElementByTagName(Element ele, String childEleName) {
+		NodeList nodeList = ele.getChildNodes();
+		for (int i=0; i<nodeList.getLength(); i++) {
+			Node node = nodeList.item(i);
+			if (node instanceof Element && nodeNameEquals(node, childEleName)) {
+				return (Element) node;
+			}
+		}
+		return null;
+	}
+	
+	/**
+	 * Return the first child element value identified by its name.
+	 * @param ele
+	 * @param childEleName
+	 * @return
+	 */
+	public static String getChildElementValueByTagName(Element ele, String childEleName) {
+		Element child = getChildElementByTagName(ele, childEleName);
+		return (child != null ? getTextValue(child) : null);
+	}
 }
