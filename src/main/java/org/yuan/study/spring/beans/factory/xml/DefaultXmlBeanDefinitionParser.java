@@ -25,10 +25,12 @@ import org.yuan.study.spring.beans.factory.config.RuntimeBeanReference;
 import org.yuan.study.spring.beans.factory.support.AbstractBeanDefinition;
 import org.yuan.study.spring.beans.factory.support.BeanDefinitionReader;
 import org.yuan.study.spring.beans.factory.support.BeanDefinitionReaderUtils;
+import org.yuan.study.spring.beans.factory.support.LookupOverride;
 import org.yuan.study.spring.beans.factory.support.ManagedList;
 import org.yuan.study.spring.beans.factory.support.ManagedMap;
 import org.yuan.study.spring.beans.factory.support.ManagedSet;
 import org.yuan.study.spring.beans.factory.support.MethodOverrides;
+import org.yuan.study.spring.beans.factory.support.ReplaceOverride;
 import org.yuan.study.spring.core.io.Resource;
 import org.yuan.study.spring.util.StringUtils;
 import org.yuan.study.spring.util.xml.DomUtils;
@@ -89,6 +91,11 @@ public class DefaultXmlBeanDefinitionParser implements XmlBeanDefinitionParser {
 	public static final String TYPE_ATTRIBUTE = "type";
 	public static final String REF_ATTRIBUTE = "ref";
 	public static final String VALUE_ATTRIBUTE = "value";
+	
+	public static final String REPLACED_METHOD_ELEMENT = "replaced-method";
+	public static final String REPLACER_ATTRIBUTE = "replacer";
+	public static final String ARG_TYPE_ELEMENT = "arg-type";
+	public static final String ARG_TYPE_MATCH_ATTRIBUTE = "match";
 	
 	public static final String PROP_ELEMENT = "prop";
 	public static final String PROPS_ELEMENT = "props";
@@ -188,6 +195,11 @@ public class DefaultXmlBeanDefinitionParser implements XmlBeanDefinitionParser {
 		this.defaultDestroyMethod = defaultDestroyMethod;
 	}
 	
+	/**
+	 * 
+	 * @param root
+	 * @throws BeanDefinitionStoreException
+	 */
 	protected void preProcessXml(Element root) throws BeanDefinitionStoreException {
 		
 	}
@@ -255,6 +267,11 @@ public class DefaultXmlBeanDefinitionParser implements XmlBeanDefinitionParser {
 		}
 	}
 	
+	/**
+	 * 
+	 * @param root
+	 * @throws BeanDefinitionStoreException
+	 */
 	protected void postProcessXml(Element root) throws BeanDefinitionStoreException {
 		
 	}
@@ -480,16 +497,83 @@ public class DefaultXmlBeanDefinitionParser implements XmlBeanDefinitionParser {
 		return pvs;
 	}
 	
-	protected void parseLookupOverrideSubElements(Element beanEle, String beanName, MethodOverrides overrides) throws BeanDefinitionStoreException {
-		
+	/**
+	 * Parse look-override sub-elements of the given bean element.
+	 * @param beanEle
+	 * @param beanName
+	 * @param overrides
+	 * @throws BeanDefinitionStoreException
+	 */
+	protected void parseLookupOverrideSubElements(Element beanEle, String beanName, MethodOverrides overrides) 
+		throws BeanDefinitionStoreException {
+		NodeList nodeList = beanEle.getChildNodes();
+		for (int i = 0; i < nodeList.getLength(); i++) {
+			Node node = nodeList.item(i);
+			if (node instanceof Element && LOOKUP_METHOD_ELEMENT.equals(node.getNodeName())) {
+				Element ele = (Element) node;
+				String methodName = ele.getAttribute(NAME_ATTRIBUTE);
+				String beanRef = ele.getAttribute(BEAN_ELEMENT);
+				overrides.addOverride(new LookupOverride(methodName, beanRef));
+			}
+		}
 	}
 	
-	protected void parseReplacedMethodSubElements(Element beanEle, String beanName, MethodOverrides overrides) throws BeanDefinitionStoreException {
-		
+	/**
+	 * Parse replaced-method sub-elements of the given bean element.
+	 * @param beanEle
+	 * @param beanName
+	 * @param overrides
+	 * @throws BeanDefinitionStoreException
+	 */
+	protected void parseReplacedMethodSubElements(Element beanEle, String beanName, MethodOverrides overrides) 
+		throws BeanDefinitionStoreException {
+		NodeList nodeList = beanEle.getChildNodes();
+		for (int i = 0; i < nodeList.getLength(); i++) {
+			Node node = nodeList.item(i);
+			if (node instanceof Element && REPLACED_METHOD_ELEMENT.equals(node.getNodeName())) {
+				Element ele = (Element) node;
+				String name = ele.getAttribute(NAME_ATTRIBUTE);
+				String callback = ele.getAttribute(REPLACER_ATTRIBUTE);
+				ReplaceOverride replaceOverride = new ReplaceOverride(name, callback);
+				List<Element> argTypeEles = DomUtils.getChildElementsByTagName(ele, ARG_TYPE_ELEMENT);
+				for (Element argTypeEle : argTypeEles) {
+					replaceOverride.addTypeIdentifier(argTypeEle.getAttribute(ARG_TYPE_MATCH_ATTRIBUTE));
+				}
+				overrides.addOverride(replaceOverride);
+			}
+		}
 	}
 	
-	protected void parseConstructorArgElement(Element ele, String beanName, ConstructorArgumentValues cargs) throws BeanDefinitionStoreException {
-		
+	protected void parseConstructorArgElement(Element ele, String beanName, ConstructorArgumentValues cargs) 
+		throws BeanDefinitionStoreException {
+		Object val = parsePropertyValue(ele, beanName, null);
+		String indexAttr = ele.getAttribute(INDEX_ATTRIBUTE);
+		String typeAttr = ele.getAttribute(TYPE_ATTRIBUTE);
+		if (StringUtils.hasLength(indexAttr)) {
+			try {
+				int index = Integer.parseInt(indexAttr);
+				if (index < 0) {
+					throw new BeanDefinitionStoreException(getResource(), beanName, "'index' cannot be lower than 0");
+				}
+				if (StringUtils.hasLength(typeAttr)) {
+					cargs.addIndexedArgumentValue(index, val, typeAttr);
+				} 
+				else {
+					cargs.addIndexedArgumentValue(index, val);
+				}
+			}
+			catch (NumberFormatException ex) {
+				throw new BeanDefinitionStoreException(
+					getResource(), beanName, "Attribute 'index' of tag 'constructor-arg' must be an integer");
+			}
+		} else {
+			if (StringUtils.hasLength(typeAttr)) {
+				cargs.addGenericArgumentValue(val, typeAttr);
+			} 
+			else {
+				cargs.addGenericArgumentValue(val);
+			}
+		}
 	}
 	
 	/**
