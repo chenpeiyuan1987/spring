@@ -10,6 +10,7 @@ import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.springframework.beans.factory.config.TypedStringValue;
 import org.springframework.core.io.support.ResourcePatternUtils;
 import org.springframework.util.SystemPropertyUtils;
 import org.w3c.dom.Document;
@@ -32,6 +33,7 @@ import org.yuan.study.spring.beans.factory.support.ManagedSet;
 import org.yuan.study.spring.beans.factory.support.MethodOverrides;
 import org.yuan.study.spring.beans.factory.support.ReplaceOverride;
 import org.yuan.study.spring.core.io.Resource;
+import org.yuan.study.spring.util.ClassUtils;
 import org.yuan.study.spring.util.StringUtils;
 import org.yuan.study.spring.util.xml.DomUtils;
 
@@ -96,6 +98,12 @@ public class DefaultXmlBeanDefinitionParser implements XmlBeanDefinitionParser {
 	public static final String REPLACER_ATTRIBUTE = "replacer";
 	public static final String ARG_TYPE_ELEMENT = "arg-type";
 	public static final String ARG_TYPE_MATCH_ATTRIBUTE = "match";
+	
+	public static final String REF_ELEMENT = "ref";
+	public static final String IDREF_ELEMENT = "idref";
+	public static final String BEAN_REF_ATTRIBUTE = "bean";
+	public static final String LOCAL_REF_ATTRIBUTE = "local";
+	public static final String PARENT_REF_ATTRIBUTE = "parent";
 	
 	public static final String PROP_ELEMENT = "prop";
 	public static final String PROPS_ELEMENT = "props";
@@ -597,12 +605,138 @@ public class DefaultXmlBeanDefinitionParser implements XmlBeanDefinitionParser {
 		pvs.addPropertyValue(propertyName, val);
 	}
 	
-	protected Object parsePropertyValue(Element ele, String beanName, String propertyName) throws BeanDefinitionStoreException {
+	/**
+	 * 
+	 * @param ele
+	 * @param beanName
+	 * @param propertyName
+	 * @return
+	 * @throws BeanDefinitionStoreException
+	 */
+	protected Object parsePropertyValue(Element ele, String beanName, String propertyName) 
+		throws BeanDefinitionStoreException {
+		String elementName = (propertyName != null)
+			? String.format("<property> element for property '%s'", propertyName)
+			: "<constructor-arg> element";
 		
+		NodeList nodeList = ele.getChildNodes();
+		Element subElement = null;
+		for (int i = 0; i < nodeList.getLength(); i++) {
+			Node node = nodeList.item(i);
+			if (node instanceof Element) {
+				Element element = (Element) node;
+				if (DESCRIPTION_ELEMENT.equals(element.getTagName())) {
+					
+				} 
+				else {
+					if (subElement != null) {
+						throw new BeanDefinitionStoreException(getResource(), beanName, elementName + " must not contain more than one sub-element");
+					}
+					subElement = element;
+				}
+			}
+		}
+		
+		boolean hasRefAttribute = ele.hasAttribute(REF_ATTRIBUTE);
+		boolean hasValAttribute = ele.hasAttribute(VALUE_ATTRIBUTE);
+		if ((hasRefAttribute && hasValAttribute) || (hasRefAttribute || hasValAttribute) && subElement != null) {
+			throw new BeanDefinitionStoreException(getResource(), beanName, 
+				elementName + " is only allowed to contain either 'ref' attribute OR 'value' attribute OR sub-element");
+		}
+		if (hasRefAttribute) {
+			String refName = ele.getAttribute(REF_ATTRIBUTE);
+			if (!StringUtils.hasText(refName)) {
+				throw new BeanDefinitionStoreException(getResource(), beanName, 
+					elementName + " contain empty 'ref' attribute");
+			}
+			return new RuntimeBeanReference(refName);
+		}
+		else if (hasValAttribute) {
+			return ele.getAttribute(VALUE_ATTRIBUTE);
+		}
+		
+		if (subElement == null) {
+			throw new BeanDefinitionStoreException(getResource(), beanName, 
+				elementName + " must specify a ref or value");
+		}
+		
+		return parsePropertySubElement(subElement, beanName);
 	}
 	
-	protected Object parsePropertySubElement(Element ele, String beanName) throws BeanDefinitionStoreException {
-		
+	protected Object parsePropertySubElement(Element ele, String beanName) 
+		throws BeanDefinitionStoreException {
+		if (ele.getTagName().equals(BEAN_ELEMENT)) {
+			try {
+				return parseBeanDefinitionElement(ele, true);
+			}
+			catch (BeanDefinitionStoreException ex) {
+				throw new BeanDefinitionStoreException(
+					getResource(), beanName, "Could not parse inner bean definition", ex);
+			}
+		} 
+		else if (ele.getTagName().equals(REF_ELEMENT)) {
+			String refName = ele.getAttribute(BEAN_REF_ATTRIBUTE);
+			boolean toParent = false;
+			if (!StringUtils.hasLength(refName)) {
+				refName = ele.getAttribute(LOCAL_REF_ATTRIBUTE);
+				if (!StringUtils.hasLength(refName)) {
+					refName = ele.getAttribute(PARENT_REF_ATTRIBUTE);
+					toParent = true;
+					if (!StringUtils.hasLength(refName)) {
+						throw new BeanDefinitionStoreException(
+							getResource(), beanName, "'bean', 'local' or 'parent' is required for <ref> element");
+					}
+				}
+			}
+			if (!StringUtils.hasText(refName)) {
+				throw new BeanDefinitionStoreException(
+					getResource(), beanName, "<ref> element contains empty target attribute");
+			}
+			return new RuntimeBeanReference(refName, toParent);
+		}
+		else if (ele.getTagName().equals(IDREF_ELEMENT)) {
+			String beanRef = ele.getAttribute(BEAN_REF_ATTRIBUTE);
+			if (!StringUtils.hasLength(beanRef)) {
+				beanRef = ele.getAttribute(LOCAL_REF_ATTRIBUTE);
+				if (!StringUtils.hasLength(beanRef)) {
+					throw new BeanDefinitionStoreException(
+						getResource(), beanName, "Either 'bean' or 'local' is required for <idref> element");
+				}
+			}
+			return beanRef;
+		}
+		else if (ele.getTagName().equals(VALUE_ELEMENT)) {
+			String value = DomUtils.getTextValue(ele);
+			if (ele.hasAttribute(TYPE_ATTRIBUTE)) {
+				String typeClassName = ele.getAttribute(TYPE_ATTRIBUTE);
+				try {
+					Class<?> typeClass = ClassUtils.forName(typeClassName, this.beanDefinitionReader.getBeanClassLoader());
+					return new TypedStringValue(value, typeClass);
+				}
+				catch (ClassNotFoundException ex) {
+					throw new BeanDefinitionStoreException(
+						getResource(), beanName, String.format("Type class [%s] not found for <value> element", typeClassName), ex);
+				}
+			}
+			return value;
+		}
+		else if (ele.getTagName().equals(NULL_ELEMENT)) {
+			return null;
+		}
+		else if (ele.getTagName().equals(LIST_ELEMENT)) {
+			return parseListElement(ele, beanName);
+		}
+		else if (ele.getTagName().equals(SET_ELEMENT)) {
+			return parseSetElement(ele, beanName);
+		}
+		else if (ele.getTagName().equals(MAP_ELEMENT)) {
+			return parseMapElement(ele, beanName);
+		}
+		else if (ele.getTagName().equals(PROPS_ELEMENT)) {
+			return parsePropsElement(ele, beanName);
+		}
+		throw new BeanDefinitionStoreException(
+			getResource(), beanName, String.format("Unknown property sub-element: <%s>", ele.getTagName()));
 	}
 	
 	/**
