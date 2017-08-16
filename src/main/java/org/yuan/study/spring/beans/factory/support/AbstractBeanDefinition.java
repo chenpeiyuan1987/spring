@@ -480,6 +480,14 @@ public abstract class AbstractBeanDefinition implements BeanDefinition {
 		}
 	}
 	
+	/**
+	 * Return if there are constructor argument values defined for this bean.
+	 * @return
+	 */
+	public boolean hasConstructorArgumentValues() {
+		return !constructorArgumentValues.isEmpty();
+	}
+	
 	
 	//--------------------------------------------------------------
 	// Implementation of BeanDefinition interface

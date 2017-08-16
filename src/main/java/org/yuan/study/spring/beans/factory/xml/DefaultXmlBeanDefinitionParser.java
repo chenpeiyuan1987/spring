@@ -407,7 +407,6 @@ public class DefaultXmlBeanDefinitionParser implements XmlBeanDefinitionParser {
 			throw new BeanDefinitionStoreException(
 				getResource(), beanName, "Unexpected failure during bean definition parsing", ex);
 		}
-		
 	}
 	
 	protected int getDependencyCheck(String attr) {
