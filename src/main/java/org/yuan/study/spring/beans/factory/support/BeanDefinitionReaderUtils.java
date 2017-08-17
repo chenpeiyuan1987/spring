@@ -69,6 +69,16 @@ public abstract class BeanDefinitionReaderUtils {
 		return id;
 	}
 	
+	/**
+	 * 
+	 * @param className
+	 * @param parent
+	 * @param cargs
+	 * @param pvs
+	 * @param classLoader
+	 * @return
+	 * @throws ClassNotFoundException
+	 */
 	public static AbstractBeanDefinition createBeanDefinition(String className, String parent, ConstructorArgumentValues cargs, 
 		MutablePropertyValues pvs, ClassLoader classLoader) throws ClassNotFoundException {
 		Class<?> beanClass = null;

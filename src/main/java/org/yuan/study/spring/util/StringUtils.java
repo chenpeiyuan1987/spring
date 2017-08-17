@@ -8,9 +8,17 @@ import java.util.Locale;
 import java.util.StringTokenizer;
 
 public abstract class StringUtils {
+	
+	private static final String FOLDER_SEPARATOR = "/";
+	
+	private static final String WINDOWS_FOLDER_SEPARATOR = "\\";
+	
+	private static final String TOP_PATH = "..";
+	
+	private static final String CURRENT_PATH = ".";
 
 	/**
-	 * 
+	 * Convenience method to return a Collection as a CSV String.
 	 * @param collection
 	 * @return
 	 */
@@ -43,7 +51,8 @@ public abstract class StringUtils {
 	}
 	
 	/**
-	 * 
+	 * Copy the given Collection into a String array.
+	 * The Collection must contain String elements only.
 	 * @param collection
 	 * @return
 	 */
@@ -51,7 +60,6 @@ public abstract class StringUtils {
 		if (collection == null) {
 			return null;
 		}
-		
 		return collection.toArray(new String[collection.size()]);
 	}
 	
@@ -84,7 +92,7 @@ public abstract class StringUtils {
 	}
 	
 	/**
-	 * 
+	 * Convenience method to return a String array as a delimited 
 	 * @param arr
 	 * @param delim
 	 * @return
@@ -145,7 +153,39 @@ public abstract class StringUtils {
 	 * @return
 	 */
 	public static Locale parseLocaleString(String localString) {
+		String[] parts = tokenizeToStringArray(localString, "_ ", false, false);
+		String language = (parts.length > 0 ? parts[0] : "");
+		String country = (parts.length > 1 ? parts[1] : "");
+		String variant = (parts.length > 2 ? parts[2] : "");
+		return (language.length() > 0 ? new Locale(language, country, variant) : null);
+	}
+	
+	/**
+	 * 
+	 * @param path
+	 * @return
+	 */
+	public static String cleanPath(String path) {
 		// TODO
 		return null;
+	}
+	
+	/**
+	 * Apply the given relative path to the given path,
+	 * assuming standard Java folder separation.
+	 * @param path
+	 * @param relativePath
+	 * @return
+	 */
+	public static String applyRelativePath(String path, String relativePath) {
+		int index = path.lastIndexOf(FOLDER_SEPARATOR);
+		if (index != -1) {
+			String newPath = path.substring(0, index);
+			if (!relativePath.startsWith(FOLDER_SEPARATOR)) {
+				newPath += FOLDER_SEPARATOR;
+			}
+			return newPath + relativePath;
+		}
+		return relativePath;
 	}
 }

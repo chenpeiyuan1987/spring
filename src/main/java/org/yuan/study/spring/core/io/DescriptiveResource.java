@@ -8,6 +8,10 @@ public class DescriptiveResource extends AbstractResource {
 
 	private final String description;
 
+	/**
+	 * Create a new DescriptiveResource.
+	 * @param description
+	 */
 	public DescriptiveResource(String description) {
 		this.description = (description != null ? description : "");
 	}
