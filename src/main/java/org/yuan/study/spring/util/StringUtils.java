@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.StringTokenizer;
 
 public abstract class StringUtils {
@@ -136,5 +137,15 @@ public abstract class StringUtils {
 			}
 		}
 		return toStringArray(tokens);
+	}
+	
+	/**
+	 * 
+	 * @param localString
+	 * @return
+	 */
+	public static Locale parseLocaleString(String localString) {
+		// TODO
+		return null;
 	}
 }

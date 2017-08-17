@@ -18,8 +18,20 @@ import java.util.Set;
 import java.util.SortedSet;
 
 import org.springframework.core.io.Resource;
+import org.yuan.study.spring.beans.propertyeditors.ByteArrayPropertyEditor;
+import org.yuan.study.spring.beans.propertyeditors.CharArrayPropertyEditor;
+import org.yuan.study.spring.beans.propertyeditors.CharacterEditor;
 import org.yuan.study.spring.beans.propertyeditors.ClassEditor;
+import org.yuan.study.spring.beans.propertyeditors.CustomBooleanEditor;
+import org.yuan.study.spring.beans.propertyeditors.CustomCollectionEditor;
+import org.yuan.study.spring.beans.propertyeditors.CustomNumberEditor;
 import org.yuan.study.spring.beans.propertyeditors.FileEditor;
+import org.yuan.study.spring.beans.propertyeditors.InputStreamEditor;
+import org.yuan.study.spring.beans.propertyeditors.LocaleEditor;
+import org.yuan.study.spring.beans.propertyeditors.PropertiesEditor;
+import org.yuan.study.spring.beans.propertyeditors.StringArrayPropertyEditor;
+import org.yuan.study.spring.beans.propertyeditors.URLEditor;
+import org.yuan.study.spring.core.io.ResourceEditor;
 
 public class PropertyEditorRegistrySupport implements PropertyEditorRegistry {
 	
@@ -123,44 +135,52 @@ public class PropertyEditorRegistrySupport implements PropertyEditorRegistry {
 		
 		this.defaultEditors.put(Class.class, new ClassEditor());
 		this.defaultEditors.put(File.class, new FileEditor());
-		this.defaultEditors.put(InputStream.class, null);
-		this.defaultEditors.put(Locale.class, null);
-		this.defaultEditors.put(Properties.class, null);
-		this.defaultEditors.put(Resource[].class, null);
-		this.defaultEditors.put(String[].class, null);
-		this.defaultEditors.put(URL.class, null);
+		this.defaultEditors.put(InputStream.class, new InputStreamEditor());
+		this.defaultEditors.put(Locale.class, new LocaleEditor());
+		this.defaultEditors.put(Properties.class, new PropertiesEditor());
+		this.defaultEditors.put(Resource[].class, new ResourceEditor());
+		this.defaultEditors.put(String[].class, new StringArrayPropertyEditor());
+		this.defaultEditors.put(URL.class, new URLEditor());
 		
 		
-		this.defaultEditors.put(Collection.class, null);
-		this.defaultEditors.put(Set.class, null);
-		this.defaultEditors.put(SortedSet.class, null);
-		this.defaultEditors.put(List.class, null);
+		this.defaultEditors.put(Collection.class, new CustomCollectionEditor(Collection.class));
+		this.defaultEditors.put(Set.class, new CustomCollectionEditor(Set.class));
+		this.defaultEditors.put(SortedSet.class, new CustomCollectionEditor(SortedSet.class));
+		this.defaultEditors.put(List.class, new CustomCollectionEditor(List.class));
 		
 		
-		this.defaultEditors.put(byte[].class, null);
-		this.defaultEditors.put(char[].class, null);
+		this.defaultEditors.put(byte[].class, new ByteArrayPropertyEditor());
+		this.defaultEditors.put(char[].class, new CharArrayPropertyEditor());
 		
 		
-		this.defaultEditors.put(char.class, null);
-		this.defaultEditors.put(Character.class, null);
-		this.defaultEditors.put(boolean.class, null);
-		this.defaultEditors.put(Boolean.class, null);
+		PropertyEditor characterEditor = new CharacterEditor(false);
+		PropertyEditor booleanEditor = new CustomBooleanEditor(false);
+		this.defaultEditors.put(char.class, characterEditor);
+		this.defaultEditors.put(Character.class, characterEditor);
+		this.defaultEditors.put(boolean.class, booleanEditor);
+		this.defaultEditors.put(Boolean.class, booleanEditor);
 		
 		
-		this.defaultEditors.put(byte.class, null);
-		this.defaultEditors.put(Byte.class, null);
-		this.defaultEditors.put(short.class, null);
-		this.defaultEditors.put(Short.class, null);
-		this.defaultEditors.put(int.class, null);
-		this.defaultEditors.put(Integer.class, null);
-		this.defaultEditors.put(long.class, null);
-		this.defaultEditors.put(Long.class, null);
-		this.defaultEditors.put(float.class, null);
-		this.defaultEditors.put(Float.class, null);
-		this.defaultEditors.put(double.class, null);
-		this.defaultEditors.put(Double.class, null);
-		this.defaultEditors.put(BigDecimal.class, null);
-		this.defaultEditors.put(BigInteger.class, null);
+		PropertyEditor byteEditor = new CustomNumberEditor(Byte.class, false);
+		PropertyEditor shortEditor = new CustomNumberEditor(Short.class, false);
+		PropertyEditor integerEditor = new CustomNumberEditor(Integer.class, false);
+		PropertyEditor longEditor = new CustomNumberEditor(Long.class, false);
+		PropertyEditor floatEditor = new CustomNumberEditor(Float.class, false);
+		PropertyEditor doubleEditor = new CustomNumberEditor(Double.class, false);
+		this.defaultEditors.put(byte.class, byteEditor);
+		this.defaultEditors.put(Byte.class, byteEditor);
+		this.defaultEditors.put(short.class, shortEditor);
+		this.defaultEditors.put(Short.class, shortEditor);
+		this.defaultEditors.put(int.class, integerEditor);
+		this.defaultEditors.put(Integer.class, integerEditor);
+		this.defaultEditors.put(long.class, longEditor);
+		this.defaultEditors.put(Long.class, longEditor);
+		this.defaultEditors.put(float.class, floatEditor);
+		this.defaultEditors.put(Float.class, floatEditor);
+		this.defaultEditors.put(double.class, doubleEditor);
+		this.defaultEditors.put(Double.class, doubleEditor);
+		this.defaultEditors.put(BigDecimal.class, new CustomNumberEditor(BigDecimal.class, false));
+		this.defaultEditors.put(BigInteger.class, new CustomNumberEditor(BigInteger.class, false));
 	}
 	
 	/**
