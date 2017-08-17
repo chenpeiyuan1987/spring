@@ -3,6 +3,7 @@ package org.yuan.study.spring.util;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.StringTokenizer;
@@ -27,7 +28,7 @@ public abstract class StringUtils {
 	}
 	
 	/**
-	 * 
+	 * Convenience method to return a Collection as a delimited.
 	 * @param collection
 	 * @param delimiter
 	 * @param prefix
@@ -48,6 +49,18 @@ public abstract class StringUtils {
 			}
 		}
 		return sb.toString();
+	}
+	
+	/**
+	 * Convenience method to return a Collection as a delimited.
+	 * @param collection
+	 * @param delimiter
+	 * @param prefix
+	 * @param suffix
+	 * @return
+	 */
+	public static String collectionToDelimitedString(Collection<?> collection, String delimiter) {
+		return collectionToDelimitedString(collection, delimiter, "", "");
 	}
 	
 	/**
@@ -148,7 +161,7 @@ public abstract class StringUtils {
 	}
 	
 	/**
-	 * 
+	 * Parse the given locale string into a java.util.Locale.
 	 * @param localString
 	 * @return
 	 */
@@ -161,13 +174,110 @@ public abstract class StringUtils {
 	}
 	
 	/**
-	 * 
+	 * Take a String which is a delimited list and convert it to a String array.
+	 * @param str
+	 * @param delimiter
+	 * @return
+	 */
+	public static String[] delimitedListToStringArray(String str, String delimiter) {
+		if (str == null) {
+			return new String[0];
+		}
+		if (delimiter == null) {
+			return new String[]{str};
+		}
+		List<String> result = new ArrayList<String>();
+		if ("".equals(delimiter)) {
+			for (int i = 0; i < str.length(); i++) {
+				result.add(str.substring(i, i+1));
+			}
+		} 
+		else {
+			int pos = 0;
+			int delPos = 0;
+			while ((delPos = str.indexOf(delimiter, pos)) != -1) {
+				result.add(str.substring(pos, delPos));
+				pos = delPos + delimiter.length();
+			}
+			if (str.length() > 0 && pos <= str.length()) {
+				result.add(str.substring(pos));
+			}
+		}
+		return toStringArray(result);
+	}
+	
+	/**
+	 * Normalize the path by suppressing sequences like "path/.." and inner simple dots.
 	 * @param path
 	 * @return
 	 */
 	public static String cleanPath(String path) {
-		// TODO
-		return null;
+		String pathToUse = replace(path, WINDOWS_FOLDER_SEPARATOR, FOLDER_SEPARATOR);
+		
+		int index = pathToUse.indexOf(":");
+		String prefix = "";
+		if (index != -1) {
+			prefix = pathToUse.substring(0, index + 1);
+			pathToUse = pathToUse.substring(index + 1);
+		}
+		
+		String[] pathArray = delimitedListToStringArray(pathToUse, FOLDER_SEPARATOR);
+		List<String> pathElements = new LinkedList<String>();
+		int tops = 0;
+		
+		for (int i = pathArray.length - 1; i >= 0; i--) {
+			String item = pathArray[i];
+			if (CURRENT_PATH.equals(item)) {
+				
+			} 
+			else if (TOP_PATH.equals(item)) {
+				tops++;
+			}
+			else {
+				if (tops > 0) {
+					tops--;
+				} 
+				else {
+					pathElements.add(0, item);
+				}
+			}
+		}
+		
+		for (int i = 0; i < tops; i++) {
+			pathElements.add(0, TOP_PATH);
+		}
+		
+		return prefix + collectionToDelimitedString(pathElements, FOLDER_SEPARATOR);
+	}
+	
+	/**
+	 * Replace all occurences of a substring within a string with another string.
+	 * @param inString
+	 * @param oldPattern
+	 * @param newPattern
+	 * @return
+	 */
+	public static String replace(String inString, String oldPattern, String newPattern) {
+		if (inString == null) {
+			return null;
+		}
+		if (oldPattern == null || newPattern == null) {
+			return inString;
+		}
+		
+		StringBuffer sb = new StringBuffer();
+		int pos = 0;
+		int index = inString.indexOf(oldPattern);
+		int patLen = oldPattern.length();
+		while (index >= 0) {
+			sb.append(inString.substring(pos, index));
+			sb.append(newPattern);
+			pos = index + patLen;
+			index = inString.indexOf(oldPattern, pos);
+		}
+		sb.append(inString.substring(pos));
+		
+		return sb.toString();
 	}
 	
 	/**
