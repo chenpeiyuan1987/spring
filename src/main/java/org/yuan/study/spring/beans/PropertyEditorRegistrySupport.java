@@ -17,7 +17,6 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.SortedSet;
 
-import org.springframework.core.io.Resource;
 import org.yuan.study.spring.beans.propertyeditors.ByteArrayPropertyEditor;
 import org.yuan.study.spring.beans.propertyeditors.CharArrayPropertyEditor;
 import org.yuan.study.spring.beans.propertyeditors.CharacterEditor;
@@ -31,6 +30,7 @@ import org.yuan.study.spring.beans.propertyeditors.LocaleEditor;
 import org.yuan.study.spring.beans.propertyeditors.PropertiesEditor;
 import org.yuan.study.spring.beans.propertyeditors.StringArrayPropertyEditor;
 import org.yuan.study.spring.beans.propertyeditors.URLEditor;
+import org.yuan.study.spring.core.io.Resource;
 import org.yuan.study.spring.core.io.ResourceEditor;
 
 public class PropertyEditorRegistrySupport implements PropertyEditorRegistry {

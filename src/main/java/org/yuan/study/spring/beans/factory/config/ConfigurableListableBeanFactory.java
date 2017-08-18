@@ -1,6 +1,8 @@
 package org.yuan.study.spring.beans.factory.config;
 
+import org.yuan.study.spring.beans.BeansException;
 import org.yuan.study.spring.beans.factory.ListableBeanFactory;
+import org.yuan.study.spring.beans.factory.NoSuchBeanDefinitionException;
 
 public interface ConfigurableListableBeanFactory extends ListableBeanFactory,
 	ConfigurableBeanFactory, AutowireCapableBeanFactory {
@@ -11,7 +13,7 @@ public interface ConfigurableListableBeanFactory extends ListableBeanFactory,
 	 * @param beanName
 	 * @return
 	 */
-	BeanDefinition getBeanDefinition(String beanName);
+	BeanDefinition getBeanDefinition(String beanName) throws NoSuchBeanDefinitionException;
 	
 	/**
 	 * Ignore the given dependency interface for autowiring.
@@ -28,5 +30,5 @@ public interface ConfigurableListableBeanFactory extends ListableBeanFactory,
 	/**
 	 * Return that all non-lazy-init singletons are instantiated, also considering FactoryBeans.
 	 */
-	void preInstantiateSingletons();
+	void preInstantiateSingletons() throws BeansException;
 }

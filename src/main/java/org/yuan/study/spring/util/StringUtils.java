@@ -298,4 +298,13 @@ public abstract class StringUtils {
 		}
 		return relativePath;
 	}
+	
+	/**
+	 * Convenience method to return a String array as a CSV String.
+	 * @param convertedValue
+	 * @return
+	 */
+	public static String arrayToCommaDelimitedString(String[] arr) {
+		return arrayToDelimitedString(arr, ",");
+	}
 }

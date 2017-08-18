@@ -19,10 +19,8 @@ import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.springframework.beans.MethodInvocationException;
-import org.springframework.beans.NullValueInNestedPathException;
-import org.springframework.util.StringUtils;
 import org.yuan.study.spring.util.Assert;
+import org.yuan.study.spring.util.StringUtils;
 
 public class BeanWrapperImpl extends PropertyEditorRegistrySupport implements BeanWrapper {
 
@@ -561,7 +559,7 @@ public class BeanWrapperImpl extends PropertyEditorRegistrySupport implements Be
 				}
 			} 
 			else if(propValue instanceof List) {
-				List<Object> list = (List) propValue;
+				List<Object> list = (List<Object>) propValue;
 				int index = Integer.parseInt(key);
 				Object oldValue = null;
 				if (isExtractOldValueForEditor() && index < list.size()) {
@@ -585,7 +583,7 @@ public class BeanWrapperImpl extends PropertyEditorRegistrySupport implements Be
 				}
 			}
 			else if(propValue instanceof Map) {
-				Map<String,Object> map = (Map) propValue;
+				Map<String,Object> map = (Map<String,Object>) propValue;
 				Object oldValue = null;
 				if (isExtractOldValueForEditor()) {
 					oldValue = map.get(key);
