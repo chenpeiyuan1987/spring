@@ -15,7 +15,9 @@ public interface AutowireCapableBeanFactory extends BeanFactory {
 	int AUTOWIRE_CONSTRUCTOR = 4;
 	
 	/**
-	 * 
+	 * Apply BeanPostProcessors to the given existing bean instance.
+	 * invoking their postProcessAfterInitialization methods.
+	 * The returned bean instance may be a wrapper around the original.
 	 * @param existingBean
 	 * @param beanName
 	 * @return
@@ -24,7 +26,9 @@ public interface AutowireCapableBeanFactory extends BeanFactory {
 	Object applyBeanPostProcessorsAfterInitialization(Object existingBean, String beanName) throws BeansException;
 	
 	/**
-	 * 
+	 * Apply BeanPostProcessors to the given existing bean instance.
+	 * invoking their postProcessBeforeInitialization methods.
+	 * The returned bean instance may be a wrapper around the original.
 	 * @param existingBean
 	 * @param beanName
 	 * @return
@@ -33,7 +37,7 @@ public interface AutowireCapableBeanFactory extends BeanFactory {
 	Object applyBeanPostProcessorsBeforeInitialization(Object existingBean, String beanName) throws BeansException;
 
 	/**
-	 * 
+	 * Apply the property values of the bean definition with the given name to the given bean instance.
 	 * @param existingBean
 	 * @param beanName
 	 * @throws BeansException
@@ -41,7 +45,7 @@ public interface AutowireCapableBeanFactory extends BeanFactory {
 	void applyBeanPropertyValues(Object existingBean, String beanName) throws BeansException;
 	
 	/**
-	 * 
+	 * Create a new bean instance of the given class with the specified autowire strategy.
 	 * @param beanClass
 	 * @param autowireMode
 	 * @param dependencyCheck
@@ -51,7 +55,7 @@ public interface AutowireCapableBeanFactory extends BeanFactory {
 	Object autowire(Class<?> beanClass, int autowireMode, boolean dependencyCheck) throws BeansException;
 	
 	/**
-	 * 
+	 * Autowire the bean properties of the given bean instance by name or type.
 	 * @param existingBean
 	 * @param autowireMode
 	 * @param dependencyCheck

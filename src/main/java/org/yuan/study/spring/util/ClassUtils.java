@@ -13,7 +13,7 @@ public abstract class ClassUtils {
 	/** All primitive classes */
 	private static Class<?>[] PRIMITIVE_CLASSES = {
 		boolean.class, byte.class, char.class, short.class, 
-		int.class, long.class, float.class, double.class
+		int.class, long.class, float.class, double.class, void.class
 	};
 	
 	private static final Log logger = LogFactory.getLog(ClassUtils.class);
@@ -143,5 +143,35 @@ public abstract class ClassUtils {
 			count += getMethodCountForName(clazz.getSuperclass(), methodName);
 		}
 		return count;
+	}
+	
+	/**
+	 * Determine whether the given class has a method with the given signature.
+	 * @param clazz
+	 * @param methodName
+	 * @param paramTypes
+	 * @return
+	 */
+	public static boolean hasMethod(Class<?> clazz, String methodName, Class<?>[] paramTypes) {
+		return (getMethodIfAvailable(clazz, methodName, paramTypes) != null);
+	}
+	
+	/**
+	 * Determine whether the given class has a method with the given signature,
+	 * and return it if available.
+	 * @param clazz
+	 * @param methodName
+	 * @param paramTypes
+	 * @return
+	 */
+	public static Method getMethodIfAvailable(Class<?> clazz, String methodName, Class<?>[] paramTypes) {
+		Assert.notNull(clazz, "Class must not be null");
+		Assert.notNull(methodName, "Method name must not be null");
+		try {
+			return clazz.getMethod(methodName, paramTypes);
+		}
+		catch (NoSuchMethodException ex) {
+			return null;
+		}
 	}
 }

@@ -304,7 +304,7 @@ public abstract class StringUtils {
 	 * @param convertedValue
 	 * @return
 	 */
-	public static String arrayToCommaDelimitedString(String[] arr) {
+	public static String arrayToCommaDelimitedString(Object[] arr) {
 		return arrayToDelimitedString(arr, ",");
 	}
 }

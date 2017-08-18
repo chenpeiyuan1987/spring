@@ -10,6 +10,11 @@ public class ReplaceOverride extends MethodOverride {
 	
 	private List<String> typeIdentifiers = new LinkedList<String>();
 	
+	/**
+	 * Creaet a new ReplaceOverride
+	 * @param methodName
+	 * @param methodReplacerBeanName
+	 */
 	public ReplaceOverride(String methodName, String methodReplacerBeanName) {
 		super(methodName);
 		this.methodReplacerBeanName = methodReplacerBeanName;

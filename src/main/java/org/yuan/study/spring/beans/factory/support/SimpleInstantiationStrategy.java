@@ -7,10 +7,10 @@ import java.lang.reflect.Modifier;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.springframework.beans.BeanUtils;
-import org.springframework.util.StringUtils;
+import org.yuan.study.spring.beans.BeanUtils;
 import org.yuan.study.spring.beans.factory.BeanDefinitionStoreException;
 import org.yuan.study.spring.beans.factory.BeanFactory;
+import org.yuan.study.spring.util.StringUtils;
 
 public class SimpleInstantiationStrategy implements InstantiationStrategy {
 	

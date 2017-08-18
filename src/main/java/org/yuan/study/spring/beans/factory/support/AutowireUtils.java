@@ -8,8 +8,8 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Set;
 
-import org.springframework.beans.BeanUtils;
-import org.springframework.util.ClassUtils;
+import org.yuan.study.spring.beans.BeanUtils;
+import org.yuan.study.spring.util.ClassUtils;
 
 public abstract class AutowireUtils {
 	

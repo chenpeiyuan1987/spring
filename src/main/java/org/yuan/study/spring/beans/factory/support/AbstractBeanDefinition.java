@@ -27,10 +27,13 @@ public abstract class AbstractBeanDefinition implements BeanDefinition {
 
 	/** Constant that indicates no dependency check at all */
 	public static final int DEPENDENCY_CHECK_NONE = 0;
+	
 	/** Constant that indicates dependency checking for object references. */
 	public static final int DEPENDENCY_CHECK_OBJECTS = 1;
+	
 	/** Constant that indicates dependency checking for "simple" properties. */
 	public static final int DEPENDENCY_CHECK_SIMPLE = 2;
+	
 	/** Constant that indicates dependency checking for all properties. */
 	public static final int DEPENDENCY_CHECK_ALL = 3;
 	

@@ -6,9 +6,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import javax.xml.ws.spi.Invoker;
-
-import org.springframework.util.StringUtils;
 import org.yuan.study.spring.beans.BeansException;
 import org.yuan.study.spring.beans.factory.BeanCreationException;
 import org.yuan.study.spring.beans.factory.BeanFactoryUtils;
@@ -17,6 +14,7 @@ import org.yuan.study.spring.beans.factory.BeanNotOfRequiredTypeException;
 import org.yuan.study.spring.beans.factory.FactoryBean;
 import org.yuan.study.spring.beans.factory.ListableBeanFactory;
 import org.yuan.study.spring.beans.factory.NoSuchBeanDefinitionException;
+import org.yuan.study.spring.util.StringUtils;
 
 public class StaticListableBeanFactory implements ListableBeanFactory {
 	/** Map from bean name to bean instance */

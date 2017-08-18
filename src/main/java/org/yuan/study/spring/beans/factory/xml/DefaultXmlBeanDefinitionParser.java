@@ -10,9 +10,6 @@ import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.springframework.beans.factory.config.TypedStringValue;
-import org.springframework.core.io.support.ResourcePatternUtils;
-import org.springframework.util.SystemPropertyUtils;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -23,6 +20,7 @@ import org.yuan.study.spring.beans.factory.config.BeanDefinition;
 import org.yuan.study.spring.beans.factory.config.BeanDefinitionHolder;
 import org.yuan.study.spring.beans.factory.config.ConstructorArgumentValues;
 import org.yuan.study.spring.beans.factory.config.RuntimeBeanReference;
+import org.yuan.study.spring.beans.factory.config.TypedStringValue;
 import org.yuan.study.spring.beans.factory.support.AbstractBeanDefinition;
 import org.yuan.study.spring.beans.factory.support.BeanDefinitionReader;
 import org.yuan.study.spring.beans.factory.support.BeanDefinitionReaderUtils;
@@ -33,8 +31,10 @@ import org.yuan.study.spring.beans.factory.support.ManagedSet;
 import org.yuan.study.spring.beans.factory.support.MethodOverrides;
 import org.yuan.study.spring.beans.factory.support.ReplaceOverride;
 import org.yuan.study.spring.core.io.Resource;
+import org.yuan.study.spring.core.io.support.ResourcePatternUtils;
 import org.yuan.study.spring.util.ClassUtils;
 import org.yuan.study.spring.util.StringUtils;
+import org.yuan.study.spring.util.SystemPropertyUtils;
 import org.yuan.study.spring.util.xml.DomUtils;
 
 public class DefaultXmlBeanDefinitionParser implements XmlBeanDefinitionParser {
