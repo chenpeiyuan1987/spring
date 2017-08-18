@@ -2,31 +2,36 @@ package org.yuan.study.spring.beans.factory.support;
 
 import java.lang.reflect.Constructor;
 
-import org.springframework.util.ClassUtils;
 import org.yuan.study.spring.beans.MutablePropertyValues;
 import org.yuan.study.spring.beans.factory.config.AutowireCapableBeanFactory;
 import org.yuan.study.spring.beans.factory.config.BeanDefinition;
 import org.yuan.study.spring.beans.factory.config.ConstructorArgumentValues;
+import org.yuan.study.spring.util.ClassUtils;
 
 public abstract class AbstractBeanDefinition implements BeanDefinition {
-	/**  */
+	
+	/** Constant that indicates no autowiring at all */
 	public static final int AUTOWIRE_NO = 0;
-	/**  */
+	
+	/** Constant that indicates determining an appropriate autowire strategy through introspection of the bean class. */
 	public static final int AUTOWIRE_AUTODETECT = AutowireCapableBeanFactory.AUTOWIRE_AUTODETECT;
-	/**  */
+	
+	/** Constant that indicates autowiring bean properties by name. */
 	public static final int AUTOWIRE_BY_NAME = AutowireCapableBeanFactory.AUTOWIRE_BY_NAME;
-	/**  */
+	
+	/** Constant that indicates autowiring bean properties by type. */
 	public static final int AUTOWIRE_BY_TYPE = AutowireCapableBeanFactory.AUTOWIRE_BY_TYPE;
-	/**  */
+	
+	/** Constant that indicates autowiring a constructor. */
 	public static final int AUTOWIRE_CONSTRUCTOR = AutowireCapableBeanFactory.AUTOWIRE_CONSTRUCTOR;
 
-	/**  */
+	/** Constant that indicates no dependency check at all */
 	public static final int DEPENDENCY_CHECK_NONE = 0;
-	/**  */
+	/** Constant that indicates dependency checking for object references. */
 	public static final int DEPENDENCY_CHECK_OBJECTS = 1;
-	/**  */
+	/** Constant that indicates dependency checking for "simple" properties. */
 	public static final int DEPENDENCY_CHECK_SIMPLE = 2;
-	/**  */
+	/** Constant that indicates dependency checking for all properties. */
 	public static final int DEPENDENCY_CHECK_ALL = 3;
 	
 	

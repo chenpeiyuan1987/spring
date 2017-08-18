@@ -1,6 +1,7 @@
 package org.yuan.study.spring.util;
 
 import java.lang.reflect.Array;
+import java.lang.reflect.Method;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -118,4 +119,29 @@ public abstract class ClassUtils {
 		return null;
 	}
 	
+	/**
+	 * Return the number of methods with a given name,
+	 * for the given class and/or its superclasses. Includes non-public methods.
+	 * @param clazz
+	 * @param methodName
+	 * @return
+	 */
+	public static int getMethodCountForName(Class<?> clazz, String methodName) {
+		Assert.notNull(clazz, "Class must not be null");
+		Assert.notNull(methodName, "Method name must not be null");
+		int count = 0;
+		for (Method method : clazz.getDeclaredMethods()) {
+			if (methodName.equals(method.getName())) {
+				count++;
+			}
+		}
+		Class<?>[] ifcs = clazz.getInterfaces();
+		for (Class<?> ifc : ifcs) {
+			count += getMethodCountForName(ifc, methodName);
+		}
+		if (clazz.getSuperclass() != null) {
+			count += getMethodCountForName(clazz.getSuperclass(), methodName);
+		}
+		return count;
+	}
 }
