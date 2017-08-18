@@ -56,7 +56,7 @@ public class PropertyAccessExceptionsException extends BeansException {
 	}
 	
 	/**
-	 * 
+	 * Return the exception for this field, or null if there isn't one.
 	 * @param propertyName
 	 * @return
 	 */
@@ -99,21 +99,32 @@ public class PropertyAccessExceptionsException extends BeansException {
 
 	@Override
 	public String toString() {
-		// TODO Auto-generated method stub
-		return super.toString();
+		StringBuffer sb = new StringBuffer();
+		sb.append(getClass().getName()).append("; nested PropertyAccessExceptions (");
+		sb.append(getExceptionCount()).append(") are:");
+		for (int i = 0; i < propertyAccessExceptions.length; i++) {
+			sb.append("\n").append("PropertyAccessException ").append(i+1).append(": ");
+			sb.append(propertyAccessExceptions[i]);
+		}
+		return sb.toString();
 	}
 
 	@Override
-	public void printStackTrace(PrintStream s) {
-		// TODO Auto-generated method stub
-		super.printStackTrace(s);
+	public void printStackTrace(PrintStream ps) {
+		ps.println(String.format("%s; nested PropertyAccessException details (%s) are:", getClass().getName(), getExceptionCount()));
+		for (int i = 0; i < propertyAccessExceptions.length; i++) {
+			ps.println(String.format("PropertyAccessException %s:", (i+1)));
+			propertyAccessExceptions[i].printStackTrace(ps);
+		}
 	}
 
 	@Override
-	public void printStackTrace(PrintWriter s) {
-		// TODO Auto-generated method stub
-		super.printStackTrace(s);
+	public void printStackTrace(PrintWriter pw) {
+		pw.println(String.format("%s; nested PropertyAccessException details (%s) are:", getClass().getName(), getExceptionCount()));
+		for (int i = 0; i < propertyAccessExceptions.length; i++) {
+			pw.println(String.format("PropertyAccessException %s:", (i+1)));
+			propertyAccessExceptions[i].printStackTrace(pw);
+		}
 	}
-	
 	
 }
