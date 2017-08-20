@@ -7,14 +7,14 @@ import org.yuan.study.spring.core.io.ResourceLoader;
 
 public interface ResourcePatternResolver extends ResourceLoader {
 
-	/**  */
-	String CLASSPATH_ALL_URL_PREFIX = "";
+	/** in favor of CLASSPATH_ALL_URL_PREFIX */
+	String CLASSPATH_ALL_URL_PREFIX = "classpath:";
 	
-	/**  */
-	String CLASSPATH_URL_PREFIX = "";
+	/** Pseudo URL prefix for all matching resource from the class path: "classpath*:" */
+	String CLASSPATH_URL_PREFIX = "classpath*:";
 	
 	/**
-	 * 
+	 * Resolve the given location pattern into Resource objects.
 	 * @param locationPattern
 	 * @return
 	 */

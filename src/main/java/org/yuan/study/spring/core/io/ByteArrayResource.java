@@ -5,7 +5,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
 
-import org.springframework.util.Assert;
+import org.yuan.study.spring.util.Assert;
 
 public class ByteArrayResource extends AbstractResource {
 	

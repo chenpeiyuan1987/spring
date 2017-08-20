@@ -7,9 +7,9 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
 
-import org.springframework.util.Assert;
-import org.springframework.util.ResourceUtils;
-import org.springframework.util.StringUtils;
+import org.yuan.study.spring.util.Assert;
+import org.yuan.study.spring.util.ResourceUtils;
+import org.yuan.study.spring.util.StringUtils;
 
 public class UrlResource extends AbstractResource {
 	

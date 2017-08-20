@@ -6,11 +6,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 
-import org.springframework.util.Assert;
-import org.springframework.util.ClassUtils;
-import org.springframework.util.ResourceUtils;
-import org.springframework.util.StringUtils;
+import org.yuan.study.spring.util.Assert;
+import org.yuan.study.spring.util.ClassUtils;
 import org.yuan.study.spring.util.ObjectUtils;
+import org.yuan.study.spring.util.ResourceUtils;
+import org.yuan.study.spring.util.StringUtils;
 
 public class ClassPathResource extends AbstractResource {
 	
