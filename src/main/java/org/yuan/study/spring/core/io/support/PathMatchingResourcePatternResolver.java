@@ -20,36 +20,70 @@ public class PathMatchingResourcePatternResolver implements ResourcePatternResol
 	
 	private PathMatcher pathMatcher = new AntPathMatcher();
 	
+	/**
+	 * Create a new PathMatchingResourcePatternResolver
+	 */
 	public PathMatchingResourcePatternResolver() {
 		this(new DefaultResourceLoader(), null);
 	}
 
+	/**
+	 * Create a new PathMatchingResourcePatternResolver
+	 * @param classLoader
+	 */
 	public PathMatchingResourcePatternResolver(ClassLoader classLoader) {
 		this(new DefaultResourceLoader(classLoader), classLoader);
 	}
 
+	/**
+	 * Create a new PathMatchingResourcePatternResolver
+	 * @param resourceLoader
+	 */
 	public PathMatchingResourcePatternResolver(ResourceLoader resourceLoader) {
 		this(resourceLoader, null);
 	}
 
+	/**
+	 * Create a new PathMatchingResourcePatternResolver
+	 * @param resourceLoader
+	 * @param classLoader
+	 */
 	public PathMatchingResourcePatternResolver(ResourceLoader resourceLoader, ClassLoader classLoader) {
 		Assert.notNull(resourceLoader, "ResourceLoader must not be null");
 		this.resourceLoader = resourceLoader;
 		this.classLoader = (classLoader != null ? classLoader : ClassUtils.getDefaultClassLoader());
 	}
 	
+	/**
+	 * 
+	 * @return
+	 */
 	public ResourceLoader getResourceLoader() {
 		return resourceLoader;
 	}
 	
+	/**
+	 * 
+	 * @return
+	 */
 	public PathMatcher getPathMatcher() {
 		return pathMatcher;
 	}
 	
+	/**
+	 * 
+	 * @param locationPattern
+	 * @return
+	 */
 	public Resource[] findPathMatchingResources(String locationPattern) {
 		return null;
 	}
 	
+	/**
+	 * 
+	 * @param locationPattern
+	 * @return
+	 */
 	public Resource[] findAllClassPathResources(String locationPattern) {
 		return null;
 	}

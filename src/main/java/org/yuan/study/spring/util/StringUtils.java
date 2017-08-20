@@ -310,11 +310,15 @@ public abstract class StringUtils {
 	
 	
 	/**
-	 * 
+	 * Extract the filename from the given path.
 	 * @return
 	 */
 	public static String getFilename(String path) {
-		return "";
+		if (path == null) {
+			return null;
+		}
+		int index = path.lastIndexOf(FOLDER_SEPARATOR);
+		return (index != -1 ? path.substring(index + 1) : path);
 	}
 	
 }
