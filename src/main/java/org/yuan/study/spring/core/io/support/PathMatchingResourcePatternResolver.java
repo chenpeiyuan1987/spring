@@ -2,13 +2,13 @@ package org.yuan.study.spring.core.io.support;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.springframework.util.AntPathMatcher;
-import org.springframework.util.PathMatcher;
 import org.yuan.study.spring.core.io.DefaultResourceLoader;
 import org.yuan.study.spring.core.io.Resource;
 import org.yuan.study.spring.core.io.ResourceLoader;
+import org.yuan.study.spring.util.AntPathMatcher;
 import org.yuan.study.spring.util.Assert;
 import org.yuan.study.spring.util.ClassUtils;
+import org.yuan.study.spring.util.PathMatcher;
 
 public class PathMatchingResourcePatternResolver implements ResourcePatternResolver {
 

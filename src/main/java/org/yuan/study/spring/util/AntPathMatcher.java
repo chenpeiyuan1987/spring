@@ -7,7 +7,8 @@ public class AntPathMatcher implements PathMatcher {
 	private String pathSeparator = DEFAULT_PATH_SEPARATOR;
 	
 	/**
-	 * 
+	 * Set the path separator to use for pattern parsing.
+	 * Default is "/", as in Ant.
 	 * @param pathSeparator
 	 */
 	public void setPathSeparator(String pathSeparator) {
@@ -17,7 +18,10 @@ public class AntPathMatcher implements PathMatcher {
 	}
 	
 	/**
-	 * 
+	 * Tests whether or not a string matches against a pattern.
+	 * The pattern may contain two special characters:
+	 * '*' means zero or more characters
+	 * '?' means one and only one character
 	 * @param pattern
 	 * @param str
 	 * @return
