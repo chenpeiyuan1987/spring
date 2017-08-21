@@ -174,13 +174,82 @@ public class AntPathMatcher implements PathMatcher {
 		}
 		
 		if (strIndexStart > strIndexFinis) {
-			
+			if (patIndexStart == patIndexFinis && patDirs[patIndexStart].equals("*") && str.endsWith("*")) {
+				return true;
+			}
+			for (int i = patIndexStart; i < patIndexFinis; i++) {
+				if (!patDirs[i].equals("**")) {
+					return false;
+				}
+			}
+			return true;
 		} 
 		else {
 			if (strIndexStart > patIndexFinis) {
 				return false;
 			}
 		}
+		
+		while (patIndexStart <= patIndexFinis && strIndexStart <= strIndexFinis) {
+			String patDir = (String) patDirs[patIndexFinis];
+			if (patDir.equals("**")) {
+				break;
+			}
+			if (!matchStrings(patDir, (String) strDirs[strIndexFinis])) {
+				return false;
+			}
+			patIndexFinis--;
+			strIndexFinis--;
+		}
+		if (strIndexStart > strIndexFinis) {
+			for (int i = patIndexStart; i < patIndexFinis; i++) {
+				if (!patDirs[i].equals("**")) {
+					return false;
+				}
+			}
+			return true;
+		}
+		
+		while (patIndexStart != patIndexFinis && strIndexStart <= strIndexFinis) {
+			int patIndexTmp = -1;
+			for (int i = patIndexStart + 1; i <= patIndexFinis; i++) {
+				if (patDirs[i].equals("**")) {
+					patIndexTmp = i;
+					break;
+				}
+			}
+			if (patIndexTmp == patIndexStart + 1) {
+				patIndexStart++;
+				continue;
+			}
+			
+			int patLength = (patIndexTmp - patIndexStart - 1);
+			int strLength = (strIndexFinis - strIndexStart + 1);
+			int foundIndex = -1;
+			for (int i=0; i<strLength - patLength; i++) {
+				for (int j=0; j<patLength; j++) {
+					String subPat = (String) patDirs[patIndexStart + j + 1];
+					String subStr = (String) strDirs[strIndexStart + i + j];
+					if (!matchStrings(subPat, subStr)) {
+						
+					}
+				}
+			}
+			if (foundIndex == -1) {
+				return false;
+			}
+			
+			patIndexStart = patIndexTmp;
+			strIndexStart = foundIndex + patLength;
+		}
+		
+		for (int i = patIndexStart; i <= patIndexFinis; i++) {
+			if (!patDirs[i].equals("**")) {
+				return false;
+			}
+		}
+		
+		return true;
 	}
 
 }
