@@ -1,16 +1,37 @@
 package org.yuan.study.spring.core.io.support;
 
+import java.io.File;
+import java.io.IOException;
+import java.net.URL;
+import java.util.Collections;
+import java.util.Set;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.yuan.study.spring.core.CollectionFactory;
 import org.yuan.study.spring.core.io.DefaultResourceLoader;
+import org.yuan.study.spring.core.io.FileSystemResource;
 import org.yuan.study.spring.core.io.Resource;
 import org.yuan.study.spring.core.io.ResourceLoader;
+import org.yuan.study.spring.core.io.UrlResource;
 import org.yuan.study.spring.util.AntPathMatcher;
 import org.yuan.study.spring.util.Assert;
 import org.yuan.study.spring.util.ClassUtils;
 import org.yuan.study.spring.util.PathMatcher;
 
 public class PathMatchingResourcePatternResolver implements ResourcePatternResolver {
+	
+	/** URL protocol for an entry from a jar file: "jar" */
+	private static final String URL_PROTOCOL_JAR = "jar";
+	
+	/** URL protocol for an entry from a zip file: "zip" */
+	private static final String URL_PROTOCOL_ZIP = "zip";
+	
+	/** URL protocol for an entry from a WebSphere jar file: "wsjar" */
+	private static final String URL_PROTOCOL_WSJAR = "wsjar";
+	
+	/** Separator between JAR URL and file path within the JAR */
+	private static final String JAR_URL_SEPARATOR = "!/";
 
 	protected final Log logger = LogFactory.getLog(getClass());
 	
@@ -55,7 +76,7 @@ public class PathMatchingResourcePatternResolver implements ResourcePatternResol
 	}
 	
 	/**
-	 * 
+	 * Return the ResourceLoader that this pattern resolver works with.
 	 * @return
 	 */
 	public ResourceLoader getResourceLoader() {
@@ -63,7 +84,7 @@ public class PathMatchingResourcePatternResolver implements ResourcePatternResol
 	}
 	
 	/**
-	 * 
+	 * Return the PathMatcher that this resource pattern resolver uses.
 	 * @return
 	 */
 	public PathMatcher getPathMatcher() {
@@ -71,12 +92,21 @@ public class PathMatchingResourcePatternResolver implements ResourcePatternResol
 	}
 	
 	/**
-	 * 
-	 * @param locationPattern
+	 * Set the PathMatcher Implementation to use for this resource pattern resolver.
+	 * Default is AntPathMatcher.
+	 * @param pathMatcher
+	 */
+	public void setPathMatcher(PathMatcher pathMatcher) {
+		Assert.notNull(pathMatcher, "PathMatcher must not be null");
+		this.pathMatcher = pathMatcher;
+	}
+
+	/**
+	 * Return the ClassLoader that this pattern resolver works with.
 	 * @return
 	 */
-	public Resource[] findPathMatchingResources(String locationPattern) {
-		return null;
+	public ClassLoader getClassLoader() {
+		return classLoader;
 	}
 	
 	/**
@@ -84,7 +114,139 @@ public class PathMatchingResourcePatternResolver implements ResourcePatternResol
 	 * @param locationPattern
 	 * @return
 	 */
-	public Resource[] findAllClassPathResources(String locationPattern) {
+	protected Resource[] findPathMatchingResources(String locationPattern) throws IOException {
+		String rootDirPath = determineRootDir(locationPattern);
+		String subPattern = locationPattern.substring(rootDirPath.length());
+		Resource[] rootDirResources = getResources(rootDirPath);
+		Set<Resource> result = (Set<Resource>)CollectionFactory.createLinkedSetIfPossible(16);
+		for (Resource resource : rootDirResources) {
+			if (isJarResource(resource)) {
+				result.addAll(doFindPathMatchingJarResources(resource, subPattern));
+			} 
+			else {
+				result.addAll(doFindPathMatchingFileResources(resource, subPattern));
+			}
+		}
+		if (logger.isDebugEnabled()) {
+			logger.debug(String.format("Resolved location pattern [%s] to resources %s", locationPattern, result));
+		}
+		
+		return (Resource[]) result.toArray(new Resource[result.size()]);
+	}
+	
+	/**
+	 * 
+	 * @param location
+	 * @return
+	 */
+	protected String determineRootDir(String location) {
+		return null;
+	}
+	
+	/**
+	 * 
+	 * @param url
+	 * @return
+	 */
+	protected Resource convertClassLoaderURL(URL url) {
+		return new UrlResource(url);
+	}
+	
+	/**
+	 * Return whether the given resource handle indicates a jar resource
+	 * that the doFindPathMatchingJarResources method can handle.
+	 * @param resource
+	 * @return
+	 * @throws IOException
+	 */
+	protected boolean isJarResource(Resource resource) throws IOException {
+		String protocol = resource.getURL().getProtocol();
+		return (URL_PROTOCOL_JAR.equals(protocol)
+			|| URL_PROTOCOL_ZIP.equals(protocol)
+			|| URL_PROTOCOL_WSJAR.equals(protocol));
+	}
+	
+	/**
+	 * 
+	 * @param rootDirResource
+	 * @param subPattern
+	 * @return
+	 * @throws IOException
+	 */
+	protected Set doFindPathMatchingJarResources(Resource rootDirResource, String subPattern) throws IOException {
+		return null;
+	}
+	
+	/**
+	 * Find all resources in the file system that match the given location pattern
+	 * via the Ant style PathMatcher.
+	 * @param rootDirResource
+	 * @param subPattern
+	 * @return
+	 * @throws IOException
+	 */
+	protected Set<Resource> doFindPathMatchingFileResources(Resource rootDirResource, String subPattern) throws IOException {
+		File rootDir = null;
+		try {
+			rootDir = rootDirResource.getFile().getAbsoluteFile();
+		}
+		catch (IOException ex) {
+			if (logger.isDebugEnabled()) {
+				logger.debug(String.format(
+					"Cannot search for matching files underneath %s because it does not correspond to a directory in the file system", rootDirResource), ex);
+			}
+			return Collections.EMPTY_SET;
+		}
+		return doFindMatchingFileSystemResources(rootDir, subPattern);
+	}
+	
+	/**
+	 * 
+	 * @param rootDir
+	 * @param subPattern
+	 * @return
+	 * @throws IOException
+	 */
+	protected Set<Resource> doFindMatchingFileSystemResources(File rootDir, String subPattern) throws IOException {
+		if (logger.isDebugEnabled()) {
+			logger.debug(String.format("Looking for matching resources in directory tree [%s]", rootDir.getPath()));
+		}
+		Set<File> matchingFiles = retrieveMatchingFiles(rootDir, subPattern);
+		Set<Resource> result = (Set<Resource>)CollectionFactory.createLinkedSetIfPossible(matchingFiles.size());
+		for (File file : matchingFiles) {
+			result.add(new FileSystemResource(file));
+		}
+		return result;
+	}
+	
+	/**
+	 * 
+	 * @param rootDir
+	 * @param pattern
+	 * @return
+	 * @throws IOException
+	 */
+	protected Set<File> retrieveMatchingFiles(File rootDir, String pattern) throws IOException {
+		return null;
+	}
+	
+	/**
+	 * 
+	 * @param fullPattern
+	 * @param dir
+	 * @param result
+	 * @throws IOException
+	 */
+	protected void doRetrieveMatchingFiles(String fullPattern, File dir, Set result) throws IOException {
+		
+	}
+	
+	/**
+	 * 
+	 * @param locationPattern
+	 * @return
+	 */
+	protected Resource[] findAllClassPathResources(String locationPattern) {
 		return null;
 	}
 	
