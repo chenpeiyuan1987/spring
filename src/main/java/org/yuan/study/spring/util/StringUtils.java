@@ -330,4 +330,28 @@ public abstract class StringUtils {
 		return (index != -1 ? path.substring(index + 1) : path);
 	}
 	
+	/**
+	 * Count the occurrences of the substring in string s.
+	 * @param str
+	 * @param sub
+	 * @return
+	 */
+	public static int countOccurrencesOf(String str, String sub) {
+		if (str == null || str.length() == 0) {
+			return 0;
+		}
+		if (sub == null || sub.length() == 0) {
+			return 0;
+		}
+		
+		int count = 0;
+		int index = 0;
+		int place = 0;
+		while ((index = str.indexOf(sub, place)) != -1) {
+			count++;
+			place = index + sub.length();
+		}
+		return count;
+	}
+	
 }
