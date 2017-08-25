@@ -139,4 +139,19 @@ public class StringUtilsTest {
 		assertEquals(" ", sa[2]);
 		assertEquals("c", sa[3]);
 	}
+	
+	@Test
+	public void testCountOccurrencesOf() {
+		assertEquals(0, StringUtils.countOccurrencesOf(null, null));
+		assertEquals(0, StringUtils.countOccurrencesOf("s", null));
+		assertEquals(0, StringUtils.countOccurrencesOf(null, "s"));
+		assertEquals(0, StringUtils.countOccurrencesOf("s", ""));
+		assertEquals(0, StringUtils.countOccurrencesOf("", "s"));
+		
+		String s = "abcdaac";
+		assertEquals(0, StringUtils.countOccurrencesOf(s, "e"));
+		assertEquals(3, StringUtils.countOccurrencesOf(s, "a"));
+		assertEquals(2, StringUtils.countOccurrencesOf(s, "c"));
+		assertEquals(1, StringUtils.countOccurrencesOf(s, "ab"));
+	}
 }

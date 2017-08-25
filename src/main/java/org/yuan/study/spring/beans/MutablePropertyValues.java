@@ -73,7 +73,7 @@ public class MutablePropertyValues implements PropertyValues, Serializable {
 			}
 		}
 		this.propertyValueList.add(pv);
-		return null;
+		return this;
 	}
 	
 	/**
