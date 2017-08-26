@@ -7,24 +7,35 @@ import org.yuan.study.spring.beans.factory.BeanNameAware;
 
 public class TestBean implements BeanNameAware, BeanFactoryAware, IOther , Comparable {
 
-	private String name;
-	
 	private int age;
+	private String name;
+	private String touchy;
 	
+	
+	public TestBean() {
+	}
+	public TestBean(String name, int age) {
+		this.name = name;
+		this.age = age;
+	}
+
 	public String getName() {
 		return name;
 	}
-
 	public void setName(String name) {
 		this.name = name;
 	}
-
 	public int getAge() {
 		return age;
 	}
-
 	public void setAge(int age) {
 		this.age = age;
+	}
+	public String getTouchy() {
+		return touchy;
+	}
+	public void setTouchy(String touchy) {
+		this.touchy = touchy;
 	}
 
 	@Override

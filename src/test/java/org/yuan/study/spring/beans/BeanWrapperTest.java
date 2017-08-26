@@ -2,12 +2,17 @@ package org.yuan.study.spring.beans;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
 import org.junit.Test;
+
+import test.beans.IndexedTestBean;
+import test.beans.NumberTestBean;
+import test.beans.TestBean;
 
 public final class BeanWrapperTest {
 
@@ -44,6 +49,92 @@ public final class BeanWrapperTest {
 	}
 	
 	@Test
+	public void testReadableAndWritableForIndexedProperties() {
+		BeanWrapper bw = new BeanWrapperImpl(IndexedTestBean.class);
+		
+		assertTrue(bw.isReadableProperty("array"));
+		assertTrue(bw.isReadableProperty("list"));
+		assertTrue(bw.isReadableProperty("set"));
+		assertTrue(bw.isReadableProperty("map"));
+		assertFalse(bw.isReadableProperty("xxx"));
+		
+		assertTrue(bw.isWritableProperty("array"));
+		assertTrue(bw.isWritableProperty("list"));
+		assertTrue(bw.isWritableProperty("set"));
+		assertTrue(bw.isWritableProperty("map"));
+		assertFalse(bw.isWritableProperty("xxx"));
+		
+		assertTrue(bw.isReadableProperty("array[0]"));
+		assertTrue(bw.isReadableProperty("array[0].name"));
+		assertTrue(bw.isReadableProperty("list[0]"));
+		assertTrue(bw.isReadableProperty("list[0].name"));
+		assertTrue(bw.isReadableProperty("set[0]"));
+		assertTrue(bw.isReadableProperty("set[0].name"));
+		assertTrue(bw.isReadableProperty("map[key1]"));
+		assertTrue(bw.isReadableProperty("map[key1].name"));
+		assertTrue(bw.isReadableProperty("map[key4][0]"));
+		assertTrue(bw.isReadableProperty("map[key4][0].name"));
+		assertTrue(bw.isReadableProperty("map[key4][1]"));
+		assertTrue(bw.isReadableProperty("map[key4][1].name"));
+		assertFalse(bw.isReadableProperty("array[key1]"));
+		
+		assertTrue(bw.isWritableProperty("array[0]"));
+		assertTrue(bw.isWritableProperty("array[0].name"));
+		assertTrue(bw.isWritableProperty("list[0]"));
+		assertTrue(bw.isWritableProperty("list[0].name"));
+		assertTrue(bw.isWritableProperty("set[0]"));
+		assertTrue(bw.isWritableProperty("set[0].name"));
+		assertTrue(bw.isWritableProperty("map[key1]"));
+		assertTrue(bw.isWritableProperty("map[key1].name"));
+		assertTrue(bw.isWritableProperty("map[key4][0]"));
+		assertTrue(bw.isWritableProperty("map[key4][0].name"));
+		assertTrue(bw.isWritableProperty("map[key4][1]"));
+		assertTrue(bw.isWritableProperty("map[key4][1].name"));
+		assertFalse(bw.isWritableProperty("array[key1]"));
+	}
+	
+	@Test
+	public void testAllValid() {
+		TestBean t = new TestBean();
+		int age = 65;
+		String name = "tony";
+		String touchy = "valid";
+		try {
+			BeanWrapper bw = new BeanWrapperImpl(t);
+			MutablePropertyValues pvs = new MutablePropertyValues();
+			pvs.addPropertyValue("age", age);
+			pvs.addPropertyValue("name", name);
+			pvs.addPropertyValue("touchy", touchy);
+			bw.setPropertyValues(pvs);
+			
+			assertEquals(age, t.getAge());
+			assertEquals(name, t.getName());
+			assertEquals(touchy, t.getTouchy());
+		}
+		catch (BeansException ex) {
+			fail();
+		}
+	}
+	
+	@Test
+	public void testBeanWrapperUpdates() {
+		TestBean t = new TestBean();
+		int age = 33;
+		try {
+			t.setAge(age);
+			
+			BeanWrapper bw = new BeanWrapperImpl(t);
+			Object obj = bw.getPropertyValue("age");
+			assertTrue(obj instanceof Integer);
+			int tmp = ((Integer)obj).intValue();
+			assertEquals(age, tmp);
+		}
+		catch (Exception ex) {
+			fail();
+		}
+	}
+	
+	@Test
 	public void testSetPropertyValue() {
 		Getter getter = new Getter();
 		BeanWrapper bw = new BeanWrapperImpl(getter);
@@ -53,7 +144,7 @@ public final class BeanWrapperTest {
 	
 	@Test
 	public void testNumberObject() {
-		NumberTest nt = new NumberTest();
+		NumberTestBean nt = new NumberTestBean();
 		BeanWrapper bw = new BeanWrapperImpl(nt);
 		
 		try {
@@ -107,93 +198,4 @@ public final class BeanWrapperTest {
 		
 	}
 	
-	private static class NumberTest {
-		private short short1;
-		private int int1;
-		private long long1;
-		private float float1;
-		private double double1;
-		private BigInteger bigInteger;
-		private BigDecimal bigDecimal;
-		
-		private Short short2;
-		private Integer int2;
-		private Long long2;
-		private Float float2;
-		private Double double2;
-		
-		public short getShort1() {
-			return short1;
-		}
-		public void setShort1(short short1) {
-			this.short1 = short1;
-		}
-		public int getInt1() {
-			return int1;
-		}
-		public void setInt1(int int1) {
-			this.int1 = int1;
-		}
-		public long getLong1() {
-			return long1;
-		}
-		public void setLong1(long long1) {
-			this.long1 = long1;
-		}
-		public float getFloat1() {
-			return float1;
-		}
-		public void setFloat1(float float1) {
-			this.float1 = float1;
-		}
-		public double getDouble1() {
-			return double1;
-		}
-		public void setDouble1(double double1) {
-			this.double1 = double1;
-		}
-		public BigInteger getBigInteger() {
-			return bigInteger;
-		}
-		public void setBigInteger(BigInteger bigInteger) {
-			this.bigInteger = bigInteger;
-		}
-		public BigDecimal getBigDecimal() {
-			return bigDecimal;
-		}
-		public void setBigDecimal(BigDecimal bigDecimal) {
-			this.bigDecimal = bigDecimal;
-		}
-		public Short getShort2() {
-			return short2;
-		}
-		public void setShort2(Short short2) {
-			this.short2 = short2;
-		}
-		public Integer getInt2() {
-			return int2;
-		}
-		public void setInt2(Integer int2) {
-			this.int2 = int2;
-		}
-		public Long getLong2() {
-			return long2;
-		}
-		public void setLong2(Long long2) {
-			this.long2 = long2;
-		}
-		public Float getFloat2() {
-			return float2;
-		}
-		public void setFloat2(Float float2) {
-			this.float2 = float2;
-		}
-		public Double getDouble2() {
-			return double2;
-		}
-		public void setDouble2(Double double2) {
-			this.double2 = double2;
-		}
-		
-	}
 }
