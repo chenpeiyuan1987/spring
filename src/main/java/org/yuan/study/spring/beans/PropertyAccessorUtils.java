@@ -60,4 +60,51 @@ public abstract class PropertyAccessorUtils {
 		}
 		return -1;
 	}
+	
+	/**
+	 * Determine the canonical name for the given property path.
+	 * @param propertyName
+	 * @return
+	 */
+	public static String canonicalPropertyName(String propertyName) {
+		if (propertyName == null) {
+			return "";
+		}
+		
+		StringBuffer sb = new StringBuffer(propertyName);
+		int indexStart = 0;
+		while (indexStart != -1) {
+			indexStart = sb.indexOf(PropertyAccessor.PROPERTY_KEY_PREFIX, indexStart);
+			if (indexStart != -1) {
+				int indexFinis = sb.indexOf(PropertyAccessor.PROPERTY_KEY_SUFFIX, indexStart + PropertyAccessor.PROPERTY_KEY_PREFIX.length());
+				if (indexFinis != -1) {
+					int indexStart2 = indexStart + PropertyAccessor.PROPERTY_KEY_PREFIX.length();
+					String key = sb.substring(indexStart2, indexFinis);
+					if ((key.startsWith("'") && key.endsWith("'")) || (key.startsWith("\"") && key.endsWith("\""))) {
+						sb.delete(indexFinis - 1, indexFinis);
+						sb.delete(indexStart2, indexStart2 + 1);
+						indexFinis = indexFinis - 2;
+					}
+					indexStart = indexFinis + PropertyAccessor.PROPERTY_KEY_SUFFIX.length();
+				}
+			}
+		}
+		return sb.toString();
+	}
+	
+	/**
+	 * Determine the canonical names for the given property paths.
+	 * @param propertyNames
+	 * @return
+	 */
+	public static String[] canonicalPropertyNames(String[] propertyNames) {
+		if (propertyNames == null) {
+			return null;
+		}
+		String[] result = new String[propertyNames.length];
+		for (int i = 0; i < result.length; i++) {
+			result[i] = canonicalPropertyName(propertyNames[i]);
+		}
+		return result;
+	}
 }
