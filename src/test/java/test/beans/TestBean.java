@@ -1,39 +1,60 @@
 package test.beans;
 
+import java.io.IOException;
+import java.util.Properties;
+
 import org.yuan.study.spring.beans.BeansException;
 import org.yuan.study.spring.beans.factory.BeanFactory;
 import org.yuan.study.spring.beans.factory.BeanFactoryAware;
 import org.yuan.study.spring.beans.factory.BeanNameAware;
 
-public class TestBean implements BeanNameAware, BeanFactoryAware, IOther , Comparable {
+public class TestBean implements BeanNameAware, BeanFactoryAware, ITestBean, IOther , Comparable {
 
 	private int age;
 	private String name;
 	private String touchy;
 	
+	private ITestBean[] spouses;
+	private Properties properties = new Properties();
+	
 	
 	public TestBean() {
+	}
+	public TestBean(String name) {
+		this.name = name;
 	}
 	public TestBean(String name, int age) {
 		this.name = name;
 		this.age = age;
 	}
+	public TestBean(ITestBean spouse) {
+		this.spouses = new ITestBean[] {spouse};
+	}
+	public TestBean(ITestBean spouse, Properties properties) {
+		this.spouses = new ITestBean[] {spouse};
+		this.properties = properties;
+	}
 
 	public String getName() {
 		return name;
 	}
+	
 	public void setName(String name) {
 		this.name = name;
 	}
+	
 	public int getAge() {
 		return age;
 	}
+	
 	public void setAge(int age) {
 		this.age = age;
 	}
+	
 	public String getTouchy() {
 		return touchy;
 	}
+	
 	public void setTouchy(String touchy) {
 		this.touchy = touchy;
 	}
@@ -58,6 +79,63 @@ public class TestBean implements BeanNameAware, BeanFactoryAware, IOther , Compa
 
 	@Override
 	public void absquatulate() {
+		// TODO Auto-generated method stub
+		
+	}
+	@Override
+	public ITestBean getSpouse() {
+		return (spouses != null ? spouses[0] : null);
+	}
+	@Override
+	public void setSpouse(ITestBean spouse) {
+		this.spouses = new ITestBean[] {spouse};
+	}
+	@Override
+	public ITestBean[] getSpouses() {
+		return spouses;
+	}
+	@Override
+	public String[] getStringArray() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+	@Override
+	public void setStringArray(String[] stringArray) {
+		// TODO Auto-generated method stub
+		
+	}
+	@Override
+	public void exceptional(Throwable t) throws Throwable {
+		// TODO Auto-generated method stub
+		
+	}
+	@Override
+	public Object returnsThis() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+	@Override
+	public int haveBirthday() {
+		// TODO Auto-generated method stub
+		return 0;
+	}
+	@Override
+	public INestedTestBean getDoctor() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+	@Override
+	public INestedTestBean getLawyer() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+	@Override
+	public IndexedTestBean getNestedIndexedBean() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+	@Override
+	public void unreliableFileOperation() throws IOException {
 		// TODO Auto-generated method stub
 		
 	}
