@@ -40,7 +40,7 @@ public abstract class JdkVersion {
 	 * Return the full Java version string.
 	 * @return
 	 */
-	public static String getJavaversion() {
+	public static String getJavaVersion() {
 		return javaVersion;
 	}
 
@@ -48,7 +48,7 @@ public abstract class JdkVersion {
 	 * Get the major version code.
 	 * @return
 	 */
-	public static int getMajorjavaversion() {
+	public static int getMajorJavaVersion() {
 		return majorJavaVersion;
 	}
 	

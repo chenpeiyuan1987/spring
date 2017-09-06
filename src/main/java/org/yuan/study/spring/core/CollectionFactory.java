@@ -26,7 +26,7 @@ public abstract class CollectionFactory {
 	private static boolean commonsCollections3xAvailable;
 	
 	static {
-		if (JdkVersion.getMajorjavaversion() >= JdkVersion.JAVA_14) {
+		if (JdkVersion.getMajorJavaVersion() >= JdkVersion.JAVA_14) {
 			logger.info("JDK 1.4+ collections available");
 		}
 		try {
@@ -46,7 +46,7 @@ public abstract class CollectionFactory {
 	 * @return
 	 */
 	public static Set<?> createLinkedSetIfPossible(int initial) {
-		if (JdkVersion.getMajorjavaversion() >= JdkVersion.JAVA_14) {
+		if (JdkVersion.getMajorJavaVersion() >= JdkVersion.JAVA_14) {
 			logger.debug("Creating [java.util.LinkedHashSet]");
 			return Jdk14CollectionFactory.createLinkedHashSet(initial);
 		} else if (commonsCollections3xAvailable) {
@@ -66,7 +66,7 @@ public abstract class CollectionFactory {
 	 * @return
 	 */
 	public static Map<?,?> createLinkedMaoIfPossible(int initial) {
-		if (JdkVersion.getMajorjavaversion() >= JdkVersion.JAVA_14) {
+		if (JdkVersion.getMajorJavaVersion() >= JdkVersion.JAVA_14) {
 			logger.debug("Creating [java.util.LinkedHashMap]");
 			return Jdk14CollectionFactory.createLinkedHashMap(initial);
 		} else if (commonsCollections3xAvailable) {
@@ -85,7 +85,7 @@ public abstract class CollectionFactory {
 	 * @return
 	 */
 	public static Map<?,?> createLinkedCaseInsensitiveMapIfPossible(int initial) {
-		if (JdkVersion.getMajorjavaversion() >= JdkVersion.JAVA_14) {
+		if (JdkVersion.getMajorJavaVersion() >= JdkVersion.JAVA_14) {
 			logger.debug("Creating [java.util.LinkedHashMap]");
 			return Jdk14CollectionFactory.createLinkedHashMap(initial);
 		} else if (commonsCollections3xAvailable) {
@@ -104,7 +104,7 @@ public abstract class CollectionFactory {
 	 * @return
 	 */
 	public static Map<?,?> createIdentityMapIfPossible(int initial) {
-		if (JdkVersion.getMajorjavaversion() >= JdkVersion.JAVA_14) {
+		if (JdkVersion.getMajorJavaVersion() >= JdkVersion.JAVA_14) {
 			logger.debug("Creating [java.util.IdentityHashMap]");
 			return Jdk14CollectionFactory.createIdentityHashMap(initial);
 		} else if (commonsCollections3xAvailable) {

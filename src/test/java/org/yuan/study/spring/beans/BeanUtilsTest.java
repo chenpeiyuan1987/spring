@@ -13,6 +13,7 @@ import java.util.List;
 import org.junit.Test;
 import org.yuan.study.spring.beans.factory.BeanFactory;
 import org.yuan.study.spring.beans.propertyeditors.CustomDateEditor;
+import org.yuan.study.spring.util.StringUtilsTest;
 
 import test.beans.DerivedTestBean;
 import test.beans.ITestBean;
@@ -156,37 +157,45 @@ public final class BeanUtilsTest {
 	
 	@Test
 	public void testResolveSimpleSignature() throws Exception {
-		
+		//
 	}
 	
 	@Test
 	public void testResolveInvalidSignature() throws Exception {
-		
+		//
 	}
 	
 	@Test
 	public void testResolveWithAndWithoutArgList() throws Exception {
-		
+		//
 	}
 	
 	@Test
 	public void testResolveTypedSignature() throws Exception {
-		
+		//
 	}
 	
 	@Test
-	public void testResolveOverloadedSignatureZ() throws Exception {
-		
+	public void testResolveOverloadedSignature() throws Exception {
+		//
 	}
 	
 	@Test
 	public void testResolveSignatureWithArray() throws Exception {
-		
+		//
 	}
 	
 	@Test
 	public void testSPR6063() {
+		PropertyDescriptor[] descrs = BeanUtils.getPropertyDescriptors(Bean.class);
 		
+		PropertyDescriptor keyDescr = BeanUtils.getPropertyDescriptor(Bean.class, "value");
+		assertEquals(String.class, keyDescr.getPropertyType());
+		for (PropertyDescriptor descr : descrs) {
+			if (descr.getName().equals(keyDescr.getName())) {
+				assertEquals(keyDescr.getPropertyType(), descr.getPropertyType());
+			}
+		}
 	}
 	
 	/*
@@ -262,5 +271,43 @@ public final class BeanUtilsTest {
 		public void doSomethingWithAnArray(String[] strings) {}
 		
 		public void doSomethingWithAMultiDimensionalArray(String[][] strings) {}
+	}
+	
+	private interface MapEntry<K,V> {
+		
+		K getKey();
+		
+		void setKey(V vallue);
+		
+		V getValue();
+		
+		void setValue(V value);
+		
+	}
+	
+	private static class Bean implements MapEntry<String,String> {
+		private String key;
+		private String value;
+		
+		@Override
+		public void setKey(String key) {
+			this.key = key;
+		}
+		
+		@Override
+		public void setValue(String value) {
+			this.value = value;
+		}
+		
+		@Override
+		public String getKey() {
+			return key;
+		}
+		
+		@Override
+		public String getValue() {
+			return value;
+		}
+		
 	}
 }
