@@ -3,8 +3,9 @@ package org.yuan.study.spring.beans.propertyeditors;
 import java.beans.PropertyEditorSupport;
 import java.io.IOException;
 
-import org.springframework.core.io.Resource;
+import org.yuan.study.spring.core.io.Resource;
 import org.yuan.study.spring.core.io.ResourceEditor;
+import org.yuan.study.spring.util.Assert;
 
 public class InputStreamEditor extends PropertyEditorSupport {
 
@@ -24,6 +25,7 @@ public class InputStreamEditor extends PropertyEditorSupport {
 	 * @param resourceEditor
 	 */
 	public InputStreamEditor(ResourceEditor resourceEditor) {
+		Assert.notNull(resourceEditor, "ResourceEditor must not be null");
 		this.resourceEditor = resourceEditor;
 	}
 

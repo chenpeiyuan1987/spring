@@ -10,6 +10,10 @@ import org.junit.runners.Suite.SuiteClasses;
 	ByteArrayPropertyEditorTest.class,
 	CharArrayPropertyEditorTest.class,
 	CustomCollectionEditorTest.class,
+	FileEditorTest.class,
+	InputStreamEditorTest.class,
+	PropertiesEditorTest.class,
+	
 })
 public class Tests {
 
