@@ -16,6 +16,15 @@ public abstract class ClassUtils {
 		int.class, long.class, float.class, double.class, void.class
 	};
 	
+	/** The package separator character '.' */
+	private static final char PACKAGE_SEPARATOR = '.';
+	
+	/** The inner class separator character '$' */
+	private static final char INNER_CLASS_SEPARATOR = '$';
+	
+	/** The CGLIB class separator character "$$" */
+	private static final String CGLIB_CLASS_SEPARATOR = "$$";
+	
 	private static final Log logger = LogFactory.getLog(ClassUtils.class);
 
 	/**
@@ -175,4 +184,43 @@ public abstract class ClassUtils {
 		}
 	}
 
+	/**
+	 * Give an input class object, return a string which consists of 
+	 * the class's package name as a pathname, i.e., all dots('.') 
+	 * are replaced by slashes('/').
+	 * @param clazz
+	 * @return
+	 */
+	public static String classPackageAsResourcePath(Class<?> clazz) {
+		if (clazz == null || clazz.getPackage() == null) {
+			return "";
+		}
+		return clazz.getPackage().getName().replace(".", "/");
+	}
+	
+	/**
+	 * Get the class name without the qualified package name.
+	 * @param clazz
+	 * @return
+	 */
+	public static String getShortName(Class<?> clazz) {
+		return getShortName(getQualifiedName(clazz));
+	}
+	
+	/**
+	 * Get the class name without the qualified package name.
+	 * @param className
+	 * @return
+	 */
+	public static String getShortName(String className) {
+		Assert.hasLength(className, "Class name must not be empty");
+		int lastDotIndex = className.lastIndexOf(PACKAGE_SEPARATOR);
+		int nameEndIndex = className.indexOf(CGLIB_CLASS_SEPARATOR);
+		if (nameEndIndex == -1) {
+			nameEndIndex = className.length();
+		}
+		String shortName = className.substring(lastDotIndex + 1, nameEndIndex);
+		shortName = shortName.replace(INNER_CLASS_SEPARATOR, PACKAGE_SEPARATOR);
+		return shortName;
+	}
 }

@@ -6,6 +6,7 @@ import java.net.URL;
 
 import org.yuan.study.spring.core.io.Resource;
 import org.yuan.study.spring.core.io.ResourceEditor;
+import org.yuan.study.spring.util.Assert;
 
 public class URLEditor extends PropertyEditorSupport {
 
@@ -23,6 +24,7 @@ public class URLEditor extends PropertyEditorSupport {
 	 * @param resourceEditor
 	 */
 	public URLEditor(ResourceEditor resourceEditor) {
+		Assert.notNull(resourceEditor, "ResourceEditor must not be null");
 		this.resourceEditor = resourceEditor;
 	}
 

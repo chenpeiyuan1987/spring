@@ -13,7 +13,8 @@ import org.junit.runners.Suite.SuiteClasses;
 	FileEditorTest.class,
 	InputStreamEditorTest.class,
 	PropertiesEditorTest.class,
-	
+	URLEditorTest.class,
+	StringArrayPropertyEditorTest.class,
 })
 public class Tests {
 
