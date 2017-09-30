@@ -354,4 +354,7 @@ public abstract class StringUtils {
 		return count;
 	}
 	
+	public static String deleteAny(String text, String deleteChars) {
+		return null;
+	}
 }

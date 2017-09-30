@@ -1,12 +1,13 @@
 package org.yuan.study.spring.beans.propertyeditors;
 
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 import java.beans.PropertyEditor;
 import java.io.File;
 
-import static org.junit.Assert.*;
-
 import org.junit.Test;
-import org.springframework.util.ClassUtils;
+import org.yuan.study.spring.util.ClassUtils;
 
 public final class FileEditorTest {
 

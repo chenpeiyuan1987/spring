@@ -2,9 +2,9 @@ package org.yuan.study.spring;
 
 import org.junit.Assert;
 import org.junit.Test;
-import org.springframework.beans.factory.BeanFactory;
-import org.springframework.beans.factory.xml.XmlBeanFactory;
-import org.springframework.core.io.ClassPathResource;
+import org.yuan.study.spring.beans.factory.BeanFactory;
+import org.yuan.study.spring.beans.factory.xml.XmlBeanFactory;
+import org.yuan.study.spring.core.io.ClassPathResource;
 
 public class Main {
 

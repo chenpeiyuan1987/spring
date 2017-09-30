@@ -8,11 +8,6 @@ import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.commons.collections.map.CaseInsensitiveMap;
-import org.apache.commons.collections.map.IdentityMap;
-import org.apache.commons.collections.map.LinkedMap;
-import org.apache.commons.collections.map.ListOrderedMap;
-import org.apache.commons.collections.set.ListOrderedSet;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -46,17 +41,7 @@ public abstract class CollectionFactory {
 	 * @return
 	 */
 	public static Set<?> createLinkedSetIfPossible(int initial) {
-		if (JdkVersion.getMajorJavaVersion() >= JdkVersion.JAVA_14) {
-			logger.debug("Creating [java.util.LinkedHashSet]");
-			return Jdk14CollectionFactory.createLinkedHashSet(initial);
-		} else if (commonsCollections3xAvailable) {
-			logger.debug("Creating [org.apache.commons.collections.set.ListOrderedSet]");
-			return CommonsCollectionFactory.createListOrderedSet(initial);
-		}
-		else {
-			logger.debug("Falling back to [java.util.HashSet] for linked set");
-			return new HashSet(initial);
-		}
+		return new HashSet(initial);
 	}
 	
 	/**
@@ -66,17 +51,7 @@ public abstract class CollectionFactory {
 	 * @return
 	 */
 	public static Map<?,?> createLinkedMaoIfPossible(int initial) {
-		if (JdkVersion.getMajorJavaVersion() >= JdkVersion.JAVA_14) {
-			logger.debug("Creating [java.util.LinkedHashMap]");
-			return Jdk14CollectionFactory.createLinkedHashMap(initial);
-		} else if (commonsCollections3xAvailable) {
-			logger.debug("Creating [org.apache.commons.collections.map.LinkedMap]");
-			return CommonsCollectionFactory.createLinkedMap(initial);
-		}
-		else {
-			logger.debug("Falling back to [java.util.HashMap] for linked map");
-			return new HashMap(initial);
-		}
+		return new HashMap(initial);
 	}
 	
 	/**
@@ -85,17 +60,7 @@ public abstract class CollectionFactory {
 	 * @return
 	 */
 	public static Map<?,?> createLinkedCaseInsensitiveMapIfPossible(int initial) {
-		if (JdkVersion.getMajorJavaVersion() >= JdkVersion.JAVA_14) {
-			logger.debug("Creating [java.util.LinkedHashMap]");
-			return Jdk14CollectionFactory.createLinkedHashMap(initial);
-		} else if (commonsCollections3xAvailable) {
-			logger.debug("Creating [org.apache.commons.collections.map.LinkedMap]");
-			return CommonsCollectionFactory.createListOrderedCaseInsensitiveMap(initial);
-		}
-		else {
-			logger.debug("Falling back to [java.util.HashMap] for linked case-insensitive map");
-			return new HashMap(initial);
-		}
+		return new HashMap();
 	}
 	
 	/**
@@ -104,17 +69,7 @@ public abstract class CollectionFactory {
 	 * @return
 	 */
 	public static Map<?,?> createIdentityMapIfPossible(int initial) {
-		if (JdkVersion.getMajorJavaVersion() >= JdkVersion.JAVA_14) {
-			logger.debug("Creating [java.util.IdentityHashMap]");
-			return Jdk14CollectionFactory.createIdentityHashMap(initial);
-		} else if (commonsCollections3xAvailable) {
-			logger.debug("Creating [org.apache.commons.collections.map.IdentityMap]");
-			return CommonsCollectionFactory.createIdentityMap(initial);
-		}
-		else {
-			logger.debug("Falling back to [java.util.HashMap] for identity map");
-			return new HashMap(initial);
-		}
+		return new HashMap(initial);
 	}
 	
 	/**
@@ -136,26 +91,4 @@ public abstract class CollectionFactory {
 		
 	}
 	
-	/**
-	 * Actual creation of Commons Collections.
-	 */
-	private static abstract class CommonsCollectionFactory {
-		
-		private static Set createListOrderedSet(int initial) {
-			return ListOrderedSet.decorate(new HashSet(initial));
-		}
-		
-		private static Map createLinkedMap(int initial) {
-			return new LinkedMap(initial == 0 ? 1 : initial);
-		}
-		
-		private static Map createListOrderedCaseInsensitiveMap(int initial) {
-			return ListOrderedMap.decorate(new CaseInsensitiveMap(initial == 0 ? 1 : initial));
-		}
-		
-		private static Map createIdentityMap(int initial) {
-			return new IdentityMap(initial == 0 ? 1 : initial);
-		}
-		
-	}
 }

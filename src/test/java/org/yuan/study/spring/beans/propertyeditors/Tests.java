@@ -7,13 +7,13 @@ import org.junit.runners.Suite.SuiteClasses;
 @RunWith(Suite.class)
 @SuiteClasses({
 	BeanInfoTest.class,
+	URLEditorTest.class,
+	FileEditorTest.class,
+	PropertiesEditorTest.class,
+	InputStreamEditorTest.class,
+	CustomCollectionEditorTest.class,
 	ByteArrayPropertyEditorTest.class,
 	CharArrayPropertyEditorTest.class,
-	CustomCollectionEditorTest.class,
-	FileEditorTest.class,
-	InputStreamEditorTest.class,
-	PropertiesEditorTest.class,
-	URLEditorTest.class,
 	StringArrayPropertyEditorTest.class,
 })
 public class Tests {

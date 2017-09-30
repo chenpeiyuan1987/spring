@@ -3,7 +3,7 @@ package org.yuan.study.spring.beans.propertyeditors;
 import java.beans.PropertyEditorSupport;
 import java.io.File;
 
-import org.springframework.util.StringUtils;
+import org.yuan.study.spring.util.StringUtils;
 
 public class FileEditor extends PropertyEditorSupport {
 

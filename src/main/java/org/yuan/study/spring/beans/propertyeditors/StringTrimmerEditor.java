@@ -2,7 +2,7 @@ package org.yuan.study.spring.beans.propertyeditors;
 
 import java.beans.PropertyEditorSupport;
 
-import org.springframework.util.StringUtils;
+import org.yuan.study.spring.util.StringUtils;
 
 public class StringTrimmerEditor extends PropertyEditorSupport {
 

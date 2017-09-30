@@ -1,11 +1,13 @@
 package org.yuan.study.spring.beans.propertyeditors;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import java.io.InputStream;
 
 import org.junit.Test;
-import org.springframework.util.ClassUtils;
+import org.yuan.study.spring.util.ClassUtils;
 
 public final class InputStreamEditorTest {
 

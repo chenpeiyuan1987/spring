@@ -5,7 +5,7 @@ import java.text.DateFormat;
 import java.text.ParseException;
 import java.util.Date;
 
-import org.springframework.util.StringUtils;
+import org.yuan.study.spring.util.StringUtils;
 
 public class CustomDateEditor extends PropertyEditorSupport {
 

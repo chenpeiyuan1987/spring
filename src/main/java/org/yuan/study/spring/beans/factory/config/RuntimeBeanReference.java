@@ -1,6 +1,6 @@
 package org.yuan.study.spring.beans.factory.config;
 
-import org.springframework.util.Assert;
+import org.yuan.study.spring.util.Assert;
 
 public class RuntimeBeanReference {
 

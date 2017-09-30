@@ -1,6 +1,6 @@
 package org.yuan.study.spring.beans.factory;
 
-import org.springframework.util.ClassUtils;
+import org.yuan.study.spring.util.ClassUtils;
 
 public class UnsatisfiedDependencyException extends BeanCreationException {
 	private static final long serialVersionUID = 1L;

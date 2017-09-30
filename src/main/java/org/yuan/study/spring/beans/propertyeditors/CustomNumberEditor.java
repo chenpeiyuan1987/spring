@@ -3,12 +3,12 @@ package org.yuan.study.spring.beans.propertyeditors;
 import java.beans.PropertyEditorSupport;
 import java.text.NumberFormat;
 
-import org.springframework.util.NumberUtils;
-import org.springframework.util.StringUtils;
+import org.yuan.study.spring.util.NumberUtils;
+import org.yuan.study.spring.util.StringUtils;
 
 public class CustomNumberEditor extends PropertyEditorSupport {
 
-	private final Class<?> numberClass;
+	private final Class numberClass;
 	
 	private final NumberFormat numberFormat;
 	
@@ -21,8 +21,7 @@ public class CustomNumberEditor extends PropertyEditorSupport {
 	 * @param allowEmpty
 	 * @throws IllegalArgumentException
 	 */
-	public CustomNumberEditor(Class<?> numberClass, boolean allowEmpty) 
-		throws IllegalArgumentException {
+	public CustomNumberEditor(Class<?> numberClass, boolean allowEmpty) throws IllegalArgumentException {
 		this(numberClass, null, allowEmpty);
 	}
 
@@ -36,6 +35,7 @@ public class CustomNumberEditor extends PropertyEditorSupport {
 	 */
 	public CustomNumberEditor(Class<?> numberClass, NumberFormat numberFormat, boolean allowEmpty) 
 		throws IllegalArgumentException {
+		
 		if (numberClass == null || !Number.class.isAssignableFrom(numberClass)) {
 			throw new IllegalArgumentException("Property class must be a subclass of Number");
 		}

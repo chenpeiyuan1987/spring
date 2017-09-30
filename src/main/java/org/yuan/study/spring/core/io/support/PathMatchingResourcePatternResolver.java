@@ -13,7 +13,6 @@ import java.util.jar.JarFile;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.springframework.util.ResourceUtils;
 import org.yuan.study.spring.core.CollectionFactory;
 import org.yuan.study.spring.core.io.DefaultResourceLoader;
 import org.yuan.study.spring.core.io.FileSystemResource;
@@ -24,6 +23,7 @@ import org.yuan.study.spring.util.AntPathMatcher;
 import org.yuan.study.spring.util.Assert;
 import org.yuan.study.spring.util.ClassUtils;
 import org.yuan.study.spring.util.PathMatcher;
+import org.yuan.study.spring.util.ResourceUtils;
 import org.yuan.study.spring.util.StringUtils;
 
 public class PathMatchingResourcePatternResolver implements ResourcePatternResolver {

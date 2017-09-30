@@ -8,6 +8,7 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.yuan.study.spring.Hello;
 import org.yuan.study.spring.HelloWorld;
+import org.yuan.study.spring.beans.factory.support.StaticListableBeanFactory;
 
 public class StaticListableBeanFactoryTest {
 	
