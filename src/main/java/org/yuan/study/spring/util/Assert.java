@@ -1,5 +1,8 @@
 package org.yuan.study.spring.util;
 
+import java.util.Collection;
+import java.util.Map;
+
 /**
  * Assertion utility class that assists in validating arguments.
  *
@@ -116,9 +119,22 @@ public abstract class Assert {
 		isInstanceOf(clazz, object, "");
 	}
 	
-	public static void isInstanceOf(Class<?> clazz, Object object, String message) {
-		// TODO
+	/**
+	 * Assert that the provided object is an instance of the provided class.
+	 * @param type
+	 * @param object
+	 * @param message
+	 */
+	public static void isInstanceOf(Class<?> type, Object object, String message) {
+		notNull(type, "Type to check against must not be null");
+		
+		if (!type.isInstance(object)) {
+			throw new IllegalArgumentException(String.format(
+				"Object of class [%s] must be an instance of %s", 
+				(object != null ? object.getClass().getName() : "null"), type));
+		}
 	}
+	
 	/**
 	 * Assert a boolean expression, throwing IllegalStateException
 	 * if the test result is false.
@@ -138,5 +154,94 @@ public abstract class Assert {
 	 */
 	public static void state(boolean expression) {
 		state(expression, "[Assertion failed] - this state invariant must be true");
+	}
+	
+	/**
+	 * Assert that an array has elements; that is, it must not be null
+	 * and must have at least one element.
+	 * @param array
+	 * @param message
+	 */
+	public static void notEmpty(Object[] array, String message) {
+		if (ObjectUtils.isEmpty(array)) {
+			throw new IllegalArgumentException(message);
+		}
+	}
+	
+	/**
+	 * Assert that an array has elements; that is, it must not be null
+	 * and must have at least one element.
+	 * @param array
+	 */
+	public static void notEmpty(Object[] array) {
+		notEmpty(array, "[Assertion failed] - this array must not be empty: it must contain at least 1 element");
+	}
+	
+	/**
+	 * Assert that a collection has elements; that is, it must not be
+	 * null and must have at least one element.
+	 * @param collection
+	 * @param message
+	 */
+	@SuppressWarnings("rawtypes")
+	public static void notEmpty(Collection collection, String message) {
+		if (CollectionUtils.isEmpty(collection)) {
+			throw new IllegalArgumentException(message);
+		}
+	}
+	
+	/**
+	 * Assert that a collection has elements; that is, it must not be
+	 * null and must have at least one element.
+	 * @param collection
+	 */
+	@SuppressWarnings("rawtypes")
+	public static void notEmpty(Collection collection) {
+		notEmpty(collection, "[Assertion failed] - this collection must not be empty: it must contain at least 1 element");
+	}
+	
+	/**
+	 * Assert that a Map has entries; that is, it must not be
+	 * null and must have at least one entry.
+	 * @param map
+	 * @param message
+	 */
+	@SuppressWarnings("rawtypes")
+	public static void notEmpty(Map map, String message) {
+		if (CollectionUtils.isEmpty(map)) {
+			throw new IllegalArgumentException(message);
+		}
+	}
+	
+	/**
+	 * Assert that a Map has entries; that is, it must not be
+	 * null and must have at least one entry.
+	 * @param map
+	 */
+	@SuppressWarnings("rawtypes")
+	public static void notEmpty(Map map) {
+		notEmpty(map, "[Assertion failed] - this collection must not be empty: it must contain at least 1 element");
+	}
+	
+	/**
+	 * Assert that the given text does not contain the given substring.
+	 * @param textToSearch
+	 * @param substring
+	 * @param message
+	 */
+	public static void doesNotContain(String textToSearch, String substring, String message) {
+		if (StringUtils.hasLength(textToSearch) && StringUtils.hasLength(substring) && textToSearch.indexOf(substring) != -1) {
+			throw new IllegalArgumentException(message);
+		}
+	}
+	
+	/**
+	 * Assert that the given text does not contain the given substring.
+	 * @param textToSearch
+	 * @param substring
+	 */
+	public static void doesNotContain(String textToSearch, String substring) {
+		doesNotContain(textToSearch, substring, 
+			"[Assertion failed] - this String argument must not contain the substring [" + substring + "]");
 	}
 }

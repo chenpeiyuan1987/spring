@@ -123,11 +123,12 @@ public class PathMatchingResourcePatternResolver implements ResourcePatternResol
 	 * @param locationPattern
 	 * @return
 	 */
+	@SuppressWarnings("deprecation")
 	protected Resource[] findPathMatchingResources(String locationPattern) throws IOException {
 		String rootDirPath = determineRootDir(locationPattern);
 		String subPattern = locationPattern.substring(rootDirPath.length());
 		Resource[] rootDirResources = getResources(rootDirPath);
-		Set<Resource> result = (Set<Resource>)CollectionFactory.createLinkedSetIfPossible(16);
+		Set<Resource> result = CollectionFactory.createLinkedSetIfPossible(16);
 		for (Resource resource : rootDirResources) {
 			if (isJarResource(resource)) {
 				result.addAll(doFindPathMatchingJarResources(resource, subPattern));
@@ -191,6 +192,7 @@ public class PathMatchingResourcePatternResolver implements ResourcePatternResol
 	 * @return
 	 * @throws IOException
 	 */
+	@SuppressWarnings("deprecation")
 	protected Set<Resource> doFindPathMatchingJarResources(Resource rootDirResource, String subPattern) throws IOException {
 		URLConnection con = rootDirResource.getURL().openConnection();
 		JarFile jarFile = null;
@@ -222,7 +224,7 @@ public class PathMatchingResourcePatternResolver implements ResourcePatternResol
 		if (!"".equals(rootEntryPath) && !rootEntryPath.endsWith("/")) {
 			rootEntryPath = rootEntryPath + "/";
 		}
-		Set<Resource> result = (Set<Resource>)CollectionFactory.createLinkedSetIfPossible(8);
+		Set<Resource> result = CollectionFactory.createLinkedSetIfPossible(8);
 		for (Enumeration<JarEntry> entries  = jarFile.entries(); entries.hasMoreElements();) {
 			JarEntry entry = entries.nextElement();
 			String entryPath = entry.getName();
@@ -254,7 +256,7 @@ public class PathMatchingResourcePatternResolver implements ResourcePatternResol
 				logger.debug(String.format(
 					"Cannot search for matching files underneath %s because it does not correspond to a directory in the file system", rootDirResource), ex);
 			}
-			return Collections.EMPTY_SET;
+			return Collections.emptySet();
 		}
 		return doFindMatchingFileSystemResources(rootDir, subPattern);
 	}
@@ -267,12 +269,13 @@ public class PathMatchingResourcePatternResolver implements ResourcePatternResol
 	 * @return
 	 * @throws IOException
 	 */
+	@SuppressWarnings("deprecation")
 	protected Set<Resource> doFindMatchingFileSystemResources(File rootDir, String subPattern) throws IOException {
 		if (logger.isDebugEnabled()) {
 			logger.debug(String.format("Looking for matching resources in directory tree [%s]", rootDir.getPath()));
 		}
 		Set<File> matchingFiles = retrieveMatchingFiles(rootDir, subPattern);
-		Set<Resource> result = (Set<Resource>)CollectionFactory.createLinkedSetIfPossible(matchingFiles.size());
+		Set<Resource> result = CollectionFactory.createLinkedSetIfPossible(matchingFiles.size());
 		for (File file : matchingFiles) {
 			result.add(new FileSystemResource(file));
 		}
@@ -287,6 +290,7 @@ public class PathMatchingResourcePatternResolver implements ResourcePatternResol
 	 * @return
 	 * @throws IOException
 	 */
+	@SuppressWarnings("deprecation")
 	protected Set<File> retrieveMatchingFiles(File rootDir, String pattern) throws IOException {
 		if (!rootDir.isDirectory()) {
 			throw new IllegalArgumentException(String.format("Resource path [%s] does not denote a directory", rootDir));
@@ -296,7 +300,7 @@ public class PathMatchingResourcePatternResolver implements ResourcePatternResol
 			fullPattern += "/";
 		}
 		fullPattern = fullPattern + StringUtils.replace(pattern, File.separator, "/");
-		Set<File> result = (Set<File>)CollectionFactory.createLinkedSetIfPossible(8);
+		Set<File> result = CollectionFactory.createLinkedSetIfPossible(8);
 		doRetrieveMatchingFiles(fullPattern, rootDir, result);
 		return result;
 	}
@@ -335,13 +339,14 @@ public class PathMatchingResourcePatternResolver implements ResourcePatternResol
 	 * @param location
 	 * @return
 	 */
+	@SuppressWarnings("deprecation")
 	protected Resource[] findAllClassPathResources(String location) throws IOException {
 		String path = location;
 		if (path.startsWith("/")) {
 			path = path.substring(1);
 		}
 		Enumeration<URL> urls = getClassLoader().getResources(path);
-		Set<Resource> result = (Set<Resource>)CollectionFactory.createLinkedSetIfPossible(16);
+		Set<Resource> result = CollectionFactory.createLinkedSetIfPossible(16);
 		while (urls.hasMoreElements()) {
 			URL url = (URL)urls.nextElement();
 			result.add(convertClassLoaderURL(url));
@@ -378,7 +383,6 @@ public class PathMatchingResourcePatternResolver implements ResourcePatternResol
 				return new Resource[] {getResourceLoader().getResource(locationPattern)};
 			}
 		}
-		
 	}
 
 }
