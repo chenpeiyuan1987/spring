@@ -2,6 +2,8 @@ package org.yuan.study.spring.beans;
 
 import java.util.Map;
 
+import org.yuan.study.spring.core.convert.TypeDescriptor;
+
 public interface PropertyAccessor {
 	
 	/**
@@ -21,6 +23,41 @@ public interface PropertyAccessor {
 	 */
 	String PROPERTY_KEY_SUFFIX = "]";
 	char PROPERTY_KEY_SUFFIX_CHAR = ']';
+	
+	/**
+	 * Determine whether the specified property is readable.
+	 * Returns false if the property doesn't exist.
+	 * @param propertyName
+	 * @return
+	 */
+	boolean isReadableProperty(String propertyName);
+	
+	/**
+	 * Determine the property type for the specified property,
+	 * either checking the property descriptor or checking the value
+	 * in case of an indexed or mapped element.
+	 * @param propertyName
+	 * @return
+	 * @throws BeansException
+	 */
+	Class<?> getPropertyType(String propertyName) throws BeansException;
+	
+	/**
+	 * Determine whether the specified property is writable.
+	 * Returns false if the property doesn't exist.
+	 * @param propertyName
+	 * @return
+	 */
+	boolean isWritableProperty(String propertyName);
+	
+	/**
+	 * Return a type descriptor for the specified property:
+	 * preferably from the read method, falling back to the write method.
+	 * @param propertyName
+	 * @return
+	 * @throws BeansException
+	 */
+	TypeDescriptor getPropertyTypeDescriptor(String propertyName) throws BeansException;
 	
 	/**
 	 * Get the current value of the specified property.
@@ -46,7 +83,7 @@ public interface PropertyAccessor {
 	 * Perform a batch update from a Map.
 	 * @param map
 	 */
-	void setPropertyValues(Map<String,Object> map) throws BeansException;
+	void setPropertyValues(Map<?, ?> map) throws BeansException;
 	
 	/**
 	 * The preferred way to perform a batch update.
@@ -60,4 +97,11 @@ public interface PropertyAccessor {
 	 * @param ignoreUnknown
 	 */
 	void setPropertyValues(PropertyValues pvs, boolean ignoreUnknown) throws BeansException;
+	
+	/**
+	 * Perform a batch update with full control over behavior.
+	 * @param pvs
+	 * @param ignoreUnknown
+	 */
+	void setPropertyValues(PropertyValues pvs, boolean ignoreUnknown, boolean ignoreInvalid) throws BeansException;
 }
