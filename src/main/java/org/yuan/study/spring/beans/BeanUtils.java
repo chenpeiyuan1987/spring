@@ -1,146 +1,68 @@
 package org.yuan.study.spring.beans;
 
 import java.beans.PropertyDescriptor;
+import java.beans.PropertyEditor;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.WeakHashMap;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.yuan.study.spring.core.MethodParameter;
 import org.yuan.study.spring.util.Assert;
 
-public class BeanUtils {
+public abstract class BeanUtils {
 	
-	private static final Map<Class<?>,Class<?>> primitiveWrapperTypeMap = new HashMap<Class<?>,Class<?>>(8);
+	private static final Log logger = LogFactory.getLog(BeanUtils.class);
 	
-	static {
-		primitiveWrapperTypeMap.put(Boolean.class, boolean.class);
-		primitiveWrapperTypeMap.put(Byte.class, byte.class);
-		primitiveWrapperTypeMap.put(Character.class, char.class);
-		primitiveWrapperTypeMap.put(Double.class, double.class);
-		primitiveWrapperTypeMap.put(Float.class, float.class);
-		primitiveWrapperTypeMap.put(Integer.class, int.class);
-		primitiveWrapperTypeMap.put(Long.class, long.class);
-		primitiveWrapperTypeMap.put(Short.class, short.class);
-	}
+	private static final Map<Class<?>, Boolean> unknownEditorTypes = 
+		Collections.synchronizedMap(new WeakHashMap<Class<?>, Boolean>());
 	
 	/**
-	 * Find a method with the given method name and minimal parameters, 
-	 * declared on the given class or one of its superclasses, 
-	 * Will return a public, protected, package access, or private method.
-	 * @param clazz
-	 * @param methodName
-	 * @return
-	 */
-	public static Method findDeclaredMethodWithMinimalParameters(Class<?> clazz, String methodName) {
-		Method[] methods = clazz.getDeclaredMethods();
-		Method targetMethod = null;
-		for (Method method : methods) {
-			if (method.getName().equals(methodName)) {
-				if (targetMethod == null 
-					|| targetMethod.getParameterTypes().length > method.getParameterTypes().length) {
-					targetMethod = method;
-				}
-			}
-		}
-		if (targetMethod != null) {
-			return targetMethod;
-		}
-		else {
-			if (clazz.getSuperclass() != null) {
-				return findDeclaredMethodWithMinimalParameters(clazz.getSuperclass(), methodName);
-			}
-			else {
-				return null;
-			}
-		}
-	}
-	
-	/**
-	 * Check if the given class represents a "simple" property,
-	 * i.e. a primitive, a String, a Class, or a corresponding array.
+	 * Convenience method to instantiate a class using its no-arg constructor.
 	 * @param clazz
 	 * @return
+	 * @throws BeanInstantiationException
 	 */
-	public static boolean isSimpleProperty(Class<?> clazz) {
-		Assert.notNull(clazz, "clazz must not be null");
-		return clazz.isPrimitive() || isPrimitiveArray(clazz)
-			|| isPrimitiveWrapper(clazz) || isPrimitiveWrapperArray(clazz)
-			|| clazz.equals(String.class) || clazz.equals(String[].class)
-			|| clazz.equals(Class.class) || clazz.equals(Class[].class);
-	}
-	
-	/**
-	 * Check if the given class represents an array of primitives,
-	 * i.e. boolean, byte, char, short, int, long, float, or double.
-	 * @param clazz
-	 * @return
-	 */
-	public static boolean isPrimitiveArray(Class<?> clazz) {
-		return (clazz.isArray() && clazz.getComponentType().isPrimitive());
-	}
-	
-	/**
-	 * Check if the given class represents a primitive wrapper,
-	 * i.e. Boolean, Byte, Character, Short, Integer, Long, Float, or Double.
-	 * @param clazz
-	 * @return
-	 */
-	public static boolean isPrimitiveWrapper(Class<?> clazz) {
-		return primitiveWrapperTypeMap.get(clazz) != null;
-	}
-	
-	/**
-	 * Check if the given class represents an array of primitive wrappers,
-	 * i.e. Boolean, Byte, Character, Short, Integer, Long, Float, or Double.
-	 * @param clazz
-	 * @return
-	 */
-	public static boolean isPrimitiveWrapperArray(Class<?> clazz) {
-		return (clazz.isArray() && isPrimitiveWrapper(clazz.getComponentType()));
-	}
-	
-	/**
-	 * Determine if the given target type is assignable from the given value type, assuming setting by reflection. 
-	 * Considers primitive  wrapper classes as assignable to the corresponding primitive types.
-	 * @param targetType
-	 * @param valueType
-	 * @return
-	 */
-	public static boolean isAssignable(Class<?> targetType, Class<?> valueType) {
-		Assert.notNull(targetType, "targetType must not be null");
-		Assert.notNull(valueType, "valueType must not be null");
-		return (targetType.isAssignableFrom(valueType) 
-			|| targetType.equals(primitiveWrapperTypeMap.get(valueType)));
-	}
-	
-	/**
-	 * Determine if the given type is assignable from the given value, assuming setting by reflection. 
-	 * Considers primitive wrapper classes as assignable to the corresponding primitive types.
-	 * @param type
-	 * @param value
-	 * @return
-	 */
-	public static boolean isAssignable(Class<?> type, Object value) {
-		Assert.notNull(type, "type must not be null");
-		return (value != null ? isAssignable(type, value.getClass()) : !type.isPrimitive());
-	}
-	
-	/**
-	 * 
-	 * @param clazz
-	 * @return
-	 */
-	public static Object instantiateClass(Class<?> clazz) throws BeanInstantiationException {
-		Assert.notNull(clazz, "Class must not be null");
+	public static <T> T instantiate(Class<T> clazz) throws BeanInstantiationException {
+		Assert.notNull(clazz, "Class must no be null");
+		
 		if (clazz.isInterface()) {
 			throw new BeanInstantiationException(clazz, "Specified class is an interface");
 		}
+		
 		try {
-			return instantiateClass(clazz.getDeclaredConstructor((Class[]) null), null);
+			return clazz.newInstance();
+		}
+		catch (InstantiationException ex) {
+			throw new BeanInstantiationException(clazz, "Is it an abstract class?", ex);
+		}
+		catch (IllegalAccessException ex) {
+			throw new BeanInstantiationException(clazz, "Is the constructor accessible?", ex);
+		}
+	}
+	
+	/**
+	 * Convenience method to instantiate a class using its no-arg constructor.
+	 * @param clazz
+	 * @return
+	 * @throws BeanInstantiationException
+	 */
+	public static <T> T instantiateClass(Class<T> clazz) throws BeanInstantiationException {
+		Assert.notNull(clazz, "Class must no be null");
+		
+		if (clazz.isInterface()) {
+			throw new BeanInstantiationException(clazz, "Specified class is an interface");
+		}
+		
+		try {
+			return instantiateClass(clazz.getDeclaredConstructor());
 		}
 		catch (NoSuchMethodException ex) {
 			throw new BeanInstantiationException(clazz, "No default constructor found", ex);
@@ -148,47 +70,47 @@ public class BeanUtils {
 	}
 	
 	/**
-	 * Convenience method to instantiate a class using the given constructor.
+	 * Convenience method to instantiate a class using its no-arg constructor.
 	 * @param ctor
 	 * @param args
 	 * @return
 	 * @throws BeanInstantiationException
 	 */
-	public static Object instantiateClass(Constructor<?> ctor, Object[] args) throws BeanInstantiationException {
+	public static <T> T instantiateClass(Constructor<T> ctor, Object... args) throws BeanInstantiationException {
 		Assert.notNull(ctor, "Constructor must not be null");
+		
 		try {
-			if (!Modifier.isPublic(ctor.getModifiers()) 
-				|| !Modifier.isPublic(ctor.getDeclaringClass().getModifiers())) {
-				ctor.setAccessible(true);
-			}
+			ctor.setAccessible(true);
 			return ctor.newInstance(args);
 		}
 		catch (InstantiationException ex) {
-			throw new BeanInstantiationException(ctor.getDeclaringClass(),
+			throw new BeanInstantiationException(ctor.getDeclaringClass(), 
 				"Is it an abstract class?", ex);
 		}
 		catch (IllegalAccessException ex) {
-			throw new BeanInstantiationException(ctor.getDeclaringClass(),
-				"Has the class definition changed? Is the constructor accessible?", ex);
+			throw new BeanInstantiationException(ctor.getDeclaringClass(), 
+				"Is the constructor accessible?", ex);
 		}
 		catch (IllegalArgumentException ex) {
-			throw new BeanInstantiationException(ctor.getDeclaringClass(),
+			throw new BeanInstantiationException(ctor.getDeclaringClass(), 
 				"Illegal arguments for constructor", ex);
 		}
 		catch (InvocationTargetException ex) {
-			throw new BeanInstantiationException(ctor.getDeclaringClass(),
-				"Constructor threw exception", ex.getTargetException());
+			throw new BeanInstantiationException(ctor.getDeclaringClass(), 
+				"Constructor threw exception", ex);
 		}
 	}
 	
 	/**
-	 * 
+	 * Find a method with the given method name and the given parameter types,
+	 * declared on the given class or one of its superclasses. Prefers public methods,
+	 * but will return a protected, package access, or private method too.
 	 * @param clazz
 	 * @param methodName
 	 * @param paramTypes
 	 * @return
 	 */
-	public static Method findMethod(Class<?> clazz, String methodName, Class<?>[] paramTypes) {
+	public static Method findMethod(Class<?> clazz, String methodName, Class<?>... paramTypes) {
 		try {
 			return clazz.getMethod(methodName, paramTypes);
 		}
@@ -198,7 +120,9 @@ public class BeanUtils {
 	}
 	
 	/**
-	 * 
+	 * Find a method with the given method name and the given parameter types,
+	 * declared on the given class or one of its superclasses. Prefers public methods,
+	 * but will return a protected, package access, or private method too.
 	 * @param clazz
 	 * @param methodName
 	 * @param paramTypes
@@ -217,6 +141,85 @@ public class BeanUtils {
 	}
 	
 	/**
+	 * Find a method with the given method name and the given parameter types,
+	 * declared on the given class or one of its superclasses. Prefers public methods,
+	 * but will return a protected, package access, or private method too.
+	 * @param clazz
+	 * @param methodName
+	 * @return
+	 * @throws IllegalArgumentException
+	 */
+	public static Method findMethodWithMinimalParameters(Class<?> clazz, String methodName) throws IllegalArgumentException {
+		Method targetMethod = findMethodWithMinimalParameters(clazz.getMethods(), methodName);
+		if (targetMethod == null) {
+			targetMethod = findDeclaredMethodWithMinimalParameters(clazz, methodName);
+		}
+		return targetMethod;
+	}
+	
+	/**
+	 * Find a method with the given method name and minimal parameters, 
+	 * declared on the given class or one of its superclasses, 
+	 * Will return a public, protected, package access, or private method.
+	 * @param clazz
+	 * @param methodName
+	 * @return
+	 */
+	public static Method findDeclaredMethodWithMinimalParameters(Class<?> clazz, String methodName) {
+		Method targetMethod = findMethodWithMinimalParameters(clazz.getDeclaredMethods(), methodName);
+		if (targetMethod == null && clazz.getSigners() != null) {
+			targetMethod = findDeclaredMethodWithMinimalParameters(clazz, methodName);
+		}
+		return targetMethod;
+	}
+	
+	/**
+	 * Find a method with the given method name and minimal parameters 
+	 * in the given list of methods.
+	 * @param methods
+	 * @param methodName
+	 * @return
+	 * @throws IllegalArgumentException
+	 */
+	public static Method findMethodWithMinimalParameters(Method[] methods, String methodName) throws IllegalArgumentException {
+		Method targetMethod = null;
+		int foundMethodCount = 0;
+		for (Method method : methods) {
+			if (method.getName().equals(methodName)) {
+				int paramNum = method.getParameterTypes().length;
+				if (targetMethod == null || targetMethod.getParameterTypes().length > paramNum) {
+					targetMethod = method;
+					foundMethodCount = 1;
+				}
+				else {
+					if (targetMethod.getParameterTypes().length == paramNum) {
+						foundMethodCount++;
+					}
+				}
+			}
+		}
+		
+		if (foundMethodCount > 1) {
+			throw new IllegalArgumentException(String.format("Cannot resolve method '%s' to a unique method. "
+					+ "Attempted to resolve to overloaded method with the least number of parameters, "
+					+ "but there were %s candidates.", methodName, foundMethodCount));
+		}
+		
+		return targetMethod;
+	}
+	
+	/**
+	 * 
+	 * @param signature
+	 * @param clazz
+	 * @return
+	 */
+	public static Method resolveSignature(String signature, Class<?> clazz) {
+		// TODO
+		return null;
+	}
+	
+	/**
 	 * Retrieve the JavaBeans PropertyDescriptors of a given class.
 	 * @param clazz
 	 * @return
@@ -224,7 +227,7 @@ public class BeanUtils {
 	 */
 	public static PropertyDescriptor[] getPropertyDescriptors(Class<?> clazz) throws BeansException {
 		CachedIntrospectionResults results = CachedIntrospectionResults.forClass(clazz);
-		return results.getBeanInfo().getPropertyDescriptors();
+		return results.getPropertyDescriptors();
 	}
 	
 	/**
@@ -237,6 +240,74 @@ public class BeanUtils {
 	public static PropertyDescriptor getPropertyDescriptor(Class<?> clazz, String propertyName) throws BeansException {
 		CachedIntrospectionResults results = CachedIntrospectionResults.forClass(clazz);
 		return results.getPropertyDescriptor(propertyName);
+	}
+	
+	/**
+	 * 
+	 * @return
+	 * @throws BeansException
+	 */
+	public static PropertyDescriptor findPropertyForMethod(Method method) throws BeansException {
+		Assert.notNull(method, "Method must not be null");
+		PropertyDescriptor[] pds = getPropertyDescriptors(method.getDeclaringClass());
+		for (PropertyDescriptor pd : pds) {
+			if (method.equals(pd.getReadMethod()) || method.equals(pd.getWriteMethod())) {
+				return pd;
+			}
+		}
+		
+		return null;
+	}
+	
+	/**
+	 * 
+	 * @param targetType
+	 * @return
+	 */
+	public static PropertyEditor findEditorByConvention(Class<?> targetType) {
+		// TODO
+		return null;
+	}
+	
+	/**
+	 * 
+	 * @param propertyName
+	 * @param beanClasses
+	 * @return
+	 */
+	public static Class<?> findPropertyType(String propertyName, Class<?>[] beanClasses) {
+		// TODO
+		return null;
+	}
+	
+	/**
+	 * 
+	 * @param pd
+	 * @return
+	 */
+	public static MethodParameter getWriteMethodParameter(PropertyDescriptor pd) {
+		// TODO
+		return null;
+	}
+	
+	/**
+	 * 
+	 * @param clazz
+	 * @return
+	 */
+	public static boolean isSimpleProperty(Class<?> clazz) {
+		// TODO
+		return false;
+	}
+	
+	/**
+	 * 
+	 * @param clazz
+	 * @return
+	 */
+	public static boolean isSimpleValueType(Class<?> clazz) {
+		// TODO
+		return false;
 	}
 	
 	/**

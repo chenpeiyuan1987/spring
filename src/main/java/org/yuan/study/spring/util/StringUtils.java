@@ -357,4 +357,8 @@ public abstract class StringUtils {
 	public static String deleteAny(String text, String deleteChars) {
 		return null;
 	}
+	
+	public static String capitalize(String str) {
+		return str;
+	}
 }
