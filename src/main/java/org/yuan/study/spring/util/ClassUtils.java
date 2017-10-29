@@ -223,4 +223,24 @@ public abstract class ClassUtils {
 		shortName = shortName.replace(INNER_CLASS_SEPARATOR, PACKAGE_SEPARATOR);
 		return shortName;
 	}
+	
+	/**
+	 * 
+	 * @param clazz
+	 * @param classLoader
+	 * @return
+	 */
+	public static boolean isCacheSafe(Class<?> clazz, ClassLoader classLoader) {
+		return false;
+	}
+	
+	/**
+	 * 
+	 * @param str
+	 * @param classLoader
+	 * @return
+	 */
+	public static boolean isPresent(String str, ClassLoader classLoader) {
+		return false;
+	}
 }
