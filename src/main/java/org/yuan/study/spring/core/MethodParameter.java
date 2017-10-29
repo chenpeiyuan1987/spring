@@ -187,14 +187,6 @@ public class MethodParameter {
 	}
 
 	/**
-	 * Return the wrapped Constructor, if any.
-	 * @param constructor
-	 */
-	public void setConstructor(Constructor constructor) {
-		this.constructor = constructor;
-	}
-	
-	/**
 	 * Return the class that declares the underlying Method or Constructor.
 	 * @return
 	 */
@@ -331,4 +323,13 @@ public class MethodParameter {
 			throw new IllegalArgumentException(String.format("Given object [%s] is neither a Method nor a Constructor", methodOrConstructor));
 		}
 	}
+
+	/**
+	 * Return the wrapped Constructor, if any.
+	 * @param constructor
+	 */
+	public Constructor getConstructor() {
+		return constructor;
+	}
+	
 }
