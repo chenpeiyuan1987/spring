@@ -225,22 +225,77 @@ public abstract class ClassUtils {
 	}
 	
 	/**
-	 * 
+	 * Check whether the given class it cache-safe in the given context,
+	 * i.e. whether it is loaded by the given ClassLoader or a parent of it.
 	 * @param clazz
 	 * @param classLoader
 	 * @return
 	 */
 	public static boolean isCacheSafe(Class<?> clazz, ClassLoader classLoader) {
+		Assert.notNull(clazz, "Class must not be null");
+		
+		ClassLoader target = clazz.getClassLoader();
+		if (target == null) {
+			return false;
+		}
+		
+		ClassLoader loader = classLoader;
+		if (loader == target) {
+			return true;
+		}
+		while (loader != null) {
+			loader = loader.getParent();
+			if (loader == target) {
+				return true;
+			}
+		}
+		
+		return false;
+	}
+	
+	/**
+	 * Determine whether the identified by the supplied name is present
+	 * and can be loaded. Will return false if either the class or one.
+	 * @param str
+	 * @param classLoader
+	 * @return
+	 */
+	public static boolean isPresent(String className, ClassLoader classLoader) {
+		try {
+			forName(className, classLoader);
+			return true;
+		} catch (Throwable ex) {
+			return false;
+		}
+	}
+	
+	/**
+	 * 
+	 * @param clazz
+	 * @return
+	 */
+	public static boolean isPrimitiveOrWrapper(Class<?> clazz) {
+		// TODO
 		return false;
 	}
 	
 	/**
 	 * 
-	 * @param str
+	 * @param clazz
 	 * @param classLoader
 	 * @return
 	 */
-	public static boolean isPresent(String str, ClassLoader classLoader) {
-		return false;
+	public static boolean isVisible(Class<?> clazz, ClassLoader classLoader) {
+		if (classLoader == null) {
+			return true;
+		}
+		
+		try {
+			Class<?> actualClass = classLoader.loadClass(clazz.getName());
+			return (clazz == actualClass);
+		}
+		catch (ClassNotFoundException ex) {
+			return false;
+		}
 	}
 }

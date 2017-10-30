@@ -6,9 +6,13 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.net.URI;
+import java.net.URL;
+import java.sql.Date;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.WeakHashMap;
 
@@ -16,6 +20,8 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.yuan.study.spring.core.MethodParameter;
 import org.yuan.study.spring.util.Assert;
+import org.yuan.study.spring.util.ClassUtils;
+import org.yuan.study.spring.util.StringUtils;
 
 public abstract class BeanUtils {
 	
@@ -81,6 +87,7 @@ public abstract class BeanUtils {
 		
 		try {
 			ctor.setAccessible(true);
+			// ReflectionUtils.makeAccessible(ctor);
 			return ctor.newInstance(args);
 		}
 		catch (InstantiationException ex) {
@@ -209,14 +216,46 @@ public abstract class BeanUtils {
 	}
 	
 	/**
-	 * 
+	 * Parse a method signature in the form methodName[(args...)].
 	 * @param signature
 	 * @param clazz
 	 * @return
 	 */
 	public static Method resolveSignature(String signature, Class<?> clazz) {
-		// TODO
-		return null;
+		Assert.hasText(signature, "'signature' must not be empty");
+		Assert.notNull(clazz, "Class must not be null");
+		
+		int openingIndex = signature.indexOf("(");
+		int closingIndex = signature.indexOf(")");
+		
+		if (openingIndex > -1 && closingIndex == -1) {
+			throw new IllegalArgumentException(
+				String.format("Invalid method signature '%s': expected closing ')' for args list", signature));
+		}
+		if (openingIndex == -1 && closingIndex > -1) {
+			throw new IllegalArgumentException(
+				String.format("Invalid method signature '%s': expected opening '(' for args list", signature));
+		}
+		if (openingIndex == -1 && closingIndex == -1) {
+			return findMethodWithMinimalParameters(clazz, signature);
+		}
+		
+		String methodName = signature.substring(0, openingIndex);
+		String[] parameterTypeNames = StringUtils.commaDelimitedListToStringArray(
+			signature.substring(openingIndex + 1, closingIndex));
+		Class<?>[] parameterTypes = new Class[parameterTypeNames.length];
+		for (int i = 0; i < parameterTypeNames.length; i++) {
+			String parameterTypeName = parameterTypeNames[i].trim();
+			try {
+				parameterTypes[i] = ClassUtils.forName(parameterTypeName, clazz.getClassLoader());
+			}
+			catch (Throwable ex) {
+				throw new IllegalArgumentException(
+					String.format("Invalid method signature: unable to resolve type [%s] for argument %s. Root cause: %s", 
+						parameterTypeName, i, ex));
+			}
+		}
+		return findMethod(clazz, methodName, parameterTypes);
 	}
 	
 	/**
@@ -243,7 +282,9 @@ public abstract class BeanUtils {
 	}
 	
 	/**
-	 * 
+	 * Find a JavaBeans PropertyDescriptor for the given method,
+	 * with the method editor being the read method or the write 
+	 * method for that bean property.
 	 * @return
 	 * @throws BeansException
 	 */
@@ -260,60 +301,118 @@ public abstract class BeanUtils {
 	}
 	
 	/**
-	 * 
+	 * Find a JavaBeans PropertyEditor following the 'Editor' suffix convention
 	 * @param targetType
 	 * @return
 	 */
 	public static PropertyEditor findEditorByConvention(Class<?> targetType) {
-		// TODO
-		return null;
+		if (targetType == null || targetType.isArray() || unknownEditorTypes.containsKey(targetType)) {
+			return null;
+		}
+		
+		ClassLoader cl = targetType.getClassLoader();
+		if (cl == null) {
+			try {
+				cl = ClassLoader.getSystemClassLoader();
+				if (cl == null) {
+					return null;
+				}
+			}
+			catch (Throwable ex) {
+				if (logger.isDebugEnabled()) {
+					logger.debug(String.format("Could not access system ClassLoader: %s", ex));
+				}
+				return null;
+			}
+		}
+		
+		String editorName = targetType.getName() + "Editor";
+		try {
+			Class<?> editorClass = cl.loadClass(editorName);
+			if (!PropertyEditor.class.isAssignableFrom(editorClass)) {
+				if (logger.isWarnEnabled()) {
+					logger.warn(String.format("Editor class [%s] does not implement [java.beans.PropertyEditor] interface", editorName));
+				}
+				unknownEditorTypes.put(targetType, Boolean.TRUE);
+				return null;
+			}
+			return (PropertyEditor) instantiateClass(editorClass);
+		}
+		catch (ClassNotFoundException ex) {
+			if (logger.isDebugEnabled()) {
+				
+			}
+			unknownEditorTypes.put(targetType, Boolean.TRUE);
+			return null;
+		}
 	}
 	
 	/**
-	 * 
+	 * Determine the bean property type for the given property from the
+	 * given classes/interfaces, if possible.
 	 * @param propertyName
 	 * @param beanClasses
 	 * @return
 	 */
 	public static Class<?> findPropertyType(String propertyName, Class<?>[] beanClasses) {
-		// TODO
-		return null;
+		if (beanClasses != null) {
+			for (Class<?> beanClass : beanClasses) {
+				PropertyDescriptor pd = getPropertyDescriptor(beanClass, propertyName);
+				if (pd != null) {
+					return pd.getPropertyType();
+				}
+			}
+		}
+		
+		return Object.class;
 	}
 	
 	/**
-	 * 
+	 * Obtain a new MethodParameter object for the write method of the
+	 * specified property.
 	 * @param pd
 	 * @return
 	 */
 	public static MethodParameter getWriteMethodParameter(PropertyDescriptor pd) {
-		// TODO
-		return null;
+		if (pd instanceof GenericTypeAwarePropertyDescriptor) {
+			return new MethodParameter(((GenericTypeAwarePropertyDescriptor)pd).getWriteMethodParameter());
+		}
+		else {
+			return new MethodParameter(pd.getWriteMethod(), 0);
+		}
 	}
 	
 	/**
-	 * 
+	 * Check if the given type represents a "simple" property:
+	 * a primitive, a String or other CharSequence, a Number, a Date,
+	 * a URI, a URL, a Locale, a Class, or a corresponding array.
 	 * @param clazz
 	 * @return
 	 */
 	public static boolean isSimpleProperty(Class<?> clazz) {
-		// TODO
-		return false;
+		Assert.notNull(clazz, "Class must not be null");
+		
+		return isSimpleValueType(clazz) || (clazz.isArray() && isSimpleValueType(clazz.getComponentType()));
 	}
 	
 	/**
-	 * 
+	 * Check if the given type represents a "Simple" value type:
+	 * a primitive, a String or other CharSequence, a Number, a Date,
+	 * a URI, a URL, a Locale or a Class.
 	 * @param clazz
 	 * @return
 	 */
 	public static boolean isSimpleValueType(Class<?> clazz) {
-		// TODO
-		return false;
+		return ClassUtils.isPrimitiveOrWrapper(clazz) || clazz.isEnum()
+			|| CharSequence.class.isAssignableFrom(clazz)
+			|| Number.class.isAssignableFrom(clazz) 
+			|| Date.class.isAssignableFrom(clazz)
+			|| clazz.equals(URI.class) || clazz.equals(URL.class)
+			|| clazz.equals(Locale.class) || clazz.equals(Class.class);
 	}
 	
 	/**
-	 * Find a JavaBeans PropertyDescriptor for the given method, 
-	 * with the method either being the read method or the write 
-	 * method for that bean property.
+	 * Copy the property values of the given source bean into the given target bean.
 	 * @param source
 	 * @param target
 	 * @param editable
