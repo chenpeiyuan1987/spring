@@ -2,6 +2,8 @@ package org.yuan.study.spring.util;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -27,6 +29,19 @@ public abstract class ClassUtils {
 	
 	private static final Log logger = LogFactory.getLog(ClassUtils.class);
 
+	private static final Map<Class<?>, Class<?>> primitiveWrapperTypeMap = new HashMap<Class<?>, Class<?>>(8);
+	
+	static {
+		primitiveWrapperTypeMap.put(Boolean.class, boolean.class);
+		primitiveWrapperTypeMap.put(Byte.class, byte.class);
+		primitiveWrapperTypeMap.put(Character.class, char.class);
+		primitiveWrapperTypeMap.put(Double.class, double.class);
+		primitiveWrapperTypeMap.put(Float.class, float.class);
+		primitiveWrapperTypeMap.put(Integer.class, int.class);
+		primitiveWrapperTypeMap.put(Long.class, long.class);
+		primitiveWrapperTypeMap.put(Short.class, short.class);
+	}
+	
 	/**
 	 * Return a default ClassLoader to use.
 	 * @return
@@ -270,13 +285,36 @@ public abstract class ClassUtils {
 	}
 	
 	/**
-	 * 
+	 * Check if the given class represents a primitive wrapper.
+	 * @param clazz
+	 * @return
+	 */
+	public static boolean isPrimitiveWrapper(Class<?> clazz) {
+		Assert.notNull(clazz, "Class must not be null");
+		
+		return primitiveWrapperTypeMap.containsKey(clazz);
+	}
+	
+	/**
+	 * Check if the given class represents a primitive or a primitive wrapper.
 	 * @param clazz
 	 * @return
 	 */
 	public static boolean isPrimitiveOrWrapper(Class<?> clazz) {
-		// TODO
-		return false;
+		Assert.notNull(clazz, "Class must not be null");
+		
+		return (clazz.isPrimitive() || isPrimitiveWrapper(clazz));
+	}
+	
+	/**
+	 * Check if the given class represents an array of primitives.
+	 * @param clazz
+	 * @return
+	 */
+	public static boolean isPrimitiveArray(Class<?> clazz) {
+		Assert.notNull(clazz, "Class must not be null");
+		
+		return (clazz.isArray() || clazz.getComponentType().isPrimitive());
 	}
 	
 	/**
