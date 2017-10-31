@@ -58,7 +58,8 @@ public abstract class GenericTypeResolver {
 	 * @return
 	 */
 	public static Class<?> resolveReturnType(Method method, Class<?> clazz) {
-		// TODO
-		return null;
+		Assert.notNull(method, "Method must not be null");
+		
+		return method.getReturnType();
 	}
 }

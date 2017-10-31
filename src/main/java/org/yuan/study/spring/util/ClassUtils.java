@@ -188,9 +188,10 @@ public abstract class ClassUtils {
 	 * @param paramTypes
 	 * @return
 	 */
-	public static Method getMethodIfAvailable(Class<?> clazz, String methodName, Class<?>[] paramTypes) {
+	public static Method getMethodIfAvailable(Class<?> clazz, String methodName, Class<?>... paramTypes) {
 		Assert.notNull(clazz, "Class must not be null");
 		Assert.notNull(methodName, "Method name must not be null");
+		
 		try {
 			return clazz.getMethod(methodName, paramTypes);
 		}

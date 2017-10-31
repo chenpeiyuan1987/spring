@@ -71,10 +71,12 @@ public final class BeanUtilsTest {
 		tb1.setName("rod");
 		tb1.setAge(32);
 		tb1.setTouchy("touchy");
+		
 		TestBean tb2 = new TestBean();
 		assertTrue(tb2.getName() == null);
 		assertTrue(tb2.getAge() == 0);
 		assertTrue(tb2.getTouchy() == null);
+		
 		BeanUtils.copyProperties(tb1, tb2);
 		assertEquals(tb1.getName(), tb2.getName());
 		assertEquals(tb1.getAge(), tb2.getAge());
@@ -87,10 +89,12 @@ public final class BeanUtilsTest {
 		tb1.setName("rod");
 		tb1.setAge(32);
 		tb1.setTouchy("touchy");
+		
 		TestBean tb2 = new TestBean();
 		assertTrue(tb2.getName() == null);
 		assertTrue(tb2.getAge() == 0);
 		assertTrue(tb2.getTouchy() == null);
+		
 		BeanUtils.copyProperties(tb1, tb2);
 		assertEquals(tb1.getName(), tb2.getName());
 		assertEquals(tb1.getAge(), tb2.getAge());
@@ -103,10 +107,12 @@ public final class BeanUtilsTest {
 		tb1.setName("rod");
 		tb1.setAge(32);
 		tb1.setTouchy("touchy");
+		
 		DerivedTestBean tb2 = new DerivedTestBean();
 		assertTrue(tb2.getName() == null);
 		assertTrue(tb2.getAge() == 0);
 		assertTrue(tb2.getTouchy() == null);
+		
 		BeanUtils.copyProperties(tb1, tb2);
 		assertEquals(tb1.getName(), tb2.getName());
 		assertEquals(tb1.getAge(), tb2.getAge());
@@ -195,12 +201,23 @@ public final class BeanUtilsTest {
 	
 	@Test
 	public void testResolveOverloadedSignature() throws Exception {
-		//
+		Method desiredMethod = MethodSignatureBean.class.getMethod("overloaded");
+		assertSignatureEquals(desiredMethod, "overloaded()");
+
+		desiredMethod = MethodSignatureBean.class.getMethod("overloaded", new Class[]{String.class});
+		assertSignatureEquals(desiredMethod, "overloaded(java.lang.String)");
+		
+		desiredMethod = MethodSignatureBean.class.getMethod("overloaded", new Class[]{String.class, BeanFactory.class});
+		assertSignatureEquals(desiredMethod, "overloaded(java.lang.String, org.yuan.study.spring.beans.factory.BeanFactory)");
 	}
 	
 	@Test
 	public void testResolveSignatureWithArray() throws Exception {
-		//
+		Method desiredMethod = MethodSignatureBean.class.getMethod("doSomethingWithAnArray", new Class[]{String[].class});
+		assertSignatureEquals(desiredMethod, "doSomethingWithAnArray(java.lang.String[])");
+		
+		desiredMethod = MethodSignatureBean.class.getMethod("doSomethingWithAMultiDimensionalArray", new Class[]{String[][].class});
+		assertSignatureEquals(desiredMethod, "doSomethingWithAMultiDimensionalArray(java.lang.String[][])");
 	}
 	
 	@Test

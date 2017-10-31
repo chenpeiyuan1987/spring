@@ -23,6 +23,12 @@ import org.yuan.study.spring.util.Assert;
 import org.yuan.study.spring.util.ClassUtils;
 import org.yuan.study.spring.util.StringUtils;
 
+/**
+ * Static convenience methods for JavaBeans: for instantiating beans,
+ * checking bean property types, copying bean properties, etc.
+ * 
+ * @author Yuan
+ */
 public abstract class BeanUtils {
 	
 	private static final Log logger = LogFactory.getLog(BeanUtils.class);
@@ -76,7 +82,7 @@ public abstract class BeanUtils {
 	}
 	
 	/**
-	 * Convenience method to instantiate a class using its no-arg constructor.
+	 * Convenience method to instantiate a class using the given constructor.
 	 * @param ctor
 	 * @param args
 	 * @return
@@ -87,6 +93,7 @@ public abstract class BeanUtils {
 		
 		try {
 			ctor.setAccessible(true);
+			// TODO
 			// ReflectionUtils.makeAccessible(ctor);
 			return ctor.newInstance(args);
 		}
@@ -104,7 +111,7 @@ public abstract class BeanUtils {
 		}
 		catch (InvocationTargetException ex) {
 			throw new BeanInstantiationException(ctor.getDeclaringClass(), 
-				"Constructor threw exception", ex);
+				"Constructor threw exception", ex.getTargetException());
 		}
 	}
 	
@@ -172,7 +179,7 @@ public abstract class BeanUtils {
 	 * @param methodName
 	 * @return
 	 */
-	public static Method findDeclaredMethodWithMinimalParameters(Class<?> clazz, String methodName) {
+	public static Method findDeclaredMethodWithMinimalParameters(Class<?> clazz, String methodName) throws IllegalArgumentException {
 		Method targetMethod = findMethodWithMinimalParameters(clazz.getDeclaredMethods(), methodName);
 		if (targetMethod == null && clazz.getSigners() != null) {
 			targetMethod = findDeclaredMethodWithMinimalParameters(clazz, methodName);
@@ -190,26 +197,26 @@ public abstract class BeanUtils {
 	 */
 	public static Method findMethodWithMinimalParameters(Method[] methods, String methodName) throws IllegalArgumentException {
 		Method targetMethod = null;
-		int foundMethodCount = 0;
+		int matchedMethodCount = 0;
 		for (Method method : methods) {
 			if (method.getName().equals(methodName)) {
-				int paramNum = method.getParameterTypes().length;
-				if (targetMethod == null || targetMethod.getParameterTypes().length > paramNum) {
+				int paramCount = method.getParameterTypes().length;
+				if (targetMethod == null || targetMethod.getParameterTypes().length > paramCount) {
 					targetMethod = method;
-					foundMethodCount = 1;
+					matchedMethodCount = 1;
 				}
 				else {
-					if (targetMethod.getParameterTypes().length == paramNum) {
-						foundMethodCount++;
+					if (targetMethod.getParameterTypes().length == paramCount) {
+						matchedMethodCount++;
 					}
 				}
 			}
 		}
 		
-		if (foundMethodCount > 1) {
+		if (matchedMethodCount > 1) {
 			throw new IllegalArgumentException(String.format("Cannot resolve method '%s' to a unique method. "
-					+ "Attempted to resolve to overloaded method with the least number of parameters, "
-					+ "but there were %s candidates.", methodName, foundMethodCount));
+				+ "Attempted to resolve to overloaded method with the least number of parameters, "
+				+ "but there were %s candidates.", methodName, matchedMethodCount));
 		}
 		
 		return targetMethod;
@@ -290,6 +297,7 @@ public abstract class BeanUtils {
 	 */
 	public static PropertyDescriptor findPropertyForMethod(Method method) throws BeansException {
 		Assert.notNull(method, "Method must not be null");
+		
 		PropertyDescriptor[] pds = getPropertyDescriptors(method.getDeclaringClass());
 		for (PropertyDescriptor pd : pds) {
 			if (method.equals(pd.getReadMethod()) || method.equals(pd.getWriteMethod())) {
@@ -302,6 +310,7 @@ public abstract class BeanUtils {
 	
 	/**
 	 * Find a JavaBeans PropertyEditor following the 'Editor' suffix convention
+	 * (e.g. "mypackage.MyDomainClass" -> "mypackage.MyDomainClassEditor").
 	 * @param targetType
 	 * @return
 	 */
@@ -340,7 +349,9 @@ public abstract class BeanUtils {
 		}
 		catch (ClassNotFoundException ex) {
 			if (logger.isDebugEnabled()) {
-				
+				logger.debug(String.format(
+					"No property editor [%s] found for type %s according to 'Editor' suffix convention", 
+						editorName, targetType.getName()));
 			}
 			unknownEditorTypes.put(targetType, Boolean.TRUE);
 			return null;
@@ -449,7 +460,7 @@ public abstract class BeanUtils {
 						if (!Modifier.isPublic(writeMethod.getDeclaringClass().getModifiers())) {
 							writeMethod.setAccessible(true);
 						}
-						writeMethod.invoke(target, new Object[] {value});
+						writeMethod.invoke(target, value);
 					}
 					catch (Throwable ex) {
 						throw new FatalBeanException("Could not copy properties from source to target", ex);
