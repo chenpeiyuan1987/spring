@@ -1,9 +1,13 @@
 package org.yuan.study.spring.util;
 
+import java.beans.Introspector;
 import java.lang.reflect.Array;
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -11,12 +15,18 @@ import org.apache.commons.logging.LogFactory;
 public abstract class ClassUtils {
 	/** Suffix for array class names */
 	public static final String ARRAY_SUFFIX = "[]";
+
+	/** The ".class" file suffix */
+	public static final String CLASS_FILE_SUFFIX = ".class";
 	
-	/** All primitive classes */
-	private static Class<?>[] PRIMITIVE_CLASSES = {
-		boolean.class, byte.class, char.class, short.class, 
-		int.class, long.class, float.class, double.class, void.class
-	};
+	/** The CGLIB class separator character "$$" */
+	public static final String CGLIB_CLASS_SEPARATOR = "$$";
+	
+	/** Prefix for internal array class names: "[" */
+	private static final String INTERNAL_ARRAY_PREFIX = "[";
+	
+	/** Prefix for internal non-primitive array class names: "[L" */
+	private static final String NON_PRIMITIVE_ARRAY_PREFIX = "[L";
 	
 	/** The package separator character '.' */
 	private static final char PACKAGE_SEPARATOR = '.';
@@ -24,26 +34,80 @@ public abstract class ClassUtils {
 	/** The inner class separator character '$' */
 	private static final char INNER_CLASS_SEPARATOR = '$';
 	
-	/** The CGLIB class separator character "$$" */
-	private static final String CGLIB_CLASS_SEPARATOR = "$$";
+	/**
+	 * Map with primitive wrapper type as key and corresponding primitive
+	 * type as value, for example: Integer.class -> int.class
+	 */
+	private static final Map<Class<?>, Class<?>> PRIMITIVE_WRAPPER_TYPE_MAP = new HashMap<Class<?>, Class<?>>(8);
+	
+	/**
+	 * Map with primitive type as key and corresponding wrapper 
+	 * type as value, for example: int.class -> Integer.class
+	 */
+	private static final Map<Class<?>, Class<?>> PRIMITIVE_TYPE_TO_WRAPPER_MAP = new HashMap<Class<?>, Class<?>>(8); 
+	
+	/**
+	 * Map with primitive type name as key and corresponding primitivce
+	 * type as value, for example: "int" -> int.class
+	 */
+	private static final Map<String, Class<?>> PRIMITIVE_TYPE_NAME_MAP = new HashMap<String, Class<?>>(32);
+	
+	/**
+	 * Map with common "java.lang" class name as key and coresponding Class as value.
+	 * Primarily for efficient deserialization of remote invocations.
+	 */
+	private static final Map<String, Class<?>> COMMON_CLASS_CACHE = new HashMap<String, Class<?>>(32);
 	
 	private static final Log logger = LogFactory.getLog(ClassUtils.class);
 
-	private static final Map<Class<?>, Class<?>> primitiveWrapperTypeMap = new HashMap<Class<?>, Class<?>>(8);
 	
 	static {
-		primitiveWrapperTypeMap.put(Boolean.class, boolean.class);
-		primitiveWrapperTypeMap.put(Byte.class, byte.class);
-		primitiveWrapperTypeMap.put(Character.class, char.class);
-		primitiveWrapperTypeMap.put(Double.class, double.class);
-		primitiveWrapperTypeMap.put(Float.class, float.class);
-		primitiveWrapperTypeMap.put(Integer.class, int.class);
-		primitiveWrapperTypeMap.put(Long.class, long.class);
-		primitiveWrapperTypeMap.put(Short.class, short.class);
+		PRIMITIVE_WRAPPER_TYPE_MAP.put(Boolean.class, boolean.class);
+		PRIMITIVE_WRAPPER_TYPE_MAP.put(Byte.class, byte.class);
+		PRIMITIVE_WRAPPER_TYPE_MAP.put(Character.class, char.class);
+		PRIMITIVE_WRAPPER_TYPE_MAP.put(Double.class, double.class);
+		PRIMITIVE_WRAPPER_TYPE_MAP.put(Float.class, float.class);
+		PRIMITIVE_WRAPPER_TYPE_MAP.put(Integer.class, int.class);
+		PRIMITIVE_WRAPPER_TYPE_MAP.put(Long.class, long.class);
+		PRIMITIVE_WRAPPER_TYPE_MAP.put(Short.class, short.class);
+		
+		for (Map.Entry<Class<?>, Class<?>> entry : PRIMITIVE_WRAPPER_TYPE_MAP.entrySet()) {
+			PRIMITIVE_TYPE_TO_WRAPPER_MAP.put(entry.getValue(), entry.getKey());
+			registerCommonClasses(entry.getKey());
+		}
+		
+		Set<Class<?>> primitiveTypes = new HashSet<Class<?>>(32);
+		primitiveTypes.addAll(PRIMITIVE_WRAPPER_TYPE_MAP.values());
+		primitiveTypes.addAll(Arrays.asList(
+			boolean[].class, byte[].class, char[].class, double[].class,
+			float[].class, int[].class, long[].class, short[].class));
+		primitiveTypes.add(void.class);
+		for (Class<?> primitiveType : primitiveTypes) {
+			PRIMITIVE_TYPE_NAME_MAP.put(primitiveType.getName(), primitiveType);
+		}
+		
+		registerCommonClasses(Boolean[].class, Byte[].class, Character[].class, Double[].class,
+			Float[].class, Integer[].class, Long[].class, Short[].class);
+		registerCommonClasses(Number.class, Number[].class, String.class, String[].class,
+			Object.class, Object[].class, Class.class, Class[].class);
+		registerCommonClasses(Throwable.class, Exception.class, RuntimeException.class,
+			Error.class, StackTraceElement.class, StackTraceElement[].class);
 	}
 	
 	/**
-	 * Return a default ClassLoader to use.
+	 * Register the given common classes with the ClassUtils cache.
+	 * @param commonClasses
+	 */
+	private static void registerCommonClasses(Class<?>... commonClasses) {
+		for (Class<?> clazz : commonClasses) {
+			COMMON_CLASS_CACHE.put(clazz.getName(), clazz);
+		}
+	}
+	
+	/**
+	 * Return the default ClassLoader to use: typically the thread context
+	 * ClassLoader, if available; the ClassLoader that loaded the ClassUtils
+	 * class will be used as fallback.
 	 * @return
 	 */
 	public static ClassLoader getDefaultClassLoader() {
@@ -55,11 +119,30 @@ public abstract class ClassUtils {
 		catch (Exception ex) {
 			logger.debug("Cannot access thread context ClassLoader - falling back to system class loader", ex);
 		}
+		
 		if (cl == null) {
 			cl = ClassUtils.class.getClassLoader();
 		}
 		
 		return cl;
+	}
+	
+	/**
+	 * Override the thread context ClassLoader with the environment's bean ClassLoader
+	 * if necessary, i.e. if the bean ClassLoader is not equivalent to the thread 
+	 * context ClassLoader already.
+	 * @param classLoaderToUse
+	 * @return
+	 */
+	public static ClassLoader overrideThreadContextClassLoader(ClassLoader classLoaderToUse) {
+		Thread currentThread = Thread.currentThread();
+		ClassLoader threadContextClassLoader = currentThread.getContextClassLoader();
+		if (classLoaderToUse != null && !classLoaderToUse.equals(threadContextClassLoader)) {
+			currentThread.setContextClassLoader(classLoaderToUse);
+			return threadContextClassLoader;
+		}
+		
+		return null;
 	}
 	
 	/**
@@ -95,7 +178,8 @@ public abstract class ClassUtils {
 	}
 	
 	/**
-	 * Replacement for Class.forName() that also returns Class instances for primitives (like "int") and array class names (like "String[]").
+	 * Replacement for Class.forName() that also returns Class instances 
+	 * for primitives (like "int") and array class names (like "String[]").
 	 * @param name
 	 * @return
 	 * @throws ClassNotFoundException
@@ -106,42 +190,98 @@ public abstract class ClassUtils {
 	}
 	
 	/**
-	 * Replacement for Class.forName() that also returns Class instances for primitives (like "int") and array class names (like "String[]").
+	 * Replacement for Class.forName() that also returns Class instances 
+	 * for primitives (like "int") and array class names (like "String[]").
 	 * @param name
-	 * @param classLoader
 	 * @return
 	 * @throws ClassNotFoundException
 	 * @throws LinkageError
 	 */
 	public static Class<?> forName(String name, ClassLoader classLoader) throws ClassNotFoundException, LinkageError {
 		Assert.notNull(name, "Name must not be null");
+		
 		Class<?> clazz = resolvePrimitiveClassName(name);
+		if (clazz == null) {
+			clazz = COMMON_CLASS_CACHE.get(name);
+		}
 		if (clazz != null) {
 			return clazz;
 		}
+		
+		// java.lang.Object[]
 		if (name.endsWith(ARRAY_SUFFIX)) {
-			String elementClassName = name.substring(0, name.length() - ARRAY_SUFFIX.length());
-			Class<?> elementClass = forName(elementClassName, classLoader);
+			String elementName = name.substring(0, name.length() - ARRAY_SUFFIX.length());
+			Class<?> elementClass = forName(elementName, classLoader);
 			return Array.newInstance(elementClass, 0).getClass();
 		}
-		return Class.forName(name, true, classLoader);
+		
+		// [Ljava.lang.Object;
+		if (name.startsWith(NON_PRIMITIVE_ARRAY_PREFIX) && name.endsWith(";")) {
+			String elementName = name.substring(NON_PRIMITIVE_ARRAY_PREFIX.length(), name.length() - 1);
+			Class<?> elementClass = forName(elementName, classLoader);
+			return Array.newInstance(elementClass, 0).getClass();
+		}
+		
+		// [[I or [[Ljava.lang.Object
+		if (name.startsWith(INTERNAL_ARRAY_PREFIX)) {
+			String elementName = name.substring(INTERNAL_ARRAY_PREFIX.length());
+			Class<?> elementClass = forName(elementName, classLoader);
+			return Array.newInstance(elementClass, 0).getClass();
+		}
+		
+		ClassLoader classLoaderToUse = classLoader;
+		if (classLoaderToUse == null) {
+			classLoaderToUse = getDefaultClassLoader();
+		}
+		try {
+			return classLoaderToUse.loadClass(name);
+		} 
+		catch (ClassNotFoundException ex) {
+			int lastDotIndex = name.lastIndexOf('.');
+			if (lastDotIndex != -1) {
+				String innerClassName = name.substring(0, lastDotIndex) + INNER_CLASS_SEPARATOR + name.substring(lastDotIndex + 1);
+				try {
+					return classLoaderToUse.loadClass(innerClassName);
+				} catch (ClassNotFoundException ex2) {}
+			}
+			throw ex;
+		}
 	}
 	
 	/**
-	 * Resolve the given class name as primitive class, if appropriate.
+	 * 
+	 * @param className
+	 * @param classLoader
+	 * @return
+	 * @throws IllegalArgumentException
+	 */
+	public static Class<?> resolveClassName(String className, ClassLoader classLoader) throws IllegalArgumentException {
+		try {
+			return forName(className, classLoader);
+		} 
+		catch (ClassNotFoundException ex) {
+			throw new IllegalArgumentException(String.format("Cannot find class [%s]", className), ex);
+		}
+		catch (LinkageError ex) {
+			throw new IllegalArgumentException(
+				String.format("Error loading class [%s]: problem with class file or dependent class.", className), ex);
+		}
+	}
+	
+	/**
+	 * Resolve the given class name as primitive class, if appropriate,
+	 * according to the JVM's naming rules for primitive classes.
 	 * @param name
 	 * @return
 	 */
 	public static Class<?> resolvePrimitiveClassName(String name) {
-		if (name.length() > 2 && name.length() < 8) {
-			for (Class<?> clazz : PRIMITIVE_CLASSES) {
-				if (clazz.getName().equals(name)) {
-					return clazz;
-				}
-			}
+		if (name.length() > 2 && name.length() <= 8) {
+			return PRIMITIVE_TYPE_NAME_MAP.get(name);
 		}
 		return null;
 	}
+	
+	
 	
 	/**
 	 * Return the number of methods with a given name,
@@ -230,6 +370,7 @@ public abstract class ClassUtils {
 	 */
 	public static String getShortName(String className) {
 		Assert.hasLength(className, "Class name must not be empty");
+		
 		int lastDotIndex = className.lastIndexOf(PACKAGE_SEPARATOR);
 		int nameEndIndex = className.indexOf(CGLIB_CLASS_SEPARATOR);
 		if (nameEndIndex == -1) {
@@ -237,6 +378,7 @@ public abstract class ClassUtils {
 		}
 		String shortName = className.substring(lastDotIndex + 1, nameEndIndex);
 		shortName = shortName.replace(INNER_CLASS_SEPARATOR, PACKAGE_SEPARATOR);
+		
 		return shortName;
 	}
 	
@@ -270,8 +412,21 @@ public abstract class ClassUtils {
 	}
 	
 	/**
-	 * Determine whether the identified by the supplied name is present
-	 * and can be loaded. Will return false if either the class or one.
+	 * Determine whether the Class identified by the supplied name is present
+	 * and can be loaded. Will return false if either the class or one of its 
+	 * dependencies is not present or cannot be loaded.
+	 * @param str
+	 * @param classLoader
+	 * @return
+	 */
+	public static boolean isPresent(String className) {
+		return isPresent(className, getDefaultClassLoader());
+	}
+	
+	/**
+	 * Determine whether the Class identified by the supplied name is present
+	 * and can be loaded. Will return false if either the class or one of its 
+	 * dependencies is not present or cannot be loaded.
 	 * @param str
 	 * @param classLoader
 	 * @return
@@ -286,6 +441,76 @@ public abstract class ClassUtils {
 	}
 	
 	/**
+	 * Return the user-defined class for the given instance: usually simply
+	 * the class of the given instance, but the original class in case of 
+	 * a CGLIB-generated subclass.
+	 * @return
+	 */
+	public static Class<?> getUserClass(Object instance) {
+		Assert.notNull(instance, "Instance must not be null");
+		
+		return getUserClass(instance.getClass());
+	}
+	
+	/**
+	 * Return the user-defined class for the given class: usually simply
+	 * the class, but the original class in case of a CGLIB-generated subclass.
+	 * @param clazz
+	 * @return
+	 */
+	public static Class<?> getUserClass(Class<?> clazz) {
+		if (clazz != null && clazz.getName().contains(CGLIB_CLASS_SEPARATOR)) {
+			Class<?> superClass = clazz.getSuperclass();
+			if (superClass != null && !Object.class.equals(superClass)) {
+				return superClass;
+			}
+		}
+		
+		return clazz;
+	}
+	
+	/**
+	 * Return the short string name of a Java class in uncapitalized JavaBeans
+	 * property format. Strips the outer class name in case of an inner class.
+	 * @param clazz
+	 * @return
+	 */
+	public static String getShortNameAsProperty(Class<?> clazz) {
+		String shortName = getShortName(clazz);
+		int dotIndex = shortName.lastIndexOf(PACKAGE_SEPARATOR);
+		shortName = (dotIndex != -1 ? shortName.substring(dotIndex + 1) : shortName);
+		return Introspector.decapitalize(shortName);
+	}
+	
+	/**
+	 * Determine the name of the class file, relative to the containing 
+	 * package: e.g. "String.class"
+	 * @param clazz
+	 * @return
+	 */
+	public static String getClassFileName(Class<?> clazz) {
+		Assert.notNull(clazz, "Class must not be null");
+		
+		String className = clazz.getName();
+		int lastDotIndex = className.lastIndexOf(PACKAGE_SEPARATOR);
+		return className.substring(lastDotIndex + 1) + CLASS_FILE_SUFFIX;
+	}
+	
+	/**
+	 * Determine the name of the package of the given class:
+	 * e.g. "java.lang" for the java.lang.String class.
+	 * @param clazz
+	 * @return
+	 */
+	public static String getPackageName(Class<?> clazz) {
+		Assert.notNull(clazz, "Class must not be null");
+		
+		String className = clazz.getName();
+		int lastDotIndex = className.lastIndexOf(PACKAGE_SEPARATOR);
+		return (lastDotIndex != -1 ? className.substring(0, lastDotIndex) : "");
+	}
+	
+	/**
 	 * Check if the given class represents a primitive wrapper.
 	 * @param clazz
 	 * @return
@@ -293,7 +518,7 @@ public abstract class ClassUtils {
 	public static boolean isPrimitiveWrapper(Class<?> clazz) {
 		Assert.notNull(clazz, "Class must not be null");
 		
-		return primitiveWrapperTypeMap.containsKey(clazz);
+		return PRIMITIVE_WRAPPER_TYPE_MAP.containsKey(clazz);
 	}
 	
 	/**

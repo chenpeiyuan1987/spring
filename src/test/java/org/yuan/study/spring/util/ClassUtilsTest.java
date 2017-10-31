@@ -1,6 +1,8 @@
 package org.yuan.study.spring.util;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertFalse;
 
 import org.junit.Test;
 
@@ -9,21 +11,27 @@ public class ClassUtilsTest {
 	private ClassLoader classLoader = getClass().getClassLoader();
 	
 	@Test
+	public void testIsPresent() throws Exception {
+		assertTrue(ClassUtils.isPresent("java.lang.String"));
+		assertFalse(ClassUtils.isPresent("java.lang.MySpecialString"));
+	}
+	
+	@Test
 	public void testForName() throws ClassNotFoundException {
-		assertEquals(String.class, ClassUtils.forName("java.lang.String", classLoader));
-		assertEquals(String[].class, ClassUtils.forName("java.lang.String[]", classLoader));
-		assertEquals(String[][].class, ClassUtils.forName("java.lang.String[][]", classLoader));
-		assertEquals(String[][][].class, ClassUtils.forName("java.lang.String[][][]", classLoader));
-		assertEquals(String[].class, ClassUtils.forName(String[].class.getName(), classLoader));
-		assertEquals(String[][].class, ClassUtils.forName(String[][].class.getName(), classLoader));
-		assertEquals(String[][][].class, ClassUtils.forName(String[][][].class.getName(), classLoader));
-		assertEquals(int.class, ClassUtils.forName("int", classLoader));
-		assertEquals(int[].class, ClassUtils.forName("int[]", classLoader));
-		assertEquals(int[][].class, ClassUtils.forName("int[][]", classLoader));
-		assertEquals(int[][][].class, ClassUtils.forName("int[][][]", classLoader));
-		assertEquals(int[].class, ClassUtils.forName(int[].class.getName(), classLoader));
-		assertEquals(int[][].class, ClassUtils.forName(int[][].class.getName(), classLoader));
-		assertEquals(int[][][].class, ClassUtils.forName(int[][][].class.getName(), classLoader));
+		assertEquals(String.class, ClassUtils.forName("java.lang.String"));
+		assertEquals(String[].class, ClassUtils.forName("java.lang.String[]"));
+		assertEquals(String[][].class, ClassUtils.forName("java.lang.String[][]"));
+		assertEquals(String[][][].class, ClassUtils.forName("java.lang.String[][][]"));
+		assertEquals(String[].class, ClassUtils.forName(String[].class.getName()));
+		assertEquals(String[][].class, ClassUtils.forName(String[][].class.getName()));
+		assertEquals(String[][][].class, ClassUtils.forName(String[][][].class.getName()));
+		assertEquals(int.class, ClassUtils.forName("int"));
+		assertEquals(int[].class, ClassUtils.forName("int[]"));
+		assertEquals(int[][].class, ClassUtils.forName("int[][]"));
+		assertEquals(int[][][].class, ClassUtils.forName("int[][][]"));
+		assertEquals(int[].class, ClassUtils.forName(int[].class.getName()));
+		assertEquals(int[][].class, ClassUtils.forName(int[][].class.getName()));
+		assertEquals(int[][][].class, ClassUtils.forName(int[][][].class.getName()));
 	}
 	
 	@Test
@@ -61,6 +69,12 @@ public class ClassUtilsTest {
 		assertEquals(long[].class, ClassUtils.forName(long[].class.getName(), classLoader));
 		assertEquals(float[].class, ClassUtils.forName(float[].class.getName(), classLoader));
 		assertEquals(double[].class, ClassUtils.forName(double[].class.getName(), classLoader));
+	}
+	
+	@Test
+	public void testGetShortName() {
+		String className = ClassUtils.getShortName(getClass());
+		assertEquals("ClassUtilsTest", className);
 	}
 	
 	@Test
