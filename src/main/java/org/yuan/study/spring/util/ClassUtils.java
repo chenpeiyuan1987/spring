@@ -2,7 +2,10 @@ package org.yuan.study.spring.util;
 
 import java.beans.Introspector;
 import java.lang.reflect.Array;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.lang.reflect.Proxy;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -178,6 +181,107 @@ public abstract class ClassUtils {
 	}
 	
 	/**
+	 * Return teh qualified name of the given method, consisting of
+	 * fully qualified interface/class name + "." + method name.
+	 * @param method
+	 * @return
+	 */
+	public static String getQualifiedMethodName(Method method) {
+		Assert.notNull(method, "Method must not be null");
+		
+		return method.getDeclaringClass().getName() + "." + method.getName();
+	}
+	
+	/**
+	 * Return a descriptive name for the given object's type: usually simply
+	 * the class name, but component type class name + "[]" for arrays,
+	 * and an appended list of implemented interfaces for JDK proxies.
+	 * @param value
+	 * @return
+	 */
+	public static String getDescriptiveType(Object value) {
+		if (value == null) {
+			return null;
+		}
+		
+		Class<?> clazz = value.getClass();
+		if (Proxy.isProxyClass(clazz)) {
+			StringBuilder sb = new StringBuilder(clazz.getName());
+			sb.append(" implementing ");
+			Class<?>[] ifcs = clazz.getInterfaces();
+			for (int i = 0; i < ifcs.length; i++) {
+				sb.append(ifcs[i].getName());
+				if (i < ifcs.length - 1) {
+					sb.append(",");
+				}
+			}
+			return sb.toString();
+		}
+		
+		if (clazz.isArray()) {
+			return getQualifiedNameForArray(clazz);
+		}
+		
+		return clazz.getName();
+	}
+	
+	/**
+	 * Check whether the given class matches the user-specified type name.
+	 * @param clazz
+	 * @param typeName
+	 * @return
+	 */
+	public static boolean matchesTypeName(Class<?> clazz, String typeName) {
+		if (typeName == null) {
+			return false;
+		}
+		
+		if (typeName.equals(clazz.getName())) {
+			return true;
+		}
+		
+		if (typeName.equals(clazz.getSimpleName())) {
+			return true;
+		}
+		
+		if (clazz.isArray() && typeName.equals(getQualifiedNameForArray(clazz))) {
+			return true;
+		}
+		
+		return false;
+	}
+	
+	/**
+	 * Determine whether the given class has a public constructor with the given signature.
+	 * @param clazz
+	 * @param paramTypes
+	 * @return
+	 */
+	public static boolean hasConstructor(Class<?> clazz, Class<?>... paramTypes) {
+		return (getConstructorIfAvailable(clazz, paramTypes) != null);
+	}
+	
+	/**
+	 * Determine whether the given class has a public constructor with the given signature,
+	 * and return it if available (else return null).
+	 * @param clazz
+	 * @param paramTypes
+	 * @return
+	 */
+	public static <T> Constructor<T> getConstructorIfAvailable(Class<T> clazz, Class<?>... paramTypes) {
+		Assert.notNull(clazz, "Class must not be null");
+		
+		try {
+			return clazz.getConstructor(paramTypes);
+		}
+		catch (NoSuchMethodException ex) {
+			return null;
+		}
+	}
+	
+	
+	
+	/**
 	 * Replacement for Class.forName() that also returns Class instances 
 	 * for primitives (like "int") and array class names (like "String[]").
 	 * @param name
@@ -281,10 +385,8 @@ public abstract class ClassUtils {
 		return null;
 	}
 	
-	
-	
 	/**
-	 * Return the number of methods with a given name,
+	 * Return the number of methods with a given name (with any argument types),
 	 * for the given class and/or its superclasses. Includes non-public methods.
 	 * @param clazz
 	 * @param methodName
@@ -293,6 +395,7 @@ public abstract class ClassUtils {
 	public static int getMethodCountForName(Class<?> clazz, String methodName) {
 		Assert.notNull(clazz, "Class must not be null");
 		Assert.notNull(methodName, "Method name must not be null");
+		
 		int count = 0;
 		for (Method method : clazz.getDeclaredMethods()) {
 			if (methodName.equals(method.getName())) {
@@ -316,13 +419,13 @@ public abstract class ClassUtils {
 	 * @param paramTypes
 	 * @return
 	 */
-	public static boolean hasMethod(Class<?> clazz, String methodName, Class<?>[] paramTypes) {
+	public static boolean hasMethod(Class<?> clazz, String methodName, Class<?>... paramTypes) {
 		return (getMethodIfAvailable(clazz, methodName, paramTypes) != null);
 	}
 	
 	/**
 	 * Determine whether the given class has a method with the given signature,
-	 * and return it if available.
+	 * and return it if available (else return null).
 	 * @param clazz
 	 * @param methodName
 	 * @param paramTypes
@@ -339,7 +442,100 @@ public abstract class ClassUtils {
 			return null;
 		}
 	}
+	
+	/**
+	 * Does the given class or one of its superclasses at least have
+	 * one or more method with the supplied name (with any argument types)?
+	 * Includes non-public methods.
+	 * @param clazz
+	 * @param methodName
+	 * @return
+	 */
+	public static boolean hasAtLeastOneMethodWithName(Class<?> clazz, String methodName) {
+		Assert.notNull(clazz, "Class must not be null");
+		Assert.notNull(methodName, "Method name must not be null");
+		
+		for (Method method : clazz.getDeclaredMethods()) {
+			if (methodName.equals(method.getName())) {
+				return true;
+			}
+		}
+		
+		for (Class<?> ifc : clazz.getInterfaces()) {
+			if (hasAtLeastOneMethodWithName(ifc, methodName)) {
+				return true;
+			}
+		}
+		
+		if (clazz.getSuperclass() != null 
+			&& hasAtLeastOneMethodWithName(clazz, methodName)) {
+			return true;
+		}
+		
+		return false;
+	}
+	
+	/**
+	 * Given a method, which may come from an interface, and a target 
+	 * class used in the current reflective invocation, find the 
+	 * corresponding target method if there is one. E.g. the method 
+	 * may be IFoo.bar() and the target class may be DefaultFoo, 
+	 * In thsi case, the method may be DefaultFoo.bar().
+	 * @param method
+	 * @param targetClass
+	 * @return
+	 */
+	public static Method getMostSpecificMethod(Method method, Class<?> targetClass) {
+		Method specificMethod = null;
+		if (method != null && isOverridable(method, targetClass) 
+			&& targetClass != null && !targetClass.equals(method.getDeclaringClass())) {
+			specificMethod = ReflectionUtils.findMethod(targetClass, method.getName(), method.getParameterTypes());
+		}
+		return (specificMethod != null ? specificMethod : method);
+	}
+	
+	/**
+	 * Determine whether the given method is overridable in the given target class.
+	 * @param method
+	 * @param targetClass
+	 * @return
+	 */
+	private static boolean isOverridable(Method method, Class<?> targetClass) {
+		if (Modifier.isPrivate(method.getModifiers())) {
+			return false;
+		}
+		
+		if (Modifier.isPublic(method.getModifiers()) || Modifier.isProtected(method.getModifiers())) {
+			return true;
+		}
+		
+		if (getPackageName(method.getDeclaringClass()).equals(getPackageName(targetClass))) {
+			return true;
+		}
+		
+		return false;
+	}
 
+	/**
+	 * return a public static method of a class.
+	 * @param clazz
+	 * @param methodName
+	 * @param paramType
+	 * @return
+	 */
+	public static Method getStaticMethod(Class<?> clazz, String methodName, Class<?>... paramType) {
+		Assert.notNull(clazz, "Class must not be null");
+		Assert.notNull(methodName, "Method name must not be null");
+		
+		try {
+			Method method = clazz.getMethod(methodName, paramType);
+			return Modifier.isStatic(method.getModifiers()) ? method : null;
+		} catch (NoSuchMethodException ex) {
+			return null;
+		}
+	}
+	
+	
 	/**
 	 * Give an input class object, return a string which consists of 
 	 * the class's package name as a pathname, i.e., all dots('.') 
