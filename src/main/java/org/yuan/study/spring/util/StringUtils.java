@@ -17,6 +17,8 @@ public abstract class StringUtils {
 	private static final String TOP_PATH = "..";
 	
 	private static final String CURRENT_PATH = ".";
+	
+	private static final char EXTENSION_SEPARATOR = '.';
 
 	/**
 	 * Convenience method to return a Collection as a CSV String.
@@ -81,13 +83,14 @@ public abstract class StringUtils {
 	 * @param str
 	 * @return
 	 */
-	public static boolean hasText(String str) {
+	public static boolean hasText(CharSequence str) {
 		if (!hasLength(str)) {
 			return false;
 		}
 		
-		for (char ch : str.toCharArray()) {
-			if (!Character.isWhitespace(ch)) {
+		int strLen = str.length();
+		for (int i = 0; i < strLen; i++) {
+			if (!Character.isWhitespace(str.charAt(i))) {
 				return true;
 			}
 		}
@@ -96,11 +99,247 @@ public abstract class StringUtils {
 	}
 	
 	/**
+	 * Check whether the given String has actual text.
+	 * @param str
+	 * @return
+	 */
+	public static boolean hasText(String str) {
+		return hasText((CharSequence)str);
+	}
+	
+	/**
+	 * Check whether the given String contains any whitespace characters.
+	 * @param str
+	 * @return
+	 */
+	public static boolean containsWhitespace(CharSequence str) {
+		if (!hasLength(str)) {
+			return false;
+		}
+		
+		int strLen = str.length();
+		for (int i = 0; i < strLen; i++) {
+			if (Character.isWhitespace(str.charAt(i))) {
+				return true;
+			}
+		}
+		
+		return false;
+	}
+	
+	/**
+	 * Check whether the given String contains any whitespace characters.
+	 * @param str
+	 * @return
+	 */
+	public static boolean containsWhitespace(String str) {
+		return containsWhitespace((CharSequence)str);
+	}
+	
+	/**
+	 * Trim leading and trailing whitespace from the given String.
+	 * @param str
+	 * @return
+	 */
+	public static String trimWhitespace(String str) {
+		if (!hasLength(str)) {
+			return str;
+		}
+		
+		StringBuilder sb = new StringBuilder(str);
+		while (sb.length() > 0 && Character.isWhitespace(sb.charAt(0))) {
+			sb.deleteCharAt(0);
+		}
+		while (sb.length() > 0 && Character.isWhitespace(sb.charAt(sb.length() - 1))) {
+			sb.deleteCharAt(sb.length() - 1);
+		}
+		
+		return sb.toString();
+	}
+	
+	/**
+	 * Trim all whitespace from the given String:
+	 * leading, trailing, and inbetween characters.
+	 * @param str
+	 * @return
+	 */
+	public static String trimAllWhitespace(String str) {
+		if (!hasLength(str)) {
+			return str;
+		}
+		
+		StringBuilder sb = new StringBuilder(str);
+		int index = 0;
+		while (sb.length() > index) {
+			if (Character.isWhitespace(sb.charAt(index))) {
+				sb.deleteCharAt(index);
+			} 
+			else {
+				index++;
+			}
+		}
+		
+		return sb.toString();
+	}
+	
+	/**
+	 * Trim leading whitespace from the given String.
+	 * @param str
+	 * @return
+	 */
+	public static String trimLeadingWhitespace(String str) {
+		if (!hasLength(str)) {
+			return str;
+		}
+		
+		StringBuilder sb = new StringBuilder(str);
+		while (sb.length() > 0 && Character.isWhitespace(sb.charAt(0))) {
+			sb.deleteCharAt(0);
+		}
+		
+		return sb.toString();
+	}
+	
+	/**
+	 * Trim trailing whitespace from the given String.
+	 * @param str
+	 * @return
+	 */
+	public static String trimTrailingWhitespace(String str) {
+		if (!hasLength(str)) {
+			return str;
+		}
+		
+		StringBuilder sb = new StringBuilder(str);
+		while (sb.length() > 0 && Character.isWhitespace(sb.charAt(sb.length() - 1))) {
+			sb.deleteCharAt(sb.length() - 1);
+		}
+		
+		return sb.toString();
+	}
+	
+	/**
+	 * Trim all occurences of the supplied leading character from the given String.
+	 * @param str
+	 * @return
+	 */
+	public static String trimLeadingCharacter(String str, char ch) {
+		if (!hasLength(str)) {
+			return str;
+		}
+		
+		StringBuilder sb = new StringBuilder(str);
+		while (sb.length() > 0 && sb.charAt(0) == ch) {
+			sb.deleteCharAt(0);
+		}
+		
+		return sb.toString();
+	}
+	
+	/**
+	 * Trim all occurences of the supplied trailing character from the given String.
+	 * @param str
+	 * @return
+	 */
+	public static String trimTrailingCharacter(String str, char ch) {
+		if (!hasLength(str)) {
+			return str;
+		}
+		
+		StringBuilder sb = new StringBuilder(str);
+		while (sb.length() > 0 && sb.charAt(sb.length() - 1) == ch) {
+			sb.deleteCharAt(sb.length() - 1);
+		}
+		
+		return sb.toString();
+	}
+	
+	/**
+	 * Test if the given String starts with the specified prefix,
+	 * ignoring upper/lower case.
+	 * @param str
+	 * @param prefix
+	 * @return
+	 */
+	public static boolean startsWithIgnoreCase(String str, String prefix) {
+		if (str == null || prefix == null) {
+			return false;
+		}
+		if (str.length() < prefix.length()) {
+			return false;
+		}
+		if (str.startsWith(prefix)) {
+			return true;
+		}
+		String lcStr = str.substring(0, prefix.length()).toLowerCase();
+		String lcPrefix = prefix.toLowerCase();
+		return lcStr.equals(lcPrefix);
+	}
+	
+	/**
+	 * Test if the given String ends with the specified suffix,
+	 * ignoring uppper/lower case.
+	 * @param str
+	 * @param suffix
+	 * @return
+	 */
+	public static boolean endsWithIgnoreCase(String str, String suffix) {
+		if (str == null || suffix == null) {
+			return false;
+		}
+		if (str.length() < suffix.length()) {
+			return false;
+		}
+		if (str.endsWith(suffix)) {
+			return true;
+		}
+		String lcStr = str.substring(str.length() - suffix.length()).toLowerCase();
+		String lcSuffix = suffix.toLowerCase();
+		return lcStr.equals(lcSuffix);
+	}
+	
+	/**
+	 * Test whether the given string matches the given substring at the given index.
+	 * @param str
+	 * @param index
+	 * @param substring
+	 * @return
+	 */
+	public static boolean substringMatch(CharSequence str, int index, CharSequence substring) {
+		for (int i = 0; i < substring.length(); i++) {
+			int j = index + i;
+			if (j >= str.length() || str.charAt(j) != substring.charAt(i)) {
+				return false;
+			}
+		}
+		return true;
+	}
+	
+	/**
+	 * Delete all occurrences of the given substring. 
+	 * @param inString
+	 * @param pattern
+	 * @return
+	 */
+	public static String delete(String inString, String pattern) {
+		return replace(inString, pattern, "");
+	}
+	
+	/**
 	 * Check that the given String is neither null nor of length 0.
 	 * @param str
 	 * @return
 	 */
 	public static boolean hasLength(String str) {
+		return hasLength((CharSequence)str);
+	}
+	
+	/**
+	 * Check that the given String is neither null nor of length 0.
+	 * @param str
+	 * @return
+	 */
+	public static boolean hasLength(CharSequence str) {
 		return (str != null && str.length() > 0);
 	}
 	
@@ -267,10 +506,7 @@ public abstract class StringUtils {
 	 * @return
 	 */
 	public static String replace(String inString, String oldPattern, String newPattern) {
-		if (inString == null) {
-			return null;
-		}
-		if (oldPattern == null || newPattern == null) {
+		if (!hasLength(inString) || !hasLength(oldPattern) || newPattern == null) {
 			return inString;
 		}
 		
@@ -355,24 +591,56 @@ public abstract class StringUtils {
 	}
 	
 	/**
-	 * 
+	 * Delete any character in a given String.
 	 * @param text
 	 * @param deleteChars
 	 * @return
 	 */
 	public static String deleteAny(String text, String deleteChars) {
-		// TODO
-		return null;
+		if (!hasLength(text) || !hasLength(deleteChars)) {
+			return text;
+		}
+		StringBuilder sb = new StringBuilder();
+		for (int i = 0; i < text.length(); i++) {
+			char ch = text.charAt(i);
+			if (deleteChars.indexOf(ch) == -1) {
+				sb.append(ch);
+			}
+		}
+		return sb.toString();
 	}
 	
 	/**
-	 * 
+	 * Capitalize a String, changing the first letter to upper case.
 	 * @param str
 	 * @return
 	 */
 	public static String capitalize(String str) {
-		// TODO
-		return null;
+		return changeFirstCharacterCase(str, true);
+	}
+	
+	/**
+	 * Uncapitalize a String, changing the first letter to lower case.
+	 * @param str
+	 * @return
+	 */
+	public static String uncapitalize(String str) {
+		return changeFirstCharacterCase(str, false);
+	}
+	
+	private static String changeFirstCharacterCase(String str, boolean capitalize) {
+		if (str == null || str.length() == 0) {
+			return str;
+		}
+		StringBuilder sb = new StringBuilder(str.length());
+		if (capitalize) {
+			sb.append(Character.toUpperCase(str.charAt(0)));
+		}
+		else {
+			sb.append(Character.toLowerCase(str.charAt(0)));
+		}
+		sb.append(str.substring(0));
+		return sb.toString();
 	}
 	
 	/**
@@ -386,4 +654,24 @@ public abstract class StringUtils {
 		}
 		return str.split(",");
 	}
+	
+	/**
+	 * 
+	 * @param str
+	 * @return
+	 */
+	public static String quote(String str) {
+		return (str != null ? "'" + str + "'" : null);
+	}
+	
+	/**
+	 * 
+	 * @param obj
+	 * @return
+	 */
+	public static Object quoteIfString(Object obj) {
+		return (obj instanceof String ? quote((String) obj) : obj);
+	}
+	
+	
 }
