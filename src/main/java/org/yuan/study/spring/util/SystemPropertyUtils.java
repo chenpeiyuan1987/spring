@@ -1,47 +1,69 @@
 package org.yuan.study.spring.util;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.yuan.study.spring.util.PropertyPlaceholderHelper.PlaceholderResolver;
 
 public abstract class SystemPropertyUtils {
 
-	private static final Log logger = LogFactory.getLog(SystemPropertyUtils.class);
+	/** Prefix for system property placeholders: "${" */
+	public static final String PLACEHOLDER_PREFIX = "${";
 	
-	private static final String PLACEHOLDER_PREFIX = "${";
+	/** Suffix for system property placeholders: "}" */
+	public static final String PLACEHOLDER_SUFFIX = "}";
 	
-	private static final String PLACEHOLDER_SUFFIX = "}";
+	/** Value separator for system property placeholders: ":" */
+	public static final String VALUE_SEPARATOR = ":";
+	
+	private static final PropertyPlaceholderHelper strictHelpler = 
+		new PropertyPlaceholderHelper(PLACEHOLDER_PREFIX, PLACEHOLDER_SUFFIX, VALUE_SEPARATOR, false);
+	
+	private static final PropertyPlaceholderHelper nonStrictHelpler = 
+		new PropertyPlaceholderHelper(PLACEHOLDER_PREFIX, PLACEHOLDER_SUFFIX, VALUE_SEPARATOR, true);
 	
 	/**
-	 * Resolve ${...} placeholders in the given text,
-	 * replacing them with corresponding system property values.
+	 * Resolve ${...} placeholders in the given text, replacing them with corresponding system property values.
 	 * @param text
 	 * @return
 	 */
 	public static String resolvePlaceholders(String text) {
-		StringBuffer sb = new StringBuffer(text);
+		return resolvePlaceholders(text, false);
+	}
+	
+	/**
+	 * Resolve ${...} placeholders in the given text, replacing them with corresponding system property values.
+	 * Unresolvable placeholders with no default value are ignored and passed through unchanged if the 
+	 * flag is set to true.
+	 * @param text
+	 * @param ignoreUnresolvablePlaceholders
+	 * @return
+	 */
+	public static String resolvePlaceholders(String text, boolean ignoreUnresolvablePlaceholders) {
+		PropertyPlaceholderHelper helper = (ignoreUnresolvablePlaceholders ? nonStrictHelpler : strictHelpler);
+		return helper.replacePlaceholders(text, new SystemPropertyPlaceholderResolver(text));
+	}
+	
+	private static class SystemPropertyPlaceholderResolver implements PlaceholderResolver {
 		
-		int startIndex = text.indexOf(PLACEHOLDER_PREFIX);
-		while (startIndex != -1) {
-			int finisIndex = sb.toString().indexOf(PLACEHOLDER_SUFFIX, startIndex + PLACEHOLDER_PREFIX.length());
-			if (finisIndex != -1) {
-				String placeholder = sb.substring(startIndex + PLACEHOLDER_PREFIX.length(), finisIndex);
-				String propVal = System.getProperty(placeholder);
-				if (propVal != null) {
-					sb.replace(startIndex, finisIndex + PLACEHOLDER_SUFFIX.length(), propVal);
-					startIndex = sb.toString().indexOf(PLACEHOLDER_PREFIX, startIndex + propVal.length());
+		private final String text;
+
+		public SystemPropertyPlaceholderResolver(String text) {
+			this.text = text;
+		}
+
+		@Override
+		public String resolvePlaceholder(String placeholderName) {
+			try {
+				String value = System.getProperty(placeholderName);
+				if (value == null) {
+					value = System.getenv(placeholderName);
 				}
-				else {
-					if (logger.isWarnEnabled()) {
-						logger.warn(String.format("Could not resolve placeholder '%s' in [%s] as system property", placeholder, text));
-					}
-					startIndex = sb.toString().indexOf(PLACEHOLDER_PREFIX, finisIndex + PLACEHOLDER_SUFFIX.length());
-				}
-			} 
-			else {
-				startIndex = -1;
+				return value;
+			}
+			catch (Throwable ex) {
+				System.err.println(String.format(
+					"Could not resolve placeholder '%s' in [%s] as system property: %s", 
+						placeholderName, this.text, ex));
+				return null;
 			}
 		}
-		
-		return sb.toString();
 	}
 }
