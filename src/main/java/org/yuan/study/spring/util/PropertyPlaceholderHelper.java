@@ -32,7 +32,8 @@ public class PropertyPlaceholderHelper {
 	private final boolean ignoreUnresolvablePlaceholders;
 
 	/**
-	 * 
+	 * Creates a new PropertyPlaceholderHelper that uses the supplied prefix and suffix.
+	 * Unresolvable placeholders are ignored.
 	 * @param placeholderPrefix
 	 * @param placeholderSuffix
 	 */
@@ -41,7 +42,7 @@ public class PropertyPlaceholderHelper {
 	}
 	
 	/**
-	 * 
+	 * Creates a new PropertyPlaceholderHelper that uses the supplied prefix and suffix.
 	 * @param placeholderPrefix
 	 * @param placeholderSuffix
 	 * @param simplePrefix
@@ -67,7 +68,8 @@ public class PropertyPlaceholderHelper {
 	}
 
 	/**
-	 * 
+	 * Replaces all placeholders of format ${name} with the corresponding property from the 
+	 * supplied Properties.
 	 * @param value
 	 * @param properties
 	 * @return
@@ -83,7 +85,8 @@ public class PropertyPlaceholderHelper {
 	}
 	
 	/**
-	 * 
+	 * Replaces all placeholders of format ${name} with the value returned from the supplied 
+	 * PlaceholderResolver.
 	 * @param value
 	 * @param placeholderResolver
 	 * @return
@@ -94,11 +97,44 @@ public class PropertyPlaceholderHelper {
 	}
 	
 	protected String parseStringValue(String strVal, PlaceholderResolver placeholderResolver, Set<String> visitedPlaceholders) {
+		StringBuilder buf = new StringBuilder(strVal);
 		
+		int startIndex = strVal.indexOf(this.placeholderPrefix);
+		while (startIndex != -1) {
+			int endIndex = findPlaceholderEndIndex(buf, startIndex);
+			if (endIndex != -1) {
+				
+			}
+			else {
+				startIndex = -1;
+			}
+		}
+		
+		return buf.toString()
 	}
 
 	private int findPlaceholderEndIndex(CharSequence buf, int startIndex) {
+		int index = startIndex + this.placeholderPrefix.length();
+		int withinNestedPlaceholder = 0;
+		while (index < buf.length()) {
+			if (StringUtils.substringMatch(buf, index, this.placeholderSuffix)) {
+				if (withinNestedPlaceholder > 0) {
+					withinNestedPlaceholder--;
+					index = index + this.placeholderSuffix.length();
+				} else {
+					return index;
+				}
+			} 
+			else if (StringUtils.substringMatch(buf, index, this.simplePrefix)) {
+				withinNestedPlaceholder++;
+				index = index + this.simplePrefix.length();
+			}
+			else {
+				index++;
+			}
+		}
 		
+		return -1;
 	}
 	
 	/**
