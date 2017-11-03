@@ -5,8 +5,8 @@ import java.util.Map;
 
 /**
  * Assertion utility class that assists in validating arguments.
- *
  */
+
 public abstract class Assert {
 
 	/**
@@ -50,8 +50,8 @@ public abstract class Assert {
 	}
 	
 	/**
-	 * Assert that a string is not empty;
-	 * It must not be null and not empty.
+	 * Assert that the given String is not empty;
+	 * It must not be null and not the empty String.
 	 * @param text
 	 * @param message
 	 */
@@ -62,8 +62,8 @@ public abstract class Assert {
 	}
 	
 	/**
-	 * Assert that a string is not empty;
-	 * It must not be null and not empty.
+	 * Assert that the given String is not empty;
+	 * It must not be null and not the empty String.
 	 * @param text
 	 */
 	public static void hasLength(String text) {
@@ -71,7 +71,7 @@ public abstract class Assert {
 	}
 	
 	/**
-	 * Assert that a string has valid text content.
+	 * Assert that the given String has valid text content.
 	 * It must not be null and must contain at least one non-whitespace character.
 	 * @param text
 	 * @param message
@@ -83,7 +83,7 @@ public abstract class Assert {
 	}
 	
 	/**
-	 * Assert that a string has valid text content.
+	 * Assert that the given String has valid text content.
 	 * It must not be null and must contain at least one non-whitespace character.
 	 * @param text
 	 */
@@ -130,9 +130,32 @@ public abstract class Assert {
 		
 		if (!type.isInstance(object)) {
 			throw new IllegalArgumentException(String.format(
-				"Object of class [%s] must be an instance of %s", 
-				(object != null ? object.getClass().getName() : "null"), type));
+				"%s Object of class [%s] must be an instance of %s", 
+				message, (object != null ? object.getClass().getName() : "null"), type));
 		}
+	}
+	
+	/**
+	 * Assert that superType.isAssignableFrom(subType) is true.
+	 * @param superType
+	 * @param subType
+	 * @param message
+	 */
+	public static void isAssignable(Class<?> superType, Class<?> subType, String message) {
+		notNull(superType, "Type to check against must not be null");
+		if (subType == null || !superType.isAssignableFrom(subType)) {
+			throw new IllegalArgumentException(message + subType + " is not assignable to " + superType);
+		}
+	}
+	
+	/**
+	 * Assert that superType.isAssignableFrom(subType) is true.
+	 * @param superType
+	 * @param subType
+	 * @param message
+	 */
+	public static void isAssignable(Class<?> superType, Class<?> subType) {
+		isAssignable(superType, subType, "");
 	}
 	
 	/**
@@ -175,6 +198,30 @@ public abstract class Assert {
 	 */
 	public static void notEmpty(Object[] array) {
 		notEmpty(array, "[Assertion failed] - this array must not be empty: it must contain at least 1 element");
+	}
+	
+	/**
+	 * Assert that an array has no null elements.
+	 * @param array
+	 * @param message
+	 */
+	public static void noNullElements(Object[] array, String message) {
+		if (array != null) {
+			for (Object object : array) {
+				if (object == null) {
+					throw new IllegalArgumentException(message);
+				}
+			}
+		}
+	}
+	
+	/**
+	 * Assert that an array has no null elements.
+	 * @param array
+	 * @param message
+	 */
+	public static void noNullElements(Object[] array) {
+		noNullElements(array, "[Assertion failed] - this array must not contain any null elements");
 	}
 	
 	/**

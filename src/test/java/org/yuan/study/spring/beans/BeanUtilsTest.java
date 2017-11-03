@@ -3,17 +3,20 @@ package org.yuan.study.spring.beans;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
 
 import java.beans.Introspector;
 import java.beans.PropertyDescriptor;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.Test;
 import org.yuan.study.spring.beans.factory.BeanFactory;
 import org.yuan.study.spring.beans.propertyeditors.CustomDateEditor;
-import org.yuan.study.spring.util.StringUtilsTest;
+import org.yuan.study.spring.core.io.Resource;
+import org.yuan.study.spring.core.io.ResourceEditor;
 
 import test.beans.DerivedTestBean;
 import test.beans.ITestBean;
@@ -59,7 +62,7 @@ public final class BeanUtilsTest {
 	
 	@Test
 	public void testFindEditorByConvention() {
-		//assertEquals(ResourceEditor.class, BeanUtils.findE);
+		assertEquals(ResourceEditor.class, BeanUtils.findEditorByConvention(Resource.class).getClass());
 	}
 	
 	@Test
@@ -68,10 +71,12 @@ public final class BeanUtilsTest {
 		tb1.setName("rod");
 		tb1.setAge(32);
 		tb1.setTouchy("touchy");
+		
 		TestBean tb2 = new TestBean();
 		assertTrue(tb2.getName() == null);
 		assertTrue(tb2.getAge() == 0);
 		assertTrue(tb2.getTouchy() == null);
+		
 		BeanUtils.copyProperties(tb1, tb2);
 		assertEquals(tb1.getName(), tb2.getName());
 		assertEquals(tb1.getAge(), tb2.getAge());
@@ -84,10 +89,12 @@ public final class BeanUtilsTest {
 		tb1.setName("rod");
 		tb1.setAge(32);
 		tb1.setTouchy("touchy");
+		
 		TestBean tb2 = new TestBean();
 		assertTrue(tb2.getName() == null);
 		assertTrue(tb2.getAge() == 0);
 		assertTrue(tb2.getTouchy() == null);
+		
 		BeanUtils.copyProperties(tb1, tb2);
 		assertEquals(tb1.getName(), tb2.getName());
 		assertEquals(tb1.getAge(), tb2.getAge());
@@ -100,10 +107,12 @@ public final class BeanUtilsTest {
 		tb1.setName("rod");
 		tb1.setAge(32);
 		tb1.setTouchy("touchy");
+		
 		DerivedTestBean tb2 = new DerivedTestBean();
 		assertTrue(tb2.getName() == null);
 		assertTrue(tb2.getAge() == 0);
 		assertTrue(tb2.getTouchy() == null);
+		
 		BeanUtils.copyProperties(tb1, tb2);
 		assertEquals(tb1.getName(), tb2.getName());
 		assertEquals(tb1.getAge(), tb2.getAge());
@@ -157,32 +166,58 @@ public final class BeanUtilsTest {
 	
 	@Test
 	public void testResolveSimpleSignature() throws Exception {
-		//
+		Method desiredMethod = MethodSignatureBean.class.getMethod("doSomething");
+		assertSignatureEquals(desiredMethod, "doSomething");
+		assertSignatureEquals(desiredMethod, "doSomething()");
 	}
 	
 	@Test
 	public void testResolveInvalidSignature() throws Exception {
-		//
+		try {
+			BeanUtils.resolveSignature("doSomething(", MethodSignatureBean.class);
+			fail("Should not be able to parse with opening but no closing paren.");
+		}
+		catch (IllegalArgumentException ex) {}
+		
+		try {
+			BeanUtils.resolveSignature("doSomething)", MethodSignatureBean.class);
+			fail("Should not be able to parse with closing but not no opening paren.");
+		} 
+		catch (IllegalArgumentException  e) {}
 	}
 	
 	@Test
 	public void testResolveWithAndWithoutArgList() throws Exception {
-		//
+		Method desiredMethod = MethodSignatureBean.class.getMethod("doSomethingElse", new Class[]{String.class, int.class});
+		assertSignatureEquals(desiredMethod, "doSomethingElse");
+		assertNull(BeanUtils.resolveSignature("doSomethingElse()", MethodSignatureBean.class));
 	}
 	
 	@Test
 	public void testResolveTypedSignature() throws Exception {
-		//
+		Method desiredMethod = MethodSignatureBean.class.getMethod("doSomethingElse", new Class[]{String.class, int.class});
+		assertSignatureEquals(desiredMethod, "doSomethingElse(java.lang.String, int)");
 	}
 	
 	@Test
 	public void testResolveOverloadedSignature() throws Exception {
-		//
+		Method desiredMethod = MethodSignatureBean.class.getMethod("overloaded");
+		assertSignatureEquals(desiredMethod, "overloaded()");
+
+		desiredMethod = MethodSignatureBean.class.getMethod("overloaded", new Class[]{String.class});
+		assertSignatureEquals(desiredMethod, "overloaded(java.lang.String)");
+		
+		desiredMethod = MethodSignatureBean.class.getMethod("overloaded", new Class[]{String.class, BeanFactory.class});
+		assertSignatureEquals(desiredMethod, "overloaded(java.lang.String, org.yuan.study.spring.beans.factory.BeanFactory)");
 	}
 	
 	@Test
 	public void testResolveSignatureWithArray() throws Exception {
-		//
+		Method desiredMethod = MethodSignatureBean.class.getMethod("doSomethingWithAnArray", new Class[]{String[].class});
+		assertSignatureEquals(desiredMethod, "doSomethingWithAnArray(java.lang.String[])");
+		
+		desiredMethod = MethodSignatureBean.class.getMethod("doSomethingWithAMultiDimensionalArray", new Class[]{String[][].class});
+		assertSignatureEquals(desiredMethod, "doSomethingWithAMultiDimensionalArray(java.lang.String[][])");
 	}
 	
 	@Test
@@ -198,11 +233,9 @@ public final class BeanUtilsTest {
 		}
 	}
 	
-	/*
 	private void assertSignatureEquals(Method desiredMethod, String signature) {
-		assertEquals(desiredMethod, BeanUtils.resolve);
+		assertEquals(desiredMethod, BeanUtils.resolveSignature(signature, MethodSignatureBean.class));
 	}
-	*/
 	
 	private static class NameAndSpecialProperty {
 		

@@ -7,6 +7,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import org.yuan.study.spring.core.BridgeMethodResolver;
+import org.yuan.study.spring.core.GenericTypeResolver;
 import org.yuan.study.spring.core.MethodParameter;
 import org.yuan.study.spring.util.ClassUtils;
 import org.yuan.study.spring.util.StringUtils;
@@ -70,7 +71,22 @@ public class GenericTypeAwarePropertyDescriptor extends PropertyDescriptor {
 
 	@Override
 	public synchronized Class<?> getPropertyType() {
-		return propertyEditorClass;
+		if (propertyType == null) {
+			if (readMethod != null) {
+				propertyType = GenericTypeResolver.resolveReturnType(readMethod, beanClass);
+			}
+			else {
+				MethodParameter writeMethodParam = getWriteMethodParameter();
+				if (writeMethodParam != null) {
+					propertyType = writeMethodParam.getParameterType();
+				}
+				else {
+					propertyType = super.getPropertyType();
+				}
+			}
+		}
+		
+		return propertyType;
 	}
 
 	@Override
