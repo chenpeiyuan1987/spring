@@ -7,14 +7,20 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+@SuppressWarnings("rawtypes")
 public abstract class ClassUtils {
 	/** Suffix for array class names */
 	public static final String ARRAY_SUFFIX = "[]";
@@ -379,7 +385,7 @@ public abstract class ClassUtils {
 	 * @return
 	 */
 	public static Class<?> resolvePrimitiveClassName(String name) {
-		if (name.length() > 2 && name.length() <= 8) {
+		if (name != null && name.length() <= 8) {
 			return PRIMITIVE_TYPE_NAME_MAP.get(name);
 		}
 		return null;
@@ -468,7 +474,7 @@ public abstract class ClassUtils {
 		}
 		
 		if (clazz.getSuperclass() != null 
-			&& hasAtLeastOneMethodWithName(clazz, methodName)) {
+			&& hasAtLeastOneMethodWithName(clazz.getSuperclass(), methodName)) {
 			return true;
 		}
 		
@@ -535,7 +541,6 @@ public abstract class ClassUtils {
 		}
 	}
 	
-	
 	/**
 	 * Give an input class object, return a string which consists of 
 	 * the class's package name as a pathname, i.e., all dots('.') 
@@ -544,10 +549,148 @@ public abstract class ClassUtils {
 	 * @return
 	 */
 	public static String classPackageAsResourcePath(Class<?> clazz) {
-		if (clazz == null || clazz.getPackage() == null) {
+		if (clazz == null) {
 			return "";
 		}
-		return clazz.getPackage().getName().replace(".", "/");
+		
+		String className = clazz.getName();
+		int packageEndIndex = className.lastIndexOf('.');
+		if (packageEndIndex == -1) {
+			return "";
+		}
+		
+		String packageName = className.substring(0, packageEndIndex);
+		return packageName.replace('.', '/');
+	}
+	
+	/**
+	 * Build a String that consists of the names of the classes/interface
+	 * in the given array.
+	 * @param classes
+	 * @return
+	 */
+	public static String classNamesToString(Class<?>... classes) {
+		return classNamesToString(Arrays.asList(classes));
+	}
+	
+	/**
+	 * Build a String that consists of the names of the classes/interface
+	 * in the given collection.
+	 * @param classes
+	 * @return
+	 */
+	public static String classNamesToString(Collection<Class<?>> classes) {
+		if (CollectionUtils.isEmpty(classes)) {
+			return "[]";
+		}
+		
+		StringBuilder sb = new StringBuilder("[");
+		for (Iterator<Class<?>> iterator = classes.iterator(); iterator.hasNext();) {
+			Class<?> clazz = (Class<?>) iterator.next();
+			sb.append(clazz.getName());
+			if (iterator.hasNext()) {
+				sb.append(", ");
+			}
+		}
+		sb.append("]");
+		return sb.toString();
+	}
+	
+	/**
+	 * Return all interfaces that the given instance implements as array,
+	 * including ones implemented by superclasses.
+	 * @param instance
+	 * @return
+	 */
+	public static Class<?>[] getAllInterfaces(Object instance) {
+		Assert.notNull(instance, "Instance must no be null");
+		
+		return getAllInterfacesForClass(instance.getClass());
+	}
+	
+	/**
+	 * Return all interfaces that the given class implements as array,
+	 * including ones implemented by superclasses.
+	 * @param clazz
+	 * @return
+	 */
+	public static Class<?>[] getAllInterfacesForClass(Class<?> clazz) {
+		return getAllInterfacesForClass(clazz, null);
+	}
+	
+	/**
+	 * Return all interfaces that the given class implements as array,
+	 * including ones implemented by superclasses.
+	 * @param clazz
+	 * @param classLoader
+	 * @return
+	 */
+	public static Class<?>[] getAllInterfacesForClass(Class<?> clazz, ClassLoader classLoader) {
+		Set<Class> ifcs = getAllInterfacesForClassAsSet(clazz, classLoader);
+		return ifcs.toArray(new Class[ifcs.size()]);
+	}
+	
+	/**
+	 * Return all interfaces that the given instance implements as Set,
+	 * including ones implemented by superclasses.
+	 * @param clazz
+	 * @param classLoader
+	 * @return
+	 */
+	public static Set<Class> getAllInterfacesAsSet(Object instance) {
+		Assert.notNull(instance, "Instance must not be null");
+		
+		return getAllInterfacesForClassAsSet(instance.getClass());
+	}
+	
+	/**
+	 * Return all interfaces that the given class implements as Set,
+	 * including ones implemented by superclasses.
+	 * @param clazz
+	 * @param classLoader
+	 * @return
+	 */
+	public static Set<Class> getAllInterfacesForClassAsSet(Class<?> clazz) {
+		return getAllInterfacesForClassAsSet(clazz, null);
+	}
+	
+	/**
+	 * Return all interfaces that the given class implements as Set,
+	 * including ones implemented by superclasses.
+	 * @param clazz
+	 * @param classLoader
+	 * @return
+	 */
+	public static Set<Class> getAllInterfacesForClassAsSet(Class clazz, ClassLoader classLoader) {
+		Assert.notNull(clazz, "Class must not be null");
+		
+		if (clazz.isInterface() && isVisible(clazz, classLoader)) {
+			return Collections.singleton(clazz);
+		}
+		
+		Set<Class> interfaces = new LinkedHashSet<Class>();
+		while (clazz != null) {
+			Class[] ifcs = clazz.getInterfaces();
+			for (Class ifc : ifcs) {
+				interfaces.addAll(getAllInterfacesForClassAsSet(ifc, classLoader));
+			}
+			clazz = clazz.getSuperclass();
+		}
+		return interfaces;
+	}
+	
+	/**
+	 * Create a composite interface Class for the given interfaces,
+	 * implementing the given interfaces in one single Class.
+	 * @param interfaces
+	 * @param classLoader
+	 * @return
+	 */
+	public static Class<?> createCompositeInterface(Class<?>[] interfaces, ClassLoader classLoader) {
+		Assert.notEmpty(interfaces, "Interfaces must not be empty");
+		Assert.notNull(classLoader, "ClassLoader must not be null");
+		
+		return Proxy.getProxyClass(classLoader, interfaces);
 	}
 	
 	/**
@@ -740,7 +883,119 @@ public abstract class ClassUtils {
 	}
 	
 	/**
-	 * 
+	 * Check if the given class represents an array of primitive wrappers,
+	 * i.e. Boolean, Byte, Character, Short, Integer, Long, Float, or Double.
+	 * @param clazz
+	 * @return
+	 */
+	public static boolean isPrimitiveWrapperArray(Class<?> clazz) {
+		Assert.notNull(clazz, "Class must not be null");
+		
+		return (clazz.isArray() && isPrimitiveWrapper(clazz.getComponentType()));
+	}
+	
+	/**
+	 * Resolve the given class if it is a primitive class,
+	 * returning the corresponding primitive wrapper type instead.
+	 * @param clazz
+	 * @return
+	 */
+	public static Class<?> resolvePrimitiveIfNecessary(Class<?> clazz) {
+		Assert.notNull(clazz, "Class must not be null");
+		
+		return (clazz.isPrimitive() && clazz != void.class ? 
+			PRIMITIVE_TYPE_TO_WRAPPER_MAP.get(clazz) : clazz);
+	}
+	
+	/**
+	 * Check if the right-hand side type may be assigned to the left-hand side
+	 * type, assuming setting by reflection. Considers primitive wrapper classes
+	 * as assignable to the corresponding primitive types.
+	 * @param lhsType
+	 * @param rhsType
+	 * @return
+	 */
+	public static boolean isAssignable(Class<?> lhsType, Class<?> rhsType) {
+		Assert.notNull(lhsType, "Left-hand side type must not be null");
+		Assert.notNull(rhsType, "Right-hand side type must not be null");
+		
+		if (lhsType.isAssignableFrom(rhsType)) {
+			return true;
+		}
+		
+		if (lhsType.isPrimitive()) {
+			Class<?> resolvedPrimitive = PRIMITIVE_WRAPPER_TYPE_MAP.get(rhsType);
+			if (resolvedPrimitive != null && lhsType.equals(resolvedPrimitive)) {
+				return true;
+			}
+		}
+		else {
+			Class<?> resolvedWrapper = PRIMITIVE_TYPE_TO_WRAPPER_MAP.get(rhsType);
+			if (resolvedWrapper != null && lhsType.isAssignableFrom(resolvedWrapper)) {
+				return true;
+			}
+		}
+		
+		return false;
+	}
+	
+	/**
+	 * Determine if the given type is assignable from the given value,
+	 * assuming setting by reflection. Considers primitive wrapper classes
+	 * as assignable to the corresponding primitive types.
+	 * @param type
+	 * @param value
+	 * @return
+	 */
+	public static boolean isAssignableValue(Class<?> type, Object value) {
+		Assert.notNull(type, "Type must not be null");
+		
+		return (value != null ? isAssignable(type, value.getClass()) : !type.isPrimitive());
+	}
+	
+	/**
+	 * Convert a "/"-based resource path to a "."-based fully qualified class name.
+	 * @param resourcePath
+	 * @return
+	 */
+	public static String convertResourcePathToClassName(String resourcePath) {
+		Assert.notNull(resourcePath, "Resource path must not be null");
+		
+		return resourcePath.replace("/", ".");
+	}
+	
+	/**
+	 * Convert a "."-based fully qualified class name to a "/".based resource path.
+	 * @param className
+	 * @return
+	 */
+	public static String convertClassNameToResourcePath(String className) {
+		Assert.notNull(className, "Class name must not be null");
+		
+		return className.replace(".", "/");
+	}
+	
+	/**
+	 * Return a path suitable for use with ClassLoader.getResource.
+	 * Built by taking the package ofthe specified class file, converting
+	 * all dots ('.') to slashes ('/'), adding a trailing slash if necessary,
+	 * and concatenating the specified resource name to this.
+	 * @param clazz
+	 * @param resourceName
+	 * @return
+	 */
+	public static String addResourcePathToPackagePath(Class<?> clazz, String resourceName) {
+		Assert.notNull(resourceName, "Resource name must not be null");
+		
+		if (!resourceName.startsWith("/")) {
+			return classPackageAsResourcePath(clazz) + "/" + resourceName;
+		}
+		
+		return classPackageAsResourcePath(clazz) + resourceName;
+	}
+	
+	/**
+	 * Check whether the given class is visible in the given ClassLoader.
 	 * @param clazz
 	 * @param classLoader
 	 * @return
