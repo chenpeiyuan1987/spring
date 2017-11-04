@@ -9,6 +9,8 @@ import org.junit.runners.Suite.SuiteClasses;
 	AssertTest.class,
 	ClassUtilsTest.class,
 	StringUtilsTest.class,
+	SystemPropertyUtilsTest.class,
+	PropertyPlaceholderHelperTest.class
 })
 public class Tests {
 

@@ -103,14 +103,49 @@ public class PropertyPlaceholderHelper {
 		while (startIndex != -1) {
 			int endIndex = findPlaceholderEndIndex(buf, startIndex);
 			if (endIndex != -1) {
+				String placeholder = buf.substring(startIndex + this.placeholderPrefix.length(), endIndex);
+				if (!visitedPlaceholders.add(placeholder)) {
+					throw new IllegalArgumentException(
+						String.format("Circular placeholder reference '%s' in property definitions", placeholder));
+				}
 				
+				placeholder = parseStringValue(placeholder, placeholderResolver, visitedPlaceholders);
+				
+				String propVal = placeholderResolver.resolvePlaceholder(placeholder);
+				if (propVal == null && this.valueSeparator != null) {
+					int separatorIndex = placeholder.indexOf(this.valueSeparator);
+					if (separatorIndex != -1) {
+						String actualPlaceholder = placeholder.substring(0, separatorIndex);
+						String defaultValue = placeholder.substring(separatorIndex + this.valueSeparator.length());
+						propVal = placeholderResolver.resolvePlaceholder(actualPlaceholder);
+						if (propVal == null) {
+							propVal = defaultValue;
+						}
+					}
+				}
+				if (propVal != null) {
+					propVal = parseStringValue(propVal, placeholderResolver, visitedPlaceholders);
+					buf.replace(startIndex, endIndex + this.placeholderSuffix.length(), propVal);
+					if (log.isTraceEnabled()) {
+						log.trace(String.format("Resolved placeholder '%s'", placeholder));
+					}
+					startIndex = buf.indexOf(this.placeholderPrefix, startIndex + propVal.length());
+				} 
+				else if (this.ignoreUnresolvablePlaceholders) {
+					startIndex = buf.indexOf(this.placeholderPrefix, endIndex + this.placeholderSuffix.length());
+				}
+				else {
+					throw new IllegalArgumentException(String.format("Could not resolve placeholder '%s'", placeholder));
+				}
+				
+				visitedPlaceholders.remove(placeholder);
 			}
 			else {
 				startIndex = -1;
 			}
 		}
 		
-		return buf.toString()
+		return buf.toString();
 	}
 
 	private int findPlaceholderEndIndex(CharSequence buf, int startIndex) {
