@@ -6,7 +6,9 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.StringTokenizer;
+import java.util.TreeSet;
 
 public abstract class StringUtils {
 	
@@ -446,6 +448,17 @@ public abstract class StringUtils {
 	}
 	
 	/**
+	 * 
+	 * @param str
+	 * @param delimiter
+	 * @param charsToDelete
+	 * @return
+	 */
+	public static String[] delimitedListToStringArray(String str, String delimiter, String charsToDelete) {
+		
+	}
+	
+	/**
 	 * Normalize the path by suppressing sequences like "path/.." and inner simple dots.
 	 * @param path
 	 * @return
@@ -567,6 +580,28 @@ public abstract class StringUtils {
 	}
 	
 	/**
+	 * Extract the filename extension from the given path,
+	 * e.g. "mypath/myfile.txt" -> "txt".
+	 * @param path
+	 * @return
+	 */
+	public static String getFilenameExtension(String path) {
+		if (path == null) {
+			return null;
+		}
+		
+		int extIndex = path.lastIndexOf(EXTENSION_SEPARATOR);
+		if (extIndex == -1) {
+			return null;
+		}
+		int dirIndex = path.lastIndexOf(FOLDER_SEPARATOR);
+		if (dirIndex > extIndex) {
+			return null;
+		}
+		return path.substring(extIndex + 1);
+	}
+	
+	/**
 	 * Count the occurrences of the substring in string s.
 	 * @param str
 	 * @param sub
@@ -660,12 +695,27 @@ public abstract class StringUtils {
 	 * @param str
 	 * @return
 	 */
+	public static Set<String> commaDelimitedListToSet(String str) {
+		Set<String> set = new TreeSet<String>();
+		String[] tokens = commaDelimitedListToStringArray(str);
+		for (String token : tokens) {
+			set.add(token);
+		}
+		return set;
+	}
+	
+	/**
+	 * Quote the given String with single quotes.
+	 * @param str
+	 * @return
+	 */
 	public static String quote(String str) {
 		return (str != null ? "'" + str + "'" : null);
 	}
 	
 	/**
-	 * 
+	 * Turn the given Object into a String with single quotes
+	 * if it is a String; keeping the Object as-is else.
 	 * @param obj
 	 * @return
 	 */
@@ -673,5 +723,24 @@ public abstract class StringUtils {
 		return (obj instanceof String ? quote((String) obj) : obj);
 	}
 	
+	/**
+	 * Unqualify a string qualified by a '.' dot character. For example,
+	 * "this.name.is.qualified", returns "qualified".
+	 * @param qualifiedName
+	 * @return
+	 */
+	public static String unqualify(String qualifiedName) {
+		return unqualify(qualifiedName, '.');
+	}
 	
+	/**
+	 * Unqualify a string qualified by a separator character. For example,
+	 * "this.name:is:qualified" returns "qualified" if using a ':' separator.
+	 * @param qualifiedName
+	 * @param separator
+	 * @return
+	 */
+	public static String unqualify(String qualifiedName, char separator) {
+		return qualifiedName.substring(qualifiedName.lastIndexOf(separator) + 1);
+	}
 }
