@@ -81,7 +81,7 @@ public abstract class StringUtils {
 	}
 	
 	/**
-	 * Check whether the given String has actual text.
+	 * Check whether the given CharSequence has actual text.
 	 * @param str
 	 * @return
 	 */
@@ -110,7 +110,7 @@ public abstract class StringUtils {
 	}
 	
 	/**
-	 * Check whether the given String contains any whitespace characters.
+	 * Check whether the given CharSequence contains any whitespace characters.
 	 * @param str
 	 * @return
 	 */
@@ -223,6 +223,7 @@ public abstract class StringUtils {
 	/**
 	 * Trim all occurences of the supplied leading character from the given String.
 	 * @param str
+	 * @param ch
 	 * @return
 	 */
 	public static String trimLeadingCharacter(String str, char ch) {
@@ -241,6 +242,7 @@ public abstract class StringUtils {
 	/**
 	 * Trim all occurences of the supplied trailing character from the given String.
 	 * @param str
+	 * @param ch
 	 * @return
 	 */
 	public static String trimTrailingCharacter(String str, char ch) {
@@ -337,7 +339,7 @@ public abstract class StringUtils {
 	}
 	
 	/**
-	 * Check that the given String is neither null nor of length 0.
+	 * Check that the given CharSequence is neither null nor of length 0.
 	 * @param str
 	 * @return
 	 */
@@ -569,6 +571,7 @@ public abstract class StringUtils {
 	
 	/**
 	 * Extract the filename from the given path.
+	 * e.g. "mypath/myfile.txt" -> "myfile.txt".
 	 * @return
 	 */
 	public static String getFilename(String path) {
@@ -602,6 +605,49 @@ public abstract class StringUtils {
 	}
 	
 	/**
+	 * Strip the filename extension from the given path,
+	 * e.g. "mypath/myfile.txt" -> "mypath/myfile".
+	 * @param path
+	 * @return
+	 */
+	public static String stripFilenameExtension(String path) {
+		if (path == null) {
+			return null;
+		}
+		
+		int extIndex = path.lastIndexOf(EXTENSION_SEPARATOR);
+		if (extIndex == -1) {
+			return path;
+		}
+		int dirIndex = path.lastIndexOf(FOLDER_SEPARATOR);
+		if (dirIndex > extIndex) {
+			return path;
+		}
+		return path.substring(0, extIndex);
+	}
+	
+	/**
+	 * Apply the given relative path to the given path,
+	 * assuming standard Java folder separation (i.e. "/" separators);
+	 * @param path
+	 * @param relativePath
+	 * @return
+	 */
+	public static String stripFilenameExtension(String path, String relativePath) {
+		int dotIndex = path.lastIndexOf(FOLDER_SEPARATOR);
+		if (dotIndex != -1) {
+			String newPath = path.substring(0, dotIndex);
+			if (!relativePath.startsWith(FOLDER_SEPARATOR)) {
+				newPath += FOLDER_SEPARATOR;
+			}
+			return newPath + relativePath;
+		} 
+		else {
+			return relativePath;
+		}
+	}
+	
+	/**
 	 * Count the occurrences of the substring in string s.
 	 * @param str
 	 * @param sub
@@ -617,10 +663,9 @@ public abstract class StringUtils {
 		
 		int count = 0;
 		int index = 0;
-		int place = 0;
-		while ((index = str.indexOf(sub, place)) != -1) {
+		while ((index = str.indexOf(sub, index)) != -1) {
 			count++;
-			place = index + sub.length();
+			index += sub.length();
 		}
 		return count;
 	}
@@ -674,7 +719,7 @@ public abstract class StringUtils {
 		else {
 			sb.append(Character.toLowerCase(str.charAt(0)));
 		}
-		sb.append(str.substring(0));
+		sb.append(str.substring(1));
 		return sb.toString();
 	}
 	
