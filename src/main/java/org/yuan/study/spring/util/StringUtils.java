@@ -9,6 +9,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.TreeSet;
+import java.util.spi.LocaleServiceProvider;
 
 public abstract class StringUtils {
 	
@@ -408,12 +409,41 @@ public abstract class StringUtils {
 	 * @param localString
 	 * @return
 	 */
-	public static Locale parseLocaleString(String localString) {
-		String[] parts = tokenizeToStringArray(localString, "_ ", false, false);
+	public static Locale parseLocaleString(String localeString) {
+		String[] parts = tokenizeToStringArray(localeString, "_ ", false, false);
 		String language = (parts.length > 0 ? parts[0] : "");
 		String country = (parts.length > 1 ? parts[1] : "");
-		String variant = (parts.length > 2 ? parts[2] : "");
+		validateLocalePart(language);
+		validateLocalePart(country);
+		String variant = "";
+		if (parts.length >= 2) {
+			int endIndexOfCountryCode = localeString.indexOf(country) + country.length();
+			variant = trimLeadingWhitespace(localeString.substring(endIndexOfCountryCode));
+			if (variant.startsWith("_")) {
+				variant = trimLeadingCharacter(variant, '_');
+			}
+		}
+		
+		//String variant = (parts.length > 2 ? parts[2] : "");
 		return (language.length() > 0 ? new Locale(language, country, variant) : null);
+	}
+	
+	private static void validateLocalePart(String localePart) {
+		for (int i = 0; i < localePart.length(); i++) {
+			char ch = localePart.charAt(i);
+			if (ch != '_' && ch != ' ' && !Character.isLetterOrDigit(ch)) {
+				throw new IllegalArgumentException(String.format("Locale part \"%s\" contains invalid characters", localePart));
+			}
+		}
+	}
+	
+	/**
+	 * Determine the RFC 3066 compliant language tag.
+	 * @param locale
+	 * @return
+	 */
+	public static String toLanguageTag(Locale locale) {
+		return locale.getLanguage() + (hasText(locale.getCountry()) ? "-" + locale.getCountry() : "");
 	}
 	
 	/**
@@ -466,21 +496,19 @@ public abstract class StringUtils {
 	 * @return
 	 */
 	public static String cleanPath(String path) {
+		if (path == null) {
+			return null;
+		}
 		String pathToUse = replace(path, WINDOWS_FOLDER_SEPARATOR, FOLDER_SEPARATOR);
 		
 		int index = pathToUse.indexOf(":");
 		String prefix = "";
 		if (index != -1) {
 			prefix = pathToUse.substring(0, index + 1);
-			if (prefix.contains("/")) {
-				prefix = "";
-			} 
-			else {
-				pathToUse = pathToUse.substring(index + 1);
-			}
+			pathToUse = pathToUse.substring(index + 1);
 		}
 		if (pathToUse.startsWith(FOLDER_SEPARATOR)) {
-			prefix = prefix + FOLDER_SEPARATOR;
+			prefix += FOLDER_SEPARATOR;
 			pathToUse = pathToUse.substring(1);
 		}
 		
@@ -511,6 +539,16 @@ public abstract class StringUtils {
 		}
 		
 		return prefix + collectionToDelimitedString(pathElements, FOLDER_SEPARATOR);
+	}
+	
+	/**
+	 * Compare two paths after normalization of them.
+	 * @param path1
+	 * @param path2
+	 * @return
+	 */
+	public static boolean pathEquals(String path1, String path2) {
+		return cleanPath(path1).equals(cleanPath(path2));
 	}
 	
 	/**
