@@ -2,8 +2,10 @@ package org.yuan.study.spring.util;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import java.util.Arrays;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -132,7 +134,7 @@ public class StringUtilsTest {
 	}
 	
 	@Test
-	public void testReplace() throws Exception {
+	public void testReplace() {
 		String inString = "a6AazAaa77abaa";
 		String oldPattern = "aa";
 		String newPattern = "foo";
@@ -152,6 +154,214 @@ public class StringUtilsTest {
 		// Null old pattern: should ignore
 		s = StringUtils.replace(inString, null, newPattern);
 		assertTrue(s.equals(inString));
+	}
+	
+	@Test
+	public void testDelete() {
+		String inString = "The quick brown fox jumped over the lazy dog";
+		
+		String noThe = StringUtils.delete(inString, "the");
+		assertTrue(noThe.equals("The quick brown fox jumped over  lazy dog"));
+		
+		String nohe = StringUtils.delete(inString, "he");
+		assertTrue(nohe.equals("T quick brown fox jumped over t lazy dog"));
+		
+		String nosp = StringUtils.delete(inString, " ");
+		assertTrue(nosp.equals("Thequickbrownfoxjumpedoverthelazydog"));
+		
+		String killEnd = StringUtils.delete(inString, "dog");
+		assertTrue(killEnd.equals("The quick brown fox jumped over the lazy "));
+		
+		String mismatch = StringUtils.delete(inString, "dxxcxcxog");
+		assertTrue(mismatch.equals(inString));
+		
+		String nochange = StringUtils.delete(inString, "");
+		assertTrue(nochange.equals(inString));
+	}
+	
+	@Test
+	public void testDeleteAny() {
+		String inString = "Able was I ere I saw Elba";
+		
+		assertEquals("Able was  ere  saw Elba", StringUtils.deleteAny(inString, "I"));
+		assertEquals("l ws I r I sw l", StringUtils.deleteAny(inString, "AeEba!"));
+		assertEquals(inString, StringUtils.deleteAny(inString, "#@$#$^"));
+		
+		inString = "This is\n\n\n    \t   a messagy string with whitespace\n";
+		assertTrue(inString.indexOf("\n") != -1);
+		assertTrue(inString.indexOf("\t") != -1);
+		assertTrue(inString.indexOf(" ") != -1);
+		inString = StringUtils.deleteAny(inString, "\n\t ");
+		assertTrue(inString.indexOf("\n") == -1);
+		assertTrue(inString.indexOf("\t") == -1);
+		assertTrue(inString.indexOf(" ") == -1);
+		assertTrue(inString.length() > 10);
+	}
+	
+	@Test
+	public void testQuote() {
+		assertEquals("'myString'", StringUtils.quote("myString"));
+		assertEquals("''", StringUtils.quote(""));
+		assertNull(StringUtils.quote(null));
+	}
+	
+	@Test
+	public void testQuoteIfString() {
+		assertEquals("'myString'", StringUtils.quoteIfString("myString"));
+		assertEquals("''", StringUtils.quoteIfString(""));
+		assertEquals(new Integer(5), StringUtils.quoteIfString(new Integer(5)));
+		assertNull(StringUtils.quoteIfString(null));
+	}
+	
+	@Test
+	public void testUnqualify() {
+		assertEquals("unqualified", StringUtils.unqualify("i.am.not.unqualified"));
+	}
+	
+	@Test
+	public void testCapitalize() {
+		assertEquals("I am not capitalize", StringUtils.capitalize("i am not capitalize"));
+	}
+	
+	@Test
+	public void testUncapitalize() {
+		assertEquals("i am capitalize", StringUtils.uncapitalize("I am capitalize"));
+	}
+	
+	@Test
+	public void testGetFilename() {
+		assertEquals(null, StringUtils.getFilename(null));
+		assertEquals("", StringUtils.getFilename(""));
+		assertEquals("myfile", StringUtils.getFilename("myfile"));
+		assertEquals("myfile", StringUtils.getFilename("mypath/myfile"));
+		assertEquals("myfile.", StringUtils.getFilename("myfile."));
+		assertEquals("myfile.", StringUtils.getFilename("mypath/myfile."));
+		assertEquals("myfile.txt", StringUtils.getFilename("myfile.txt"));
+		assertEquals("myfile.txt", StringUtils.getFilename("mypath/myfile.txt"));
+	}
+	
+	@Test
+	public void testGetFilenameExtension() {
+		assertEquals(null, StringUtils.getFilenameExtension(null));
+		assertEquals(null, StringUtils.getFilenameExtension(""));
+		assertEquals(null, StringUtils.getFilenameExtension("myfile"));
+		assertEquals(null, StringUtils.getFilenameExtension("mypath/myfile"));
+		assertEquals(null, StringUtils.getFilenameExtension("/home/user/.m2/settings/myfile"));
+		assertEquals("", StringUtils.getFilenameExtension("myfile."));
+		assertEquals("", StringUtils.getFilenameExtension("mypath/myfile."));
+		assertEquals("txt", StringUtils.getFilenameExtension("myfile.txt"));
+		assertEquals("txt", StringUtils.getFilenameExtension("mypath/myfile.txt"));
+		assertEquals("txt", StringUtils.getFilenameExtension("/home/user/.m2/settings/myfile.txt"));
+	}
+	
+	@Test
+	public void testStripFilenameExtension() {
+		assertEquals(null, StringUtils.stripFilenameExtension(null));
+		assertEquals("", StringUtils.stripFilenameExtension(""));
+		assertEquals("myfile", StringUtils.stripFilenameExtension("myfile"));
+		assertEquals("myfile", StringUtils.stripFilenameExtension("myfile."));
+		assertEquals("myfile", StringUtils.stripFilenameExtension("myfile.txt"));
+		assertEquals("mypath/myfile", StringUtils.stripFilenameExtension("mypath/myfile"));
+		assertEquals("mypath/myfile", StringUtils.stripFilenameExtension("mypath/myfile."));
+		assertEquals("mypath/myfile", StringUtils.stripFilenameExtension("mypath/myfile.txt"));
+		assertEquals("/home/user/.m2/settings/myfile", StringUtils.stripFilenameExtension("/home/user/.m2/settings/myfile"));
+		assertEquals("/home/user/.m2/settings/myfile", StringUtils.stripFilenameExtension("/home/user/.m2/settings/myfile."));
+		assertEquals("/home/user/.m2/settings/myfile", StringUtils.stripFilenameExtension("/home/user/.m2/settings/myfile.txt"));
+	}
+	
+	@Test
+	public void testCleanPath() {
+		assertEquals("mypath/myfile", StringUtils.cleanPath("mypath/myfile"));
+		assertEquals("mypath/myfile", StringUtils.cleanPath("mypath\\myfile"));
+		assertEquals("mypath/myfile", StringUtils.cleanPath("mypath/../mypath/myfile"));
+		assertEquals("mypath/myfile", StringUtils.cleanPath("mypath/myfile/../../mypath/myfile"));
+		assertEquals("../mypath/myfile", StringUtils.cleanPath("../mypath/myfile"));
+		assertEquals("../mypath/myfile", StringUtils.cleanPath("../mypath/../mypath/myfile"));
+		assertEquals("../mypath/myfile", StringUtils.cleanPath("mypath/../../mypath/myfile"));
+		assertEquals("/../mypath/myfile", StringUtils.cleanPath("/../mypath/myfile"));
+	}
+	
+	@Test
+	public void testPathEquals() {
+		
+	}
+	
+	@Test
+	public void testConcatenateStringArrays() {
+		
+	}
+	
+	@Test
+	public void testMergeStringArrays() {
+		
+	}
+	
+	@Test
+	public void testSortStringArray() {
+		
+	}
+	
+	@Test
+	public void testRemoveDuplicateStrings() {
+		
+	}
+	
+	@Test
+	public void testSplitArrayElementsIntoProperties() {
+		
+	}
+	
+	@Test
+	public void testSplitArrayElementsIntoPropertiesAndDeletedChars() {
+		
+	}
+	
+	@Test
+	public void testTokenizeToStringArray() {
+		String[] sa = StringUtils.tokenizeToStringArray("a,b , ,c", ",");
+		assertEquals(3, sa.length);
+		assertEquals("a", sa[0]);
+		assertEquals("b", sa[1]);
+		assertEquals("c", sa[2]);
+	}
+	
+	@Test
+	public void testTokenizeToStringArrayWithNotIgnoreEmptyTokens() {
+		String[] sa = StringUtils.tokenizeToStringArray("a,b , ,c", ",", true, false);
+		assertEquals(4, sa.length);
+		assertEquals("a", sa[0]);
+		assertEquals("b", sa[1]);
+		assertEquals("", sa[2]);
+		assertEquals("c", sa[3]);
+	}
+	
+	@Test
+	public void testTokenizeToStringArrayWithNotTrimTokens() {
+		String[] sa = StringUtils.tokenizeToStringArray("a,b ,c", ",", false, true);
+		assertEquals(3, sa.length);
+		assertEquals("a", sa[0]);
+		assertEquals("b ", sa[1]);
+		assertEquals("c", sa[2]);
+	}
+	
+	@Test
+	public void testCommaDelimitedListToStringArrayWithNullProducesEmptyArray() {
+		String[] sa = StringUtils.commaDelimitedListToStringArray(null);
+		assertTrue(sa != null);
+		assertTrue(sa.length == 0);
+	}
+	
+	@Test
+	public void testCommaDelimitedListToStringArrayWithEmptyStringProducesEmptyArray() {
+		String[] sa = StringUtils.commaDelimitedListToStringArray("");
+		assertTrue(sa != null);
+		assertTrue(sa.length == 0);
+	}
+	
+	private void testStringArrayReverseTransformationMatches(String[] sa) {
+		String[] reverse = StringUtils.commaDelimitedListToStringArray(
+			StringUtils.arrayToCommaDelimitedString(sa));
+		assertEquals(Arrays.asList(sa), Arrays.asList(reverse));
 	}
 	
 	@Test
@@ -187,68 +397,8 @@ public class StringUtilsTest {
 	}
 	
 	@Test
-	public void testCleanPath() {
-		assertEquals("mypath/myfile", StringUtils.cleanPath("mypath/myfile"));
-		assertEquals("mypath/myfile", StringUtils.cleanPath("mypath\\myfile"));
-		assertEquals("mypath/myfile", StringUtils.cleanPath("mypath/../mypath/myfile"));
-		assertEquals("mypath/myfile", StringUtils.cleanPath("mypath/myfile/../../mypath/myfile"));
-		assertEquals("../mypath/myfile", StringUtils.cleanPath("../mypath/myfile"));
-		assertEquals("../mypath/myfile", StringUtils.cleanPath("../mypath/../mypath/myfile"));
-		assertEquals("../mypath/myfile", StringUtils.cleanPath("mypath/../../mypath/myfile"));
-		assertEquals("../mypath/myfile", StringUtils.cleanPath("mypath/../../mypath/myfile"));
-		assertEquals("/../mypath/myfile", StringUtils.cleanPath("/../mypath/myfile"));
-		assertEquals("/mypath/myfile", StringUtils.cleanPath("/a/:b/../../mypath/myfile"));
-		assertEquals("file:///c:/path/to/the%20file.txt", StringUtils.cleanPath("file:///c:/some/../path/to/the%20file.txt"));
-	}
-	
-	@Test
-	public void testGetFilename() {
-		assertEquals(null, StringUtils.getFilename(null));
-		assertEquals("", StringUtils.getFilename(""));
-		assertEquals("myfile", StringUtils.getFilename("myfile"));
-		assertEquals("myfile", StringUtils.getFilename("mypath/myfile"));
-		assertEquals("myfile.txt", StringUtils.getFilename("myfile.txt"));
-		assertEquals("myfile.txt", StringUtils.getFilename("mypath/myfile.txt"));
-	}
-	
-	@Test
-	public void testTokenizeToStringArray() {
-		String[] sa = StringUtils.tokenizeToStringArray("a,b , ,c", ",");
-		assertEquals(3, sa.length);
-		assertEquals("a", sa[0]);
-		assertEquals("b", sa[1]);
-		assertEquals("c", sa[2]);
-	}
-	
-	@Test
-	public void testTokenizeToStringArrayWithNotIgnoreEmptyTokens() {
-		String[] sa = StringUtils.tokenizeToStringArray("a,b , ,c", ",", true, false);
-		assertEquals(4, sa.length);
-		assertEquals("a", sa[0]);
-		assertEquals("b", sa[1]);
-		assertEquals("", sa[2]);
-		assertEquals("c", sa[3]);
-	}
-	
-	@Test
-	public void testTokenizeToStringArrayWithNotTrimTokens() {
-		String[] sa = StringUtils.tokenizeToStringArray("a,b , ,c", ",", false, true);
-		assertEquals(4, sa.length);
-		assertEquals("a", sa[0]);
-		assertEquals("b ", sa[1]);
-		assertEquals(" ", sa[2]);
-		assertEquals("c", sa[3]);
-	}
-	
-	
-	@Test
-	public void testToStringArray() {
-		Set<String> set = new TreeSet<String>();
-		set.add("1");
-		set.add("2");
-		set.add("3");
+	public void testCommaDelimitedListToStringArrayMatchWords() {
 		
-		org.junit.Assert.assertArrayEquals(
-			new String[]{"1", "2", "3"}, StringUtils.toStringArray(set));
 	}
+	
 }
