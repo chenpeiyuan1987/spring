@@ -14,7 +14,7 @@ import java.util.Properties;
 
 import org.junit.Test;
 
-public class StringUtilsTest {
+public final class StringUtilsTest {
 
 	@Test
 	public void testHasText() throws Exception {

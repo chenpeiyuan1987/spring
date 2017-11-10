@@ -290,6 +290,35 @@ public class ClassUtilsTest {
 		assertEquals("[]", ClassUtils.classNamesToString(Collections.EMPTY_LIST));
 	}
 	
+	@Test
+	public void testIsPrimitive() {
+		assertTrue(ClassUtils.isPrimitiveArray(boolean[].class));
+		assertFalse(ClassUtils.isPrimitiveArray(Object[].class));
+		assertFalse(ClassUtils.isPrimitiveArray(String[].class));
+	}
+	
+	@Test
+	public void testIsPrimitiveOrWrapper() {
+		assertTrue(ClassUtils.isPrimitiveOrWrapper(boolean.class));
+		assertTrue(ClassUtils.isPrimitiveOrWrapper(Boolean.class));
+		assertTrue(ClassUtils.isPrimitiveOrWrapper(char.class));
+		assertTrue(ClassUtils.isPrimitiveOrWrapper(Character.class));
+		assertTrue(ClassUtils.isPrimitiveOrWrapper(float.class));
+		assertTrue(ClassUtils.isPrimitiveOrWrapper(Float.class));
+		assertTrue(ClassUtils.isPrimitiveOrWrapper(double.class));
+		assertTrue(ClassUtils.isPrimitiveOrWrapper(Double.class));
+		assertTrue(ClassUtils.isPrimitiveOrWrapper(byte.class));
+		assertTrue(ClassUtils.isPrimitiveOrWrapper(Byte.class));
+		assertTrue(ClassUtils.isPrimitiveOrWrapper(short.class));
+		assertTrue(ClassUtils.isPrimitiveOrWrapper(Short.class));
+		assertTrue(ClassUtils.isPrimitiveOrWrapper(int.class));
+		assertTrue(ClassUtils.isPrimitiveOrWrapper(Integer.class));
+		assertTrue(ClassUtils.isPrimitiveOrWrapper(long.class));
+		assertTrue(ClassUtils.isPrimitiveOrWrapper(Long.class));
+		
+		assertFalse(ClassUtils.isPrimitiveOrWrapper(Object.class));
+	}
+	
 	//----------------------------------------------------------
 	//
 	//----------------------------------------------------------

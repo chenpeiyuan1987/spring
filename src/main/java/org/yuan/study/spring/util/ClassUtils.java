@@ -879,7 +879,7 @@ public abstract class ClassUtils {
 	public static boolean isPrimitiveArray(Class<?> clazz) {
 		Assert.notNull(clazz, "Class must not be null");
 		
-		return (clazz.isArray() || clazz.getComponentType().isPrimitive());
+		return (clazz.isArray() && clazz.getComponentType().isPrimitive());
 	}
 	
 	/**
