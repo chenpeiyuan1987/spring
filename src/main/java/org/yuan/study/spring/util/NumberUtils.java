@@ -2,7 +2,9 @@ package org.yuan.study.spring.util;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.text.DecimalFormat;
 import java.text.NumberFormat;
+import java.text.ParseException;
 
 public abstract class NumberUtils {
 
@@ -62,32 +64,90 @@ public abstract class NumberUtils {
 		
 		throw new IllegalArgumentException(String.format(
 			"Could not convert number [%s] of type [%s] to unknown target class [%s]: overflow", 
-			number, number.getClass().getName(), targetClass.getName()));
+				number, number.getClass().getName(), targetClass.getName()));
 	}
 	
 	/**
-	 * 
+	 * Parse the given text into a number instance of the given target class,
+	 * using the corresponding decode / valueOf methods.
 	 * @param text
 	 * @param targetClass
 	 * @return
 	 */
+	@SuppressWarnings("unchecked")
 	public static <T extends Number> T parseNumber(String text, Class<T> targetClass) {
 		Assert.notNull(text, "Text must not be null");
 		Assert.notNull(targetClass, "Target class must not be null");
+		String trimmed = StringUtils.trimAllWhitespace(text);
 		
-		return null;
+		if (targetClass.equals(Byte.class)) {
+			return (T) (isHexNumber(trimmed) ? Byte.decode(trimmed) : Byte.valueOf(trimmed));
+		}
+		if (targetClass.equals(Short.class)) {
+			return (T) (isHexNumber(trimmed) ? Short.decode(trimmed) : Short.valueOf(trimmed));
+		}
+		if (targetClass.equals(Integer.class)) {
+			return (T) (isHexNumber(trimmed) ? Short.decode(trimmed) : Short.valueOf(trimmed));
+		}
+		if (targetClass.equals(Long.class)) {
+			return (T) (isHexNumber(trimmed) ? Long.decode(trimmed) : Long.valueOf(trimmed));
+		}
+		if (targetClass.equals(Float.class)) {
+			return (T) Float.valueOf(trimmed);
+		}
+		if (targetClass.equals(Double.class)) {
+			return (T) Double.valueOf(trimmed);
+		}
+		if (targetClass.equals(BigInteger.class)) {
+			return (T) (isHexNumber(trimmed) ? decodeBigInteger(trimmed) : new BigInteger(trimmed));
+		}
+		if (targetClass.equals(BigDecimal.class) || targetClass.equals(Number.class)) {
+			return (T) new BigDecimal(trimmed);
+		}
+		
+		throw new IllegalArgumentException(String.format(
+			"Cannot convert String [%s] to target class [%s]", text, targetClass.getName()));
 	}
 	
 	/**
-	 * 
+	 * Parse the given text into a number instance of the given target class,
+	 * using the given NumberFormat. Trims the input String before attempting
+	 * to parse the number.
 	 * @param text
 	 * @param targetClass
 	 * @param numberFormat
 	 * @return
 	 */
-	public static <T extends Number> T parseNumber(String text, Class<?> targetClass, NumberFormat numberFormat) {
-		
-		return null;
+	public static <T extends Number> T parseNumber(String text, Class<T> targetClass, NumberFormat numberFormat) {
+		if (numberFormat != null) {
+			Assert.notNull(text, "Text must not be null");
+			Assert.notNull(targetClass, "Target class must not be null");
+			
+			DecimalFormat decimalFormat = null;
+			boolean resetBigDecimal = false;
+			if (numberFormat instanceof DecimalFormat) {
+				decimalFormat = (DecimalFormat) numberFormat;
+				if (BigDecimal.class.equals(targetClass) && !decimalFormat.isParseBigDecimal()) {
+					decimalFormat.setParseBigDecimal(true);
+					resetBigDecimal = true;
+				}
+			}
+			try {
+				Number number = numberFormat.parse(StringUtils.trimAllWhitespace(text));
+				return convertNumberToTargetClass(number, targetClass);
+			}
+			catch (ParseException ex) {
+				throw new IllegalArgumentException("Could not parse number: " + ex.getMessage());
+			}
+			finally {
+				if (resetBigDecimal) {
+					decimalFormat.setParseBigDecimal(false);
+				}
+			}
+		}
+		else {
+			return parseNumber(text, targetClass);
+		}
 	}
 	
 
@@ -114,7 +174,8 @@ public abstract class NumberUtils {
 	}
 	
 	/**
-	 * 
+	 * Decode a BigInteger from a value.
+	 * supports decimal, hex and octal notation.
 	 * @param value
 	 * @return
 	 */
@@ -122,5 +183,26 @@ public abstract class NumberUtils {
 		int radix = 10;
 		int index = 0;
 		boolean negative = false;
+		
+		if (value.startsWith("-")) {
+			negative = true;
+			index++;
+		}
+		
+		if (value.startsWith("0x", index) || value.startsWith("0X", index)) {
+			index += 2;
+			radix = 16;
+		}
+		if (value.startsWith("#", index)) {
+			index++;
+			radix = 16;
+		}
+		if (value.startsWith("0", index) && value.length() > 1 + index) {
+			index++;
+			radix = 8;
+		}
+		
+		BigInteger result = new BigInteger(value.substring(index), radix);
+		return (negative ? result.negate() : result);
 	}
 }
