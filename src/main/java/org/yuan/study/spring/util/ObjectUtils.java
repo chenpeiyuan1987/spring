@@ -613,7 +613,7 @@ public abstract class ObjectUtils {
 			else {
 				sb.append(ARRAY_ELEMENT_SEPARATOR);
 			}
-			sb.append(array[i]);
+			sb.append("'").append(array[i]).append("'");
 		}
 		sb.append(ARRAY_END);
 		return sb.toString();
