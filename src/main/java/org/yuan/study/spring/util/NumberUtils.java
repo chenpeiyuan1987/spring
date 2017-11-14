@@ -35,14 +35,17 @@ public abstract class NumberUtils {
 			if (value < Short.MIN_VALUE || value > Short.MAX_VALUE) {
 				raiseOverflowException(number, targetClass);
 			}
-			return (T) new Short(number.byteValue());
+			return (T) new Short(number.shortValue());
 		}
 		if (targetClass.equals(Integer.class)) {
 			long value = number.longValue();
 			if (value < Integer.MIN_VALUE || value > Integer.MAX_VALUE) {
 				raiseOverflowException(number, targetClass);
 			}
-			return (T) new Integer(number.byteValue());
+			return (T) new Integer(number.intValue());
+		}
+		if (targetClass.equals(Long.class)) {
+			return (T) new Long(number.longValue());
 		}
 		if (targetClass.equals(BigInteger.class)) {
 			if (number instanceof BigDecimal) {
@@ -87,7 +90,7 @@ public abstract class NumberUtils {
 			return (T) (isHexNumber(trimmed) ? Short.decode(trimmed) : Short.valueOf(trimmed));
 		}
 		if (targetClass.equals(Integer.class)) {
-			return (T) (isHexNumber(trimmed) ? Short.decode(trimmed) : Short.valueOf(trimmed));
+			return (T) (isHexNumber(trimmed) ? Integer.decode(trimmed) : Integer.valueOf(trimmed));
 		}
 		if (targetClass.equals(Long.class)) {
 			return (T) (isHexNumber(trimmed) ? Long.decode(trimmed) : Long.valueOf(trimmed));

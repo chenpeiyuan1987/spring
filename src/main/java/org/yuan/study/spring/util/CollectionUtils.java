@@ -1,5 +1,6 @@
 package org.yuan.study.spring.util;
 
+import java.awt.font.NumericShaper;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Enumeration;
@@ -64,7 +65,9 @@ public abstract class CollectionUtils {
 		Assert.notNull(map, "Map must not be null");
 		
 		if (props != null) {
-			for (String key : props.stringPropertyNames()) {
+			Enumeration en = props.propertyNames();
+			while (en.hasMoreElements()) {
+				String key = (String)en.nextElement();
 				Object value = props.getProperty(key);
 				if (value == null) {
 					value = props.get(key);

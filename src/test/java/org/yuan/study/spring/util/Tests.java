@@ -8,7 +8,10 @@ import org.junit.runners.Suite.SuiteClasses;
 @SuiteClasses({
 	AssertTest.class,
 	ClassUtilsTest.class,
+	ObjectUtilsTest.class,
 	StringUtilsTest.class,
+	NumberUtilsTest.class,
+	CollectionUtilsTest.class,
 	SystemPropertyUtilsTest.class,
 	PropertyPlaceholderHelperTest.class
 })
