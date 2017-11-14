@@ -46,6 +46,37 @@ public abstract class ResourceUtils {
 	}
 	
 	/**
+	 * 
+	 * @param location
+	 * @return
+	 * @throws FileNotFoundException
+	 */
+	public static URL getURL(String location) throws FileNotFoundException {
+		Assert.notNull(location, "Location must not be null");
+		
+		if (location.startsWith(CLASSPATH_URL_PREFIX)) {
+			String path = location.substring(CLASSPATH_URL_PREFIX.length());
+			URL url = ClassUtils.getDefaultClassLoader().getResource(path);
+			if (url == null) {
+				String desc = String.format("class path resource [%s]", path);
+				throw new FileNotFoundException(desc + " cannot be resolved to URL because it does not exist");
+			}
+			return url;
+		}
+		try {
+			return new URL(location);
+		} 
+		catch (MalformedURLException e) {
+			try {
+				return new File(location).toURI().toURL();
+			} catch (MalformedURLException e2) {
+				throw new FileNotFoundException(String.format(
+					"Resource location [%s] is neither a URL not a well-formed file path", location));
+			}
+		}
+	}
+	
+	/**
 	 * Resolve the given resource URL to a java.io.File,
 	 * i.e. to a file in the file system.
 	 * @param url
