@@ -12,7 +12,16 @@ public abstract class ResourceUtils {
 	
 	public static final String FILE_URL_PREFIX = "file:";
 	
-	public static final String URL_PROTOCOL_PREFIX = "file";
+	public static final String URL_PROTOCOL_FILE = "file";
+	
+	public static final String URL_PROTOCOL_JAR = "jar";
+	public static final String URL_PROTOCOL_ZIP = "zip";
+	public static final String URL_PROTOCOL_VFSZIP = "vfszip";
+	public static final String URL_PROTOCOL_VFS = "vfs";
+	public static final String URL_PROTOCOL_WSJAR = "wsjar";
+	public static final String URL_PROTOCOL_CODE_SOURCE = "code-source";
+	
+	public static final String JAR_URL_SEPARATOR = "!/";
 	
 	/**
 	 * Return whether the given resource location is a URL:
@@ -45,7 +54,7 @@ public abstract class ResourceUtils {
 	 */
 	public static File getFile(URL resourceUrl, String description) throws FileNotFoundException {
 		Assert.notNull(resourceUrl, "Resource URL must not be null");
-		if (!URL_PROTOCOL_PREFIX.equals(resourceUrl.getProtocol())) {
+		if (!URL_PROTOCOL_FILE.equals(resourceUrl.getProtocol())) {
 			throw new FileNotFoundException(String.format(
 				"%s cannot be resolved to absolute file path because it does not reside in the file system: %s", description, resourceUrl));
 		}
