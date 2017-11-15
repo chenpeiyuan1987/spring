@@ -4,8 +4,9 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-
-import net.sf.cglib.transform.MethodFilter;
+import java.lang.reflect.Modifier;
+import java.util.ArrayList;
+import java.util.List;
 
 public abstract class ReflectionUtils {
 	
@@ -236,44 +237,87 @@ public abstract class ReflectionUtils {
 	}
 	
 	/**
-	 * 
+	 * Get all declared methods on the leaf class and all superclasses.
+	 * Leaf class methods are included first.
 	 * @param clazz
 	 * @return
 	 * @throws IllegalArgumentException
 	 */
 	public static Method[] getAllDeclaredMethods(Class<?> clazz) throws IllegalArgumentException {
-		
+		final List<Method> methods = new ArrayList<Method>(32);
+		doWithMethods(clazz, new MethodCallback() {
+			@Override
+			public void doWith(Method method) {
+				methods.add(method);
+			}
+		});
+		return methods.toArray(new Method[methods.size()]);
 	}
 	
 	/**
-	 * 
+	 * Invoke the given callback on all fields in the target class, going up the class
+	 * hierarchy to get all declared fields.
 	 * @param clazz
 	 * @param fc
 	 * @throws IllegalArgumentException
 	 */
 	public static void doWithFields(Class<?> clazz, FieldCallback fc) throws IllegalArgumentException {
-		
+		doWithFields(clazz, fc, null);
 	}
 	
 	/**
-	 * 
+	 * Invoke the given callback on all fields in the target class, going up the class
+	 * hierarchy to get all declared fields.
 	 * @param clazz
 	 * @param fc
 	 * @param ff
 	 * @throws IllegalArgumentException
 	 */
 	public static void doWithFields(Class<?> clazz, FieldCallback fc, FieldFilter ff) throws IllegalArgumentException {
-		
+		Class<?> target = clazz;
+		do {
+			Field[] fields = target.getDeclaredFields();
+			for (Field field : fields) {
+				if (ff != null && !ff.matches(field)) {
+					continue;
+				}
+				try {
+					fc.doWith(field);
+				}
+				catch(IllegalAccessException ex) {
+					throw new IllegalStateException(String.format("Shouldn't be illegal to access field '%s': %s", field.getName(), ex));
+				}
+				
+			}
+			target = clazz.getSuperclass();
+		}
+		while(target != null && target != Object.class);
 	}
 	
 	/**
-	 * 
+	 * Given the source object and the destination, which must be the same class or a subclass,
+	 * copy all fields, including inherited fields. Designed to work on  objects with public no-arg constructors.
 	 * @param src
 	 * @param dst
 	 * @throws IllegalArgumentException
 	 */
 	public static void shallowCopyFieldState(final Object src, final Object dst) throws IllegalArgumentException {
+		Assert.notNull(src, "Source for field copy cannot be null");
+		Assert.notNull(dst, "Destination for field copy cannot be null");
+		if (!src.getClass().isAssignableFrom(dst.getClass())) {
+			throw new IllegalArgumentException(String.format(
+				"Destination class [%s] must be same or subclass as source class [%s]", 
+					dst.getClass().getName(), src.getClass().getName()));
+		}
 		
+		doWithFields(src.getClass(), new FieldCallback() {
+			@Override
+			public void doWith(Field field) throws IllegalArgumentException, IllegalAccessException {
+				makeAccessible(field);
+				Object val = field.get(src);
+				field.set(dst, val);
+			}
+		}, COPYABLE_FIELDS);
 	}
 	
 	//----------------------------------------------------------------------------
@@ -281,29 +325,26 @@ public abstract class ReflectionUtils {
 	//----------------------------------------------------------------------------
 	
 	/**
-	 * 
-	 * @author Yuan
-	 *
+	 * Action to take on each method.
 	 */
 	public interface MethodCallback {
 		
 		/**
-		 * 
+		 * Perform an operation using the given method.
+		 * @param method
 		 * @throws IllegalArgumentException
 		 * @throws IllegalAccessException
 		 */
-		void doWith() throws IllegalArgumentException, IllegalAccessException;
+		void doWith(Method method) throws IllegalArgumentException, IllegalAccessException;
 	}
 	
 	/**
-	 * 
-	 * @author Yuan
-	 *
+	 * Callback optionally used to method fields to be operated on by a method callback.
 	 */
 	public interface MethodFilter {
 		
 		/**
-		 * 
+		 * Determine whether the given method matches.
 		 * @param method
 		 * @return
 		 */
@@ -311,30 +352,26 @@ public abstract class ReflectionUtils {
 	}
 	
 	/**
-	 * 
-	 * @author Yuan
-	 *
+	 * Callback interface invoked on each field in the hierarchy.
 	 */
 	public interface FieldCallback {
 		
 		/**
-		 * 
+		 * Perform an operation using the given field.
 		 * @param field
 		 * @throws IllegalArgumentException
 		 * @throws IllegalArgumentException
 		 */
-		void doWith(Field field) throws IllegalArgumentException, IllegalArgumentException;
+		void doWith(Field field) throws IllegalArgumentException, IllegalAccessException;
 	}
 	
 	/**
-	 * 
-	 * @author Yuan
-	 *
+	 * Callback optionally used to filter fields to be operated on by a field callback.
 	 */
 	public interface FieldFilter {
 		
 		/**
-		 * 
+		 * Determine whether the given field matches.
 		 * @param field
 		 * @return
 		 */
@@ -342,23 +379,33 @@ public abstract class ReflectionUtils {
 	}
 	
 	/**
-	 * 
+	 * Pre-built FieldFilter that matches all non-static, non-final fields.
 	 */
 	public static FieldFilter COPYABLE_FIELDS = new FieldFilter() {
-		
+		@Override
+		public boolean matches(Field field) {
+			return !(Modifier.isStatic(field.getModifiers()) || Modifier.isFinal(field.getModifiers()));
+		}
 	};
 	
 	/**
-	 * 
+	 * Pre-built MethodFilter that matches all non-bridge methods.
 	 */
 	public static MethodFilter NON_BRIDGED_METHODS = new MethodFilter() {
-		
+		@Override
+		public boolean matches(Method method) {
+			return !method.isBridge();
+		}
 	};
 	
 	/**
-	 * 
+	 * Pre-built MethodFilter that matches all non-bridge methods
+	 * which are not declared on java.lang.Object.
 	 */
 	public static MethodFilter USER_DECLARED_METHODS = new MethodFilter() {
-		
+		@Override
+		public boolean matches(Method method) {
+			return (!method.isBridge() && method.getDeclaringClass() != Object.class);
+		}
 	};
 }
