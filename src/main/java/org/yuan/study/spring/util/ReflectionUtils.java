@@ -5,7 +5,9 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public abstract class ReflectionUtils {
@@ -48,27 +50,44 @@ public abstract class ReflectionUtils {
 	}
 	
 	/**
-	 * 
+	 * Set the field represented by the supplied field on the specified target to 
+	 * the specified value.
 	 * @param field
 	 * @param target
 	 * @param value
 	 */
 	public static void setField(Field field, Object target, Object value) {
-		
+		try {
+			field.set(target, value);
+		} 
+		catch (IllegalAccessException ex) {
+			handleReflectionException(ex);
+			throw new IllegalStateException(String.format("Unexpected reflection expection - %s: %s", ex.getClass().getName(), ex.getMessage()));
+		}
 	}
 	
 	/**
-	 * 
+	 * Get the field represented by the supplied field on the specified target.
+	 * In accordance with Field.get(Object) semantics, the returned value is automatically
+	 * wrapped if the underlying field has a primitive type.
 	 * @param field
 	 * @param target
 	 * @return
 	 */
 	public static Object getField(Field field, Object target) {
-		
+		try {
+			return field.get(target);
+		} 
+		catch (IllegalAccessException ex) {
+			handleReflectionException(ex);
+			throw new IllegalStateException(String.format("Unexpected reflection expection - %s: %s", ex.getClass().getName(), ex.getMessage()));
+		}
 	}
 	
 	/**
-	 * 
+	 * Attempt to find a Method on the supplied class with the supplied name
+	 * and no parameters. Searches all superclasses up to Object.
+	 * Return null if no Method can be found.
 	 * @param clazz
 	 * @param name
 	 * @return
@@ -78,20 +97,36 @@ public abstract class ReflectionUtils {
 	}
 	
 	/**
-	 * 
+	 * Attempt to find a Method on the supplied class with the supplied name
+	 * and no parameters. Searches all superclasses up to Object.
+	 * Return null if no Method can be found.
 	 * @param targetClass
 	 * @param methodName
 	 * @param paramTypes
 	 * @return
 	 */
-	public static Method findMethod(Class<?> targetClass, String methodName, Class<?>... paramTypes) {
-		Assert.notNull(targetClass, "Class must not be null");
-		Assert.notNull(methodName, "Method name must not be null");
+	public static Method findMethod(Class<?> clazz, String name, Class<?>... paramTypes) {
+		Assert.notNull(clazz, "Class must not be null");
+		Assert.notNull(name, "Method name must not be null");
 		
+		Class<?> searchType = clazz;
+		while (searchType != null) {
+			Method[] methods = (searchType.isInterface() ? searchType.getMethods() : searchType.getDeclaredMethods());
+			for (Method method : methods) {
+				if (name.equals(method.getName()) && 
+					(paramTypes == null || Arrays.equals(paramTypes, method.getParameterTypes()))) {
+					return method;
+				}
+			}
+			searchType = searchType.getSuperclass();
+		}
+		return null;
 	}
 	
 	/**
-	 * 
+	 * Invoke the specified Method against the supplied target object with no arguments.
+	 * The target object can be null when invoking a static Method.
+	 * Thrown exceptions are handled via a call to handleReflectionException.
 	 * @param method
 	 * @param target
 	 * @return
@@ -101,47 +136,123 @@ public abstract class ReflectionUtils {
 	}
 	
 	/**
-	 * 
+	 * Invoke the specified Method against the supplied target object with the supplied arguments.
+	 * The target object can be null when invoking a static Method.
+	 * Thrown exceptions are handled via a call to handleReflectionException.
 	 * @param method
 	 * @param target
 	 * @param args
 	 * @return
 	 */
 	public static Object invokeMethod(Method method, Object target, Object... args) {
-		
+		try {
+			return method.invoke(target, args);
+		} 
+		catch (Exception ex) {
+			handleReflectionException(ex);
+		}
+		throw new IllegalStateException("Should never get here");
 	}
 	
 	/**
-	 * 
+	 * Invoke the specified JDBC API Method against the supplied target 
+	 * object with no arguments.
+	 * @param method
+	 * @param target
+	 * @return
+	 * @throws SQLException
+	 */
+	public static Object invokeJdbcMethod(Method method, Object target) throws SQLException {
+		return invokeJdbcMethod(method, target, new Object[0]);
+	}
+	
+	/**
+	 * Invoke the specified JDBC API Method against the supplied target 
+	 * object with the supplied arguments.
+	 * @param method
+	 * @param target
+	 * @param args
+	 * @return
+	 * @throws SQLException
+	 */
+	public static Object invokeJdbcMethod(Method method, Object target, Object... args) throws SQLException {
+		try {
+			return method.invoke(target, args);
+		} 
+		catch (IllegalAccessException ex) {
+			handleReflectionException(ex);
+		}
+		catch (InvocationTargetException ex) {
+			if (ex.getTargetException() instanceof SQLException) {
+				throw (SQLException) ex.getTargetException();
+			}
+			handleInvocationTargetException(ex);
+		}
+		throw new IllegalStateException("Should never get here");
+	}
+	
+	/**
+	 * Handle the given reflection exception. Should only be called if no
+	 * checked exception is expected to be thrown by the target method.
 	 * @param ex
 	 */
 	public static void handleReflectionException(Exception ex) {
-		
+		if (ex instanceof NoSuchMethodException) {
+			throw new IllegalStateException("Method not found: " + ex.getMessage());
+		}
+		if (ex instanceof IllegalAccessException) {
+			throw new IllegalStateException("Could not access method: " + ex.getMessage());
+		}
+		if (ex instanceof InvocationTargetException) {
+			handleInvocationTargetException((InvocationTargetException) ex);
+		}
+		if (ex instanceof RuntimeException) {
+			throw (RuntimeException) ex;
+		}
+		handleUnexpectedException(ex);;
 	}
 	
 	/**
-	 * 
+	 * Handle the given reflection exception. Should only be called if no
+	 * checked exception is expected to be thrown by the target method.
+	 * @param ex
 	 */
 	public static void handleInvocationTargetException(InvocationTargetException ex) {
-		
+		rethrowRuntimeException(ex.getTargetException());
 	}
 	
 	/**
-	 * 
+	 * Rethrow the given exception, which is presumably the target exception of an
+	 * InvocationTargetException. Should only be called if no checked exception is
+	 * expected to be thrown by the target method.
 	 */
 	public static void rethrowRuntimeException(Throwable ex) {
-		
+		if (ex instanceof RuntimeException) {
+			throw (RuntimeException) ex;
+		}
+		if (ex instanceof Error) {
+			throw (Error) ex;
+		}
+		handleUnexpectedException(ex);
 	}
 	
 	/**
-	 * 
+	 * Rethrow the given exception, which is presumably the target exception of an
+	 * InvocationTargetException. Should only be called if no checked exception is
+	 * expected to be thrown by the target method.
 	 */
-	public static void rethrowException(Throwable ex) {
-		
+	public static void rethrowException(Throwable ex) throws Exception {
+		if (ex instanceof Exception) {
+			throw (Exception) ex;
+		}
+		if (ex instanceof Error) {
+			throw (Error) ex;
+		}
+		handleUnexpectedException(ex);
 	}
 	
 	/**
-	 * 
+	 * Throws an IllegalStateException with the given exception as root cause.
 	 * @param ex
 	 */
 	public static void handleUnexpectedException(Throwable ex) {
@@ -217,23 +328,45 @@ public abstract class ReflectionUtils {
 	}
 	
 	/**
-	 * 
+	 * Perform the given callback operation on all matching methods of the given class
+	 * and superclasses.
 	 * @param clazz
 	 * @param mc
 	 */
-	public static void doWithMethods(Class<?> clazz, MethodCallback mc) {
-		
+	public static void doWithMethods(Class<?> clazz, MethodCallback mc) throws IllegalArgumentException {
+		doWithMethods(clazz, mc, null);
 	}
 	
 	/**
-	 * 
+	 * Perform the given callback operation on all matching methods of the given class
+	 * and superclasses.
 	 * @param clazz
 	 * @param mc
 	 * @param mf
 	 * @throws IllegalArgumentException
 	 */
 	public static void doWithMethods(Class<?> clazz, MethodCallback mc, MethodFilter mf) throws IllegalArgumentException {
-		
+		Method[] methods = clazz.getDeclaredMethods();
+		for (Method method : methods) {
+			if (mf != null && !mf.matches(method)) {
+				continue;
+			}
+			try {
+				mc.doWith(method);
+			} 
+			catch (IllegalAccessException ex) {
+				throw new IllegalStateException(String.format(
+					"Shouldn't be illegal to access method '%s': %s", method.getName(), ex));
+			}
+		}
+		if (clazz.getSuperclass() != null) {
+			doWithMethods(clazz.getSuperclass(), mc, mf);
+		}
+		else if (clazz.isInterface()) {
+			for (Class<?> clazz : clazz.getInterfaces()) {
+				doWithMethods(clazz, mc, mf);
+			}
+		}
 	}
 	
 	/**
