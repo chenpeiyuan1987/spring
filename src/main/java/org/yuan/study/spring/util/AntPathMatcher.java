@@ -157,10 +157,130 @@ public class AntPathMatcher implements PathMatcher {
 	 * @return
 	 */
 	private boolean matchStrings(String pattern, String str, Map<String, String> uriTemplateVariables) {
-		return true;
+		AntPathStringMatcher matcher = new AntPathStringMatcher(pattern, str, uriTemplateVariables);
+		return matcher.matchStrings();
 	}
 
+	/**
+	 * Actually match the given path against the given pattern.
+	 * @param pattern
+	 * @param path
+	 * @param fullMatch
+	 * @param uriTemplateVariables
+	 * @return
+	 */
 	protected boolean doMatch(String pattern, String path, boolean fullMatch, Map<String, String> uriTemplateVariables) {
+		if (path.startsWith(pathSeparator) != pattern.startsWith(pathSeparator)) {
+			return false;
+		}
+		
+		String[] pattDirs = StringUtils.tokenizeToStringArray(pattern, pathSeparator);
+		String[] pathDirs = StringUtils.tokenizeToStringArray(path, pathSeparator);
+		
+		int pattIdxStart = 0;
+		int pattIdxFinis = pattDirs.length - 1;
+		int pathIdxStart = 0;
+		int pathIdxFinis = pathDirs.length - 1;
+		
+		while (pattIdxStart <= pattIdxFinis && pathIdxStart <= pathIdxFinis) {
+			if ("**".equals(pattDirs[pattIdxStart])) {
+				break;
+			}
+			if (!matchStrings(pattDirs[pattIdxStart], pathDirs[pathIdxStart], uriTemplateVariables)) {
+				return false;
+			}
+			pattIdxStart++;
+			pathIdxStart++;
+		}
+		
+		if (pathIdxStart > pathIdxFinis) {
+			if (pattIdxStart > pattIdxFinis) {
+				return (pattern.endsWith(pathSeparator) ? 
+					path.endsWith(pathSeparator) : !path.endsWith(pathSeparator));
+			}
+			if (!fullMatch) {
+				return true;
+			}
+			if (pattIdxStart == pattIdxFinis && 
+				pattDirs[pattIdxStart].equals("*") && 
+				path.endsWith(pathSeparator)) {
+				return true;
+			}
+			for (int i = pattIdxStart; i < pattIdxFinis; i++) {
+				if (!pattDirs[i].equals("**")) {
+					return false;
+				}
+			}
+			return true;
+		}
+		if (pattIdxStart > pattIdxFinis) {
+			return false;
+		}
+		if (!fullMatch && "**".equals(pattDirs[pattIdxStart])) {
+			return true;
+		}
+		
+		while (pattIdxStart <= pattIdxFinis && pathIdxStart <= pathIdxFinis) {
+			if (pattDirs[pattIdxFinis].equals("**")) {
+				break;
+			}
+			if (!matchStrings(pattDirs[pattIdxFinis], pathDirs[pathIdxFinis], uriTemplateVariables)) {
+				return false;
+			}
+			pattIdxFinis--;
+			pathIdxFinis--;
+		}
+		if (pathIdxStart > pathIdxFinis) {
+			for (int i = pattIdxStart; i <= pattIdxFinis; i++) {
+				if (!pattDirs[i].equals("**")) {
+					return false;
+				}
+			}
+			return true;
+		}
+		
+		while (pattIdxStart != pattIdxFinis && pathIdxStart <= pathIdxFinis) {
+			int pattIdxTemp = -1;
+			for (int i = pattIdxStart + 1; i < pattIdxFinis; i++) {
+				if (pattDirs[i].equals("**")) {
+					pattIdxTemp = i;
+					break;
+				}
+			}
+			if (pattIdxTemp == pattIdxStart + 1) {
+				pattIdxStart++;
+				continue;
+			}
+			
+			int patLength = (pattIdxTemp - pattIdxStart - 1);
+			int strLength = (pathIdxFinis - pathIdxStart + 1);
+			int foundIdx = -1;
+			
+			strLoop:
+			for (int i = 0; i <= strLength - patLength; i++) {
+				for (int j = 0; j < patLength; j++) {
+					String subPat = pattDirs[pattIdxStart + j + i];
+					String subStr = pathDirs[pathIdxStart + i + j];
+					if (!matchStrings(subPat, subStr, uriTemplateVariables)) {
+						continue strLoop;
+					}
+				}
+				foundIdx = pathIdxStart + i;
+				break;
+			}
+			if (foundIdx == -1) {
+				return false;
+			}
+			
+			pattIdxStart = pattIdxTemp;
+			pathIdxStart = foundIdx + patLength;
+		}
+		for (int i = pattIdxStart; i <= pattIdxFinis; i++) {
+			if (!pattDirs[i].equals("**")) {
+				return false;
+			}
+		}
+		
 		return true;
 	}
 
