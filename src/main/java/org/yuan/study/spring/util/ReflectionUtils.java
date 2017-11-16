@@ -260,71 +260,141 @@ public abstract class ReflectionUtils {
 	}
 	
 	/**
-	 * 
+	 * Determine whether the given method explicitly declares the given exception or one of its superclasses,
+	 * which means that an exception of that type can be propagated as-is within a reflective invocation.
 	 * @param method
 	 * @param exceptionType
 	 */
-	public static void declaresException(Method method, Class<?> exceptionType) {
+	public static boolean declaresException(Method method, Class<?> exceptionType) {
+		Assert.notNull(method, "Method must not be null");
 		
+		Class<?>[] declaredExceptions = method.getExceptionTypes();
+		for (Class<?> declaredException : declaredExceptions) {
+			if (declaredException.isAssignableFrom(exceptionType)) {
+				return true;
+			}
+		}
+		return false;
 	}
 	
 	/**
-	 * 
+	 * Determine whether the given field is "public static final" constant.
 	 * @param field
 	 * @return
 	 */
 	public static boolean isPublicStaticFinal(Field field) {
-		
+		if (!Modifier.isPublic(field.getModifiers())) {
+			return false;
+		}
+		if (!Modifier.isStatic(field.getModifiers())) {
+			return false;
+		}
+		if (!Modifier.isFinal(field.getModifiers())) {
+			return false;
+		}
+		return true;
 	}
 	
 	/**
-	 * 
+	 * Determine whether the given method is an "equals" method.
 	 * @param method
 	 * @return
 	 */
 	public static boolean isEqualsMethod(Method method) {
-		
+		if (method == null) {
+			return false;
+		}
+		if (!method.getName().equals("equals")) {
+			return false;
+		}
+		if (method.getParameterTypes().length != 1) {
+			return false;
+		}
+		if (method.getParameterTypes()[0] != Object.class) {
+			return false;
+		}
+		return true;
 	}
 	
 	/**
-	 * 
+	 * Determine whether the given method is a "hashCode" method.
 	 * @param method
 	 * @return
 	 */
 	public static boolean isHashCodeMethod(Method method) {
-		
+		if (method == null) {
+			return false;
+		}
+		if (!method.getName().equals("hashCode")) {
+			return false;
+		}
+		if (method.getParameterTypes().length != 0) {
+			return false;
+		}
+		return true;
 	}
 	
 	/**
-	 * 
+	 * Determine whether the given method is a "toString" method.
+	 * @param method
 	 * @return
 	 */
-	public static boolean isToStringMethod() {
-		
+	public static boolean isToStringMethod(Method method) {
+		if (method == null) {
+			return false;
+		}
+		if (!method.getName().equals("toString")) {
+			return false;
+		}
+		if (method.getParameterTypes().length != 0) {
+			return false;
+		}
+		return true;
 	}
 	
 	/**
-	 * 
+	 * Make the given field accessible, explicitly setting it accessible if
+	 * necessary. The setAccessible(true) method is only called when actually
+	 * necessary, to avoid unnecessary conflicts with a JVM SecurityManager.
 	 * @param field
 	 */
 	public static void makeAccessible(Field field) {
-		
+		if (!field.isAccessible()) {
+			if (!Modifier.isPublic(field.getModifiers()) || Modifier.isFinal(field.getModifiers()) || 
+				!Modifier.isPublic(field.getDeclaringClass().getModifiers())) {
+				field.setAccessible(true);
+			}
+		}
 	}
 	
 	/**
-	 * 
+	 * Make the given method accessible, explicitly setting it accessible if
+	 * necessary. The setAccessible(true) method is only called when actually
+	 * necessary, to avoid unnecessary conflicts with a JVM SecurityManager.
 	 * @param method
 	 */
 	public static void makeAccessible(Method method) {
-		
+		if (!method.isAccessible()) {
+			if (!Modifier.isPublic(method.getModifiers()) || 
+				!Modifier.isPublic(method.getDeclaringClass().getModifiers())) {
+				method.setAccessible(true);
+			}
+		}
 	}
 	
 	/**
-	 * 
+	 * Make the given constructor accessible, explicitly setting it accessible if
+	 * necessary. The setAccessible(true) method is only called when actually
+	 * necessary, to avoid unnecessary conflicts with a JVM SecurityManager.
 	 * @param ctor
 	 */
 	public static void makeAccessible(Constructor<?> ctor) {
-		
+		if (!ctor.isAccessible()) {
+			if (!Modifier.isPublic(ctor.getModifiers()) || 
+				!Modifier.isPublic(ctor.getDeclaringClass().getModifiers())) {
+				ctor.setAccessible(true);
+			}
+		}
 	}
 	
 	/**
@@ -363,8 +433,8 @@ public abstract class ReflectionUtils {
 			doWithMethods(clazz.getSuperclass(), mc, mf);
 		}
 		else if (clazz.isInterface()) {
-			for (Class<?> clazz : clazz.getInterfaces()) {
-				doWithMethods(clazz, mc, mf);
+			for (Class<?> ifc : clazz.getInterfaces()) {
+				doWithMethods(ifc, mc, mf);
 			}
 		}
 	}
@@ -422,7 +492,7 @@ public abstract class ReflectionUtils {
 				}
 				
 			}
-			target = clazz.getSuperclass();
+			target = target.getSuperclass();
 		}
 		while(target != null && target != Object.class);
 	}
