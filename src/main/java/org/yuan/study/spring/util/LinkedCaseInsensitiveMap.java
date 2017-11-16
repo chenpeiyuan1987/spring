@@ -1,9 +1,7 @@
 package org.yuan.study.spring.util;
 
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Locale;
-import java.util.Map;
 
 /**
  * variant that stores String keys in a case-insensitive
