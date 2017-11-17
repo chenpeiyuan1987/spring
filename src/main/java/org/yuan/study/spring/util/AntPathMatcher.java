@@ -206,7 +206,7 @@ public class AntPathMatcher implements PathMatcher {
 				path.endsWith(pathSeparator)) {
 				return true;
 			}
-			for (int i = pattIdxStart; i < pattIdxFinis; i++) {
+			for (int i = pattIdxStart; i <= pattIdxFinis; i++) {
 				if (!pattDirs[i].equals("**")) {
 					return false;
 				}
@@ -259,7 +259,7 @@ public class AntPathMatcher implements PathMatcher {
 			strLoop:
 			for (int i = 0; i <= strLength - patLength; i++) {
 				for (int j = 0; j < patLength; j++) {
-					String subPat = pattDirs[pattIdxStart + j + i];
+					String subPat = pattDirs[pattIdxStart + j + 1];
 					String subStr = pathDirs[pathIdxStart + i + j];
 					if (!matchStrings(subPat, subStr, uriTemplateVariables)) {
 						continue strLoop;
