@@ -1,4 +1,4 @@
-package test.beans;
+package org.yuan.study.spring.beans;
 
 import java.util.List;
 import java.util.Map;

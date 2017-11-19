@@ -516,6 +516,25 @@ public abstract class StringUtils {
 	}
 	
 	/**
+	 * Apply the given relative path to the given path,
+	 * assuming standard Java folder separation (i.e. "/" separator).
+	 * @return
+	 */
+	public static String applyRelativePath(String path, String relativePath) {
+		int index = path.lastIndexOf(FOLDER_SEPARATOR);
+		if (index != -1) {
+			String newPath = path.substring(0, index);
+			if (!relativePath.startsWith(FOLDER_SEPARATOR)) {
+				newPath += FOLDER_SEPARATOR;
+			}
+			return newPath + relativePath;
+		}
+		else {
+			return relativePath;
+		}
+	}
+	
+	/**
 	 * Normalize the path by suppressing sequences like "path/.." and inner simple dots.
 	 * @param path
 	 * @return

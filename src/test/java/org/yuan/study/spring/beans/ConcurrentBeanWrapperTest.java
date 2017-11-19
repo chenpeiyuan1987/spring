@@ -1,4 +1,4 @@
-package test.beans;
+package org.yuan.study.spring.beans;
 
 import static org.junit.Assert.fail;
 import static org.junit.Assert.assertTrue;
