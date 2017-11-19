@@ -195,8 +195,7 @@ public class AntPathMatcher implements PathMatcher {
 		
 		if (pathIdxStart > pathIdxFinis) {
 			if (pattIdxStart > pattIdxFinis) {
-				return (pattern.endsWith(pathSeparator) ? 
-					path.endsWith(pathSeparator) : !path.endsWith(pathSeparator));
+				return (pattern.endsWith(pathSeparator) == path.endsWith(pathSeparator));
 			}
 			if (!fullMatch) {
 				return true;
@@ -241,7 +240,7 @@ public class AntPathMatcher implements PathMatcher {
 		
 		while (pattIdxStart != pattIdxFinis && pathIdxStart <= pathIdxFinis) {
 			int pattIdxTemp = -1;
-			for (int i = pattIdxStart + 1; i < pattIdxFinis; i++) {
+			for (int i = pattIdxStart + 1; i <= pattIdxFinis; i++) {
 				if (pattDirs[i].equals("**")) {
 					pattIdxTemp = i;
 					break;

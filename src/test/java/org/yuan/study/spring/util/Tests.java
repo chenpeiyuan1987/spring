@@ -6,14 +6,18 @@ import org.junit.runners.Suite.SuiteClasses;
 
 @RunWith(Suite.class)
 @SuiteClasses({
+	AntPathMatcherTest.class,
 	AssertTest.class,
 	ClassUtilsTest.class,
-	ObjectUtilsTest.class,
-	StringUtilsTest.class,
-	NumberUtilsTest.class,
 	CollectionUtilsTest.class,
+	LinkedMultiValueMapTest.class,
+	NumberUtilsTest.class,
+	ObjectUtilsTest.class,
+	PropertyPlaceholderHelperTest.class,
+	ReflectionUtilsTest.class,
+	ResourceUtilsTest.class,
+	StringUtilsTest.class,
 	SystemPropertyUtilsTest.class,
-	PropertyPlaceholderHelperTest.class
 })
 public class Tests {
 
