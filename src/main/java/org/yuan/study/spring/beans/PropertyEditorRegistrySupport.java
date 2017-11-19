@@ -17,6 +17,8 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.SortedSet;
 
+import javax.swing.plaf.basic.DefaultMenuLayout;
+
 import org.yuan.study.spring.beans.propertyeditors.ByteArrayPropertyEditor;
 import org.yuan.study.spring.beans.propertyeditors.CharArrayPropertyEditor;
 import org.yuan.study.spring.beans.propertyeditors.CharacterEditor;
@@ -30,20 +32,99 @@ import org.yuan.study.spring.beans.propertyeditors.LocaleEditor;
 import org.yuan.study.spring.beans.propertyeditors.PropertiesEditor;
 import org.yuan.study.spring.beans.propertyeditors.StringArrayPropertyEditor;
 import org.yuan.study.spring.beans.propertyeditors.URLEditor;
+import org.yuan.study.spring.core.convert.ConversionService;
 import org.yuan.study.spring.core.io.Resource;
 import org.yuan.study.spring.core.io.ResourceEditor;
+import org.yuan.study.spring.util.ClassUtils;
 
 public class PropertyEditorRegistrySupport implements PropertyEditorRegistry {
 	
-	private Map<Class<?>,PropertyEditor> defaultEditors;
+	private ConversionService conversionService;
 	
-	private Map<Object,Object> customEditors;
+	private boolean defaultEditorsActive = false;
 	
-	private Map<Class<?>,PropertyEditor> customEditorCache;
+	private boolean configValueEditorsActive = false;
+	
+	private Map<Class<?>, PropertyEditor> defaultEditors;
+
+	private Map<Class<?>, PropertyEditor> overriddenDefaultEditors;
+	
+	private Map<Class<?>, Object> customEditors;
+	
+	private Map<String, CustomEditorHolder> customEditorForPath;
+	
+	private Set<PropertyEditor> sharedEditors;
+	
+	private Map<Class<?>, PropertyEditor> customEditorCache;
+	
 	
 	//----------------------------------------------------------------------
 	// Implementation methods
 	//----------------------------------------------------------------------
+	
+	/**
+	 * Return the associated ConversionService, if any.
+	 */
+	public ConversionService getConversionService() {
+		return conversionService;
+	}
+
+	/**
+	 * Specify a Spring 3.0 ConversionService to use for converting
+	 * property values, as an alternative to JavaBeans PropertyEditors.
+	 */
+	public void setConversionService(ConversionService conversionService) {
+		this.conversionService = conversionService;
+	}
+
+	/**
+	 * Activate the default editors for this registry instance,
+	 * allowing for lazily registering default editors when needed.
+	 */
+	protected void registerDefaultEditors() {
+		defaultEditorsActive = true;
+	}
+
+	/**
+	 * Activate config value editors which are only intended for configuration purpose,
+	 * such as StringArrayPropertyEditor.
+	 */
+	public void useConfigValueEditors() {
+		configValueEditorsActive = true;
+	}
+	
+	/**
+	 * Override the default editor for the specified type with the given property editor.
+	 * @param requiredType
+	 * @param propertyEditor
+	 */
+	public void overrideDefaultEditor(Class<?> requiredType, PropertyEditor propertyEditor) {
+		if (overriddenDefaultEditors == null) {
+			overriddenDefaultEditors = new HashMap<Class<?>, PropertyEditor>();
+		}
+		overriddenDefaultEditors.put(requiredType, propertyEditor);
+	}
+	
+	/**
+	 * Retrieve the default editor for the given property type, if any.
+	 * @param requiredType
+	 * @return
+	 */
+	public PropertyEditor getDefaultEditor(Class<?> requiredType) {
+		if (!defaultEditorsActive) {
+			return null;
+		}
+		if (overriddenDefaultEditors != null) {
+			PropertyEditor editor = overriddenDefaultEditors.get(requiredType);
+			if (editor != null) {
+				return editor;
+			}
+		}
+		if (defaultEditors == null) {
+			createDefaultEditors();
+		}
+		return defaultEditors.get(requiredType);
+	}
 	
 	/**
 	 * Copy the custom editors registered in this instance to the given target registry.
@@ -82,18 +163,6 @@ public class PropertyEditorRegistrySupport implements PropertyEditorRegistry {
 	}
 	
 	/**
-	 * Retrieve the default editor for the given property type, if any.
-	 * @param requiredType
-	 * @return
-	 */
-	protected PropertyEditor getDefaultEditor(Class<?> requiredType) {
-		if (this.defaultEditors == null) {
-			return null;
-		}
-		return this.defaultEditors.get(requiredType);
-	}
-	
-	/**
 	 * Determine the property type of the given property path.
 	 * @param propertyPath
 	 * @return
@@ -128,9 +197,9 @@ public class PropertyEditorRegistrySupport implements PropertyEditorRegistry {
 	}
 	
 	/**
-	 * Register default editors in this instance, for restricted environments
+	 * Actually register the default editors for this registry instance.
 	 */
-	protected void registerDefaultEditors() {
+	private void createDefaultEditors() {
 		this.defaultEditors = new HashMap<Class<?>, PropertyEditor>(32);
 		
 		this.defaultEditors.put(Class.class, new ClassEditor());
@@ -305,6 +374,7 @@ public class PropertyEditorRegistrySupport implements PropertyEditorRegistry {
 	
 	/**
 	 * Holder for a registered custom editor with property name.
+	 * Keeps the PropertyEditor itself plus the type it was registered for.
 	 */
 	private static class CustomEditorHolder {
 		
@@ -326,10 +396,10 @@ public class PropertyEditorRegistrySupport implements PropertyEditorRegistry {
 		}
 		
 		private PropertyEditor getPropertyEditor(Class<?> requiredType) {
-			if (this.registeredType == null 
-				|| (requiredType != null && (BeanUtils.isAssignable(this.registeredType, requiredType) || BeanUtils.isAssignable(requiredType, this.registeredType))
-				|| (requiredType == null && (!Collection.class.isAssignableFrom(this.registeredType) && !this.registeredType.isAnnotation())))) {
-				return this.propertyEditor;
+			if (registeredType == null 
+				|| (requiredType != null && (ClassUtils.isAssignable(registeredType, requiredType) || ClassUtils.isAssignable(requiredType, registeredType)))
+				|| (requiredType == null && (!Collection.class.isAssignableFrom(registeredType) && !registeredType.isArray()))) {
+				return propertyEditor;
 			}
 			else {
 				return null;

@@ -13,13 +13,15 @@ public interface PropertyAccessor {
 	char NESTED_PROPERTY_SEPARATOR_CHAR = '.';
 	
 	/**
-	 * Marker that indicates the start of a property key for an indexed or mapped property like "person.addresses[0]".
+	 * Marker that indicates the start of a property key for 
+	 * an indexed or mapped property like "person.addresses[0]".
 	 */
 	String PROPERTY_KEY_PREFIX = "[";
 	char PROPERTY_KEY_PREFIX_CHAR = '[';
 	
 	/**
-	 * Marker that indicates the end of a property key for an indexed or mapped property like "person".
+	 * Marker that indicates the end of a property key for 
+	 * an indexed or mapped property like "person".
 	 */
 	String PROPERTY_KEY_SUFFIX = "]";
 	char PROPERTY_KEY_SUFFIX_CHAR = ']';
@@ -33,6 +35,14 @@ public interface PropertyAccessor {
 	boolean isReadableProperty(String propertyName);
 	
 	/**
+	 * Determine whether the specified property is writable.
+	 * Returns false if the property doesn't exist.
+	 * @param propertyName
+	 * @return
+	 */
+	boolean isWritableProperty(String propertyName);
+	
+	/**
 	 * Determine the property type for the specified property,
 	 * either checking the property descriptor or checking the value
 	 * in case of an indexed or mapped element.
@@ -41,14 +51,6 @@ public interface PropertyAccessor {
 	 * @throws BeansException
 	 */
 	Class<?> getPropertyType(String propertyName) throws BeansException;
-	
-	/**
-	 * Determine whether the specified property is writable.
-	 * Returns false if the property doesn't exist.
-	 * @param propertyName
-	 * @return
-	 */
-	boolean isWritableProperty(String propertyName);
 	
 	/**
 	 * Return a type descriptor for the specified property:

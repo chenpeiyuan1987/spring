@@ -2,7 +2,7 @@ package org.yuan.study.spring.beans;
 
 import java.beans.PropertyDescriptor;
 
-public interface BeanWrapper extends PropertyAccessor, PropertyEditorRegistry {
+public interface BeanWrapper extends ConfigurablePropertyAccessor {
 	
 	/**
 	 * Return the bean instance wrapped by this object, if any.
@@ -11,9 +11,10 @@ public interface BeanWrapper extends PropertyAccessor, PropertyEditorRegistry {
 	Object getWrappedInstance();
 	
 	/**
-	 * Change the wrapped JavaBean object.
+	 * Return the type of the wrapped JavaBean object.
+	 * @return
 	 */
-	void setWrappedInstance(Object object);
+	Class<?> getWrappedClass();
 	
 	/**
 	 * Obtain the PropertyDescriptors for the wrapped object.
@@ -29,39 +30,22 @@ public interface BeanWrapper extends PropertyAccessor, PropertyEditorRegistry {
 	PropertyDescriptor getPropertyDescriptor(String propertyName);
 	
 	/**
-	 * Determine the property type for the specified property, 
-	 * either checking the property descriptor or checking the value in case of an indexed or mapped element.
-	 * @param propertyName
-	 * @return
+	 * Set whether this BeanWrapper should attempt to "auto-grow" a nested path that contains a null value.
 	 */
-	Class<?> getPropertyType(String propertyName);
+	void setAutoGrowNestedPaths(boolean autoGrowNestedPaths);
 	
 	/**
-	 * Return the type of the wrapped JavaBean object.
-	 * @return
+	 * Return whether "auto-growing" of nested paths has been activated.
 	 */
-	Class<?> getWrappedClass();
+	boolean isAutoGrowNestedPaths();
 	
 	/**
-	 * Return whether to extract the old property value when applying a property editor to a new value for a property.
-	 * @return
+	 * Specify a limit for array and collection auto growing.
 	 */
-	boolean isExtractOldValueForEditor();
+	void setAutoGrowCollectionLimit(int autoGrowCollectionLimit);
 	
 	/**
-	 * Determine whether the specified property is readable.
-	 * @return
+	 * Return the limit for array and collection auto growing.
 	 */
-	boolean isReadableProperty(String propertyName);
-	
-	/**
-	 * Determine whether the specified property is writable.
-	 * @return
-	 */
-	boolean isWritableProperty(String propertyName);
-	
-	/**
-	 * Set whether to extract the old property value when applying a property editor to a new value for a property.
-	 */
-	void setExtractOldValueForEditor(boolean extractOldValueForEditor);
+	int getAutoGrowCollectionLimit();
 }

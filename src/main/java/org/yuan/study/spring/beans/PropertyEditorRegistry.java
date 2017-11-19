@@ -20,7 +20,8 @@ public interface PropertyEditorRegistry {
 	void registerCustomEditor(Class<?> requiredType, PropertyEditor propertyEditor);
 	
 	/**
-	 * Register the given custom property editor for the given type and property, or for all properties of the given type.
+	 * Register the given custom property editor for the given type and property, 
+	 * or for all properties of the given type.
 	 * @param requiredType
 	 * @param propertyPath
 	 * @param propertyEditor
