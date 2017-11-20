@@ -9,6 +9,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 
 import org.junit.Test;
+import org.yuan.study.spring.beans.propertyeditors.StringTrimmerEditor;
 
 import test.beans.IndexedTestBean;
 import test.beans.NumberTestBean;
@@ -94,44 +95,74 @@ public final class BeanWrapperTest {
 	}
 	
 	@Test
+	public void testTypeDeterminationForIndexedProperty() {
+		BeanWrapper bw = new BeanWrapperImpl(IndexedTestBean.class);
+		assertEquals(null, bw.getPropertyType("map[key0]"));
+		
+		bw = new BeanWrapperImpl(IndexedTestBean.class);
+		bw.setPropertyValue("map[key0]", "my String");
+		assertEquals(String.class, bw.getPropertyType("map[key0]"));
+		
+		bw = new BeanWrapperImpl(IndexedTestBean.class);
+		bw.registerCustomEditor(String.class, "map[key0]", new StringTrimmerEditor(false));
+		assertEquals(String.class, bw.getPropertyType("map[key0]"));
+	}
+	
+	@Test
+	public void testGetterThrowsException() {
+		Getter getter = new Getter();
+		BeanWrapper bw = new BeanWrapperImpl(getter);
+		bw.setPropertyValue("name", "tom");
+		assertTrue(getter.getName().equals("tom"));
+	}
+	
+	@Test
+	public void testEmptyPropertyValuesSet() {
+		TestBean t = new TestBean();
+		int age = 30;
+		String name = "chen";
+		t.setAge(age);
+		t.setName(name);
+		
+		BeanWrapper bw = new BeanWrapperImpl(t);
+		assertTrue(t.getAge() == age);
+		assertTrue(name.equals(t.getName()));
+		
+		bw.setPropertyValues(new MutablePropertyValues());
+		assertTrue(t.getAge() == age);
+		assertTrue(name.equals(t.getName()));
+	}
+	
+	@Test
 	public void testAllValid() {
 		TestBean t = new TestBean();
 		int age = 65;
 		String name = "tony";
 		String touchy = "valid";
-		try {
-			BeanWrapper bw = new BeanWrapperImpl(t);
-			MutablePropertyValues pvs = new MutablePropertyValues();
-			pvs.addPropertyValue("age", age);
-			pvs.addPropertyValue("name", name);
-			pvs.addPropertyValue("touchy", touchy);
-			bw.setPropertyValues(pvs);
-			
-			assertEquals(age, t.getAge());
-			assertEquals(name, t.getName());
-			assertEquals(touchy, t.getTouchy());
-		}
-		catch (BeansException ex) {
-			fail();
-		}
+		
+		BeanWrapper bw = new BeanWrapperImpl(t);
+		MutablePropertyValues pvs = new MutablePropertyValues();
+		pvs.addPropertyValue("age", age);
+		pvs.addPropertyValue("name", name);
+		pvs.addPropertyValue("touchy", touchy);
+		bw.setPropertyValues(pvs);
+		
+		assertEquals(age, t.getAge());
+		assertEquals(name, t.getName());
+		assertEquals(touchy, t.getTouchy());
 	}
 	
 	@Test
 	public void testBeanWrapperUpdates() {
 		TestBean t = new TestBean();
 		int age = 33;
-		try {
-			t.setAge(age);
-			
-			BeanWrapper bw = new BeanWrapperImpl(t);
-			Object obj = bw.getPropertyValue("age");
-			assertTrue(obj instanceof Integer);
-			int tmp = ((Integer)obj).intValue();
-			assertEquals(age, tmp);
-		}
-		catch (Exception ex) {
-			fail();
-		}
+		t.setAge(age);
+		
+		BeanWrapper bw = new BeanWrapperImpl(t);
+		Object obj = bw.getPropertyValue("age");
+		assertTrue(obj instanceof Integer);
+		int tmp = ((Integer)obj).intValue();
+		assertEquals(age, tmp);
 	}
 	
 	@Test

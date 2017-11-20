@@ -220,8 +220,9 @@ public final class BeanWrapperTests {
 		TestBean t = new TestBean();
 		int newAge = 33;
 		try {
-			BeanWrapper bw = new BeanWrapperImpl(t);
 			t.setAge(newAge);
+			
+			BeanWrapper bw = new BeanWrapperImpl(t);
 			Object bwAge = bw.getPropertyValue("age");
 			assertTrue("Age is an integer", bwAge instanceof Integer);
 			int bwi = ((Integer) bwAge).intValue();
