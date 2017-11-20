@@ -7,6 +7,7 @@ import java.util.Map;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.yuan.study.spring.core.CollectionFactory;
 import org.yuan.study.spring.core.MethodParameter;
 import org.yuan.study.spring.core.convert.TypeDescriptor;
 import org.yuan.study.spring.util.ClassUtils;
@@ -93,8 +94,25 @@ class TypeConverterDelegate {
 		
 	}
 	
-	protected Map convertToTypedMap() {
+	protected Map convertToTypedMap(Map original, String propertyName, Class<?> requiredType, TypeDescriptor typeDescriptor) {
+		if (!Map.class.isAssignableFrom(requiredType)) {
+			return original;
+		}
 		
+		boolean approximable = CollectionFactory.isApproximableMapType(requiredType);
+		if (!approximable && !canCreateCopy(requiredType)) {
+			if (logger.isDebugEnabled()) {
+				logger.debug(String.format(
+					"Custom Map type [%s] does not allow for creating a copy - injecting original Map as-is", 
+						original.getClass().getName()));
+			}
+			return original;
+		}
+		
+		boolean originalAllowed = requiredType.isInstance(original);
+		Class<?> keyType = null;
+		Class<?> valType = null;
+		MethodParameter methodParam = typeDescriptor.get
 	}
 	
 	private String buildIndexedPropertyName(String propertyName, int index) {
