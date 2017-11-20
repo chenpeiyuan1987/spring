@@ -5,9 +5,14 @@ import java.io.File;
 import java.io.InputStream;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.net.URI;
 import java.net.URL;
+import java.nio.charset.Charset;
 import java.util.Collection;
+import java.util.Currency;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
@@ -15,10 +20,13 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
+import java.util.SortedMap;
 import java.util.SortedSet;
+import java.util.TimeZone;
+import java.util.UUID;
+import java.util.regex.Pattern;
 
-import javax.swing.plaf.basic.DefaultMenuLayout;
-
+import org.xml.sax.InputSource;
 import org.yuan.study.spring.beans.propertyeditors.ByteArrayPropertyEditor;
 import org.yuan.study.spring.beans.propertyeditors.CharArrayPropertyEditor;
 import org.yuan.study.spring.beans.propertyeditors.CharacterEditor;
@@ -49,9 +57,9 @@ public class PropertyEditorRegistrySupport implements PropertyEditorRegistry {
 
 	private Map<Class<?>, PropertyEditor> overriddenDefaultEditors;
 	
-	private Map<Class<?>, Object> customEditors;
+	private Map<Class<?>, PropertyEditor> customEditors;
 	
-	private Map<String, CustomEditorHolder> customEditorForPath;
+	private Map<String, CustomEditorHolder> customEditorsForPath;
 	
 	private Set<PropertyEditor> sharedEditors;
 	
@@ -127,30 +135,67 @@ public class PropertyEditorRegistrySupport implements PropertyEditorRegistry {
 	}
 	
 	/**
-	 * Copy the custom editors registered in this instance to the given target registry.
-	 * @param target
-	 * @param nestedProperty
+	 * Actually register the default editors for this registry instance.
 	 */
-	protected void copyCustomEditorsTo(PropertyEditorRegistry target, String nestedProperty) {
-		String actualPropertyName = (nestedProperty != null ? PropertyAccessorUtils.getPropertyName(nestedProperty) : null);
-		if (this.customEditors != null) {
-			for (Entry<Object,Object> entry : this.customEditors.entrySet()) {
-				if (entry.getKey() instanceof Class) {
-					target.registerCustomEditor((Class<?>)entry.getKey(), (PropertyEditor)entry.getValue());
-				}
-				else if (entry.getKey() instanceof String & nestedProperty != null) {
-					String editorPath = (String)entry.getKey();
-					int pos = PropertyAccessorUtils.getFirstNestedPropertySeparatorIndex(editorPath);
-					if (pos != -1) {
-						String editorNestedProperty = editorPath.substring(0, pos);
-						String editorNestedPath = editorPath.substring(pos + 1);
-						if (editorNestedProperty.equals(nestedProperty) || editorNestedProperty.equals(actualPropertyName)) {
-							CustomEditorHolder editorHolder = (CustomEditorHolder)entry.getValue();
-							target.registerCustomEditor(editorHolder.getRegisteredType(), editorNestedPath, editorHolder.getPropertyEditor());
-						}
-					}
-				}
-			}
+	private void createDefaultEditors() {
+		this.defaultEditors = new HashMap<Class<?>, PropertyEditor>(64);
+		
+		this.defaultEditors.put(Charset.class, null);
+		this.defaultEditors.put(Class.class, new ClassEditor());
+		this.defaultEditors.put(Class[].class, null);
+		this.defaultEditors.put(Currency.class, null);
+		this.defaultEditors.put(File.class, new FileEditor());
+		this.defaultEditors.put(InputStream.class, new InputStreamEditor());
+		this.defaultEditors.put(InputSource.class, null);
+		this.defaultEditors.put(Locale.class, new LocaleEditor());
+		this.defaultEditors.put(Pattern.class, null);
+		this.defaultEditors.put(Properties.class, new PropertiesEditor());
+		this.defaultEditors.put(Resource[].class, new ResourceEditor());
+		this.defaultEditors.put(TimeZone.class, null);
+		this.defaultEditors.put(URI.class, null);
+		this.defaultEditors.put(URL.class, new URLEditor());
+		this.defaultEditors.put(UUID.class, null);
+		
+		
+		this.defaultEditors.put(Collection.class, new CustomCollectionEditor(Collection.class));
+		this.defaultEditors.put(Set.class, new CustomCollectionEditor(Set.class));
+		this.defaultEditors.put(SortedSet.class, new CustomCollectionEditor(SortedSet.class));
+		this.defaultEditors.put(List.class, new CustomCollectionEditor(List.class));
+		this.defaultEditors.put(SortedMap.class, null);
+		
+		
+		this.defaultEditors.put(byte[].class, new ByteArrayPropertyEditor());
+		this.defaultEditors.put(char[].class, new CharArrayPropertyEditor());
+		
+		
+		this.defaultEditors.put(char.class, new CharacterEditor(false));
+		this.defaultEditors.put(Character.class, new CharacterEditor(true));
+		this.defaultEditors.put(boolean.class, new CustomBooleanEditor(false));
+		this.defaultEditors.put(Boolean.class, new CustomBooleanEditor(true));
+		
+		
+		this.defaultEditors.put(byte.class, new CustomNumberEditor(Byte.class, false));
+		this.defaultEditors.put(Byte.class, new CustomNumberEditor(Byte.class, true));
+		this.defaultEditors.put(short.class, new CustomNumberEditor(Short.class, false));
+		this.defaultEditors.put(Short.class, new CustomNumberEditor(Short.class, true));
+		this.defaultEditors.put(int.class, new CustomNumberEditor(Integer.class, false));
+		this.defaultEditors.put(Integer.class, new CustomNumberEditor(Integer.class, true));
+		this.defaultEditors.put(long.class, new CustomNumberEditor(Long.class, false));
+		this.defaultEditors.put(Long.class, new CustomNumberEditor(Long.class, true));
+		this.defaultEditors.put(float.class, new CustomNumberEditor(Float.class, false));
+		this.defaultEditors.put(Float.class, new CustomNumberEditor(Float.class, true));
+		this.defaultEditors.put(double.class, new CustomNumberEditor(Double.class, false));
+		this.defaultEditors.put(Double.class, new CustomNumberEditor(Double.class, true));
+		this.defaultEditors.put(BigDecimal.class, new CustomNumberEditor(BigDecimal.class, true));
+		this.defaultEditors.put(BigInteger.class, new CustomNumberEditor(BigInteger.class, true));
+		
+		
+		if (this.configValueEditorsActive) {
+			StringArrayPropertyEditor sae = new StringArrayPropertyEditor();
+			this.defaultEditors.put(String[].class, sae);
+			this.defaultEditors.put(short[].class, sae);
+			this.defaultEditors.put(int[].class, sae);
+			this.defaultEditors.put(long[].class, sae);
 		}
 	}
 	
@@ -159,7 +204,43 @@ public class PropertyEditorRegistrySupport implements PropertyEditorRegistry {
 	 * @param target
 	 */
 	protected void copyDefaultEditorsTo(PropertyEditorRegistrySupport target) {
+		target.defaultEditorsActive = target.defaultEditorsActive;
+		target.configValueEditorsActive = this.configValueEditorsActive;
 		target.defaultEditors = this.defaultEditors;
+		target.overriddenDefaultEditors = this.overriddenDefaultEditors;
+	}
+	
+	/**
+	 * Copy the custom editors registered in this instance to the given target registry.
+	 * @param target
+	 * @param nestedProperty
+	 */
+	protected void copyCustomEditorsTo(PropertyEditorRegistry target, String nestedProperty) {
+		String actualPropertyName = (nestedProperty != null ? PropertyAccessorUtils.getPropertyName(nestedProperty) : null);
+		if (customEditors != null) {
+			for (Entry<Class<?>, PropertyEditor> entry : customEditors.entrySet()) {
+				target.registerCustomEditor(entry.getKey(), entry.getValue());
+			}
+		}
+		if (customEditorsForPath != null) {
+			for (Entry<String, CustomEditorHolder> entry : this.customEditorsForPath.entrySet()) {
+				String editorPath = entry.getKey();
+				CustomEditorHolder editorHolder = entry.getValue();
+				if (nestedProperty != null) {
+					int pos = PropertyAccessorUtils.getFirstNestedPropertySeparatorIndex(editorPath);
+					if (pos != -1) {
+						String editorNestedProperty = editorPath.substring(0, pos);
+						String editorNestedPath = editorPath.substring(pos + 1);
+						if (editorNestedProperty.equals(nestedProperty) || editorNestedProperty.equals(actualPropertyName)) {
+							target.registerCustomEditor(editorHolder.getRegisteredType(), editorNestedPath, editorHolder.getPropertyEditor());
+						}
+					}
+				}
+				else {
+					target.registerCustomEditor(editorHolder.getRegisteredType(), editorPath, editorHolder.getPropertyEditor());
+				}
+			}
+		}
 	}
 	
 	/**
@@ -177,8 +258,8 @@ public class PropertyEditorRegistrySupport implements PropertyEditorRegistry {
 	 * @return
 	 */
 	protected Class<?> guessPropertyTypeFromEditors(String propertyName) {
-		if (this.customEditors != null) {
-			CustomEditorHolder editorHolder = (CustomEditorHolder) this.customEditors.get(propertyName);
+		if (this.customEditorsForPath != null) {
+			CustomEditorHolder editorHolder = this.customEditorsForPath.get(propertyName);
 			if (editorHolder == null) {
 				List<String> strippedPaths = new LinkedList<String>();
 				addStrippedPropertyPaths(strippedPaths, "", propertyName);
@@ -196,61 +277,7 @@ public class PropertyEditorRegistrySupport implements PropertyEditorRegistry {
 		return null;
 	}
 	
-	/**
-	 * Actually register the default editors for this registry instance.
-	 */
-	private void createDefaultEditors() {
-		this.defaultEditors = new HashMap<Class<?>, PropertyEditor>(32);
-		
-		this.defaultEditors.put(Class.class, new ClassEditor());
-		this.defaultEditors.put(File.class, new FileEditor());
-		this.defaultEditors.put(InputStream.class, new InputStreamEditor());
-		this.defaultEditors.put(Locale.class, new LocaleEditor());
-		this.defaultEditors.put(Properties.class, new PropertiesEditor());
-		this.defaultEditors.put(Resource[].class, new ResourceEditor());
-		this.defaultEditors.put(String[].class, new StringArrayPropertyEditor());
-		this.defaultEditors.put(URL.class, new URLEditor());
-		
-		
-		this.defaultEditors.put(Collection.class, new CustomCollectionEditor(Collection.class));
-		this.defaultEditors.put(Set.class, new CustomCollectionEditor(Set.class));
-		this.defaultEditors.put(SortedSet.class, new CustomCollectionEditor(SortedSet.class));
-		this.defaultEditors.put(List.class, new CustomCollectionEditor(List.class));
-		
-		
-		this.defaultEditors.put(byte[].class, new ByteArrayPropertyEditor());
-		this.defaultEditors.put(char[].class, new CharArrayPropertyEditor());
-		
-		
-		PropertyEditor characterEditor = new CharacterEditor(false);
-		PropertyEditor booleanEditor = new CustomBooleanEditor(false);
-		this.defaultEditors.put(char.class, characterEditor);
-		this.defaultEditors.put(Character.class, characterEditor);
-		this.defaultEditors.put(boolean.class, booleanEditor);
-		this.defaultEditors.put(Boolean.class, booleanEditor);
-		
-		
-		PropertyEditor byteEditor = new CustomNumberEditor(Byte.class, false);
-		PropertyEditor shortEditor = new CustomNumberEditor(Short.class, false);
-		PropertyEditor integerEditor = new CustomNumberEditor(Integer.class, false);
-		PropertyEditor longEditor = new CustomNumberEditor(Long.class, false);
-		PropertyEditor floatEditor = new CustomNumberEditor(Float.class, false);
-		PropertyEditor doubleEditor = new CustomNumberEditor(Double.class, false);
-		this.defaultEditors.put(byte.class, byteEditor);
-		this.defaultEditors.put(Byte.class, byteEditor);
-		this.defaultEditors.put(short.class, shortEditor);
-		this.defaultEditors.put(Short.class, shortEditor);
-		this.defaultEditors.put(int.class, integerEditor);
-		this.defaultEditors.put(Integer.class, integerEditor);
-		this.defaultEditors.put(long.class, longEditor);
-		this.defaultEditors.put(Long.class, longEditor);
-		this.defaultEditors.put(float.class, floatEditor);
-		this.defaultEditors.put(Float.class, floatEditor);
-		this.defaultEditors.put(double.class, doubleEditor);
-		this.defaultEditors.put(Double.class, doubleEditor);
-		this.defaultEditors.put(BigDecimal.class, new CustomNumberEditor(BigDecimal.class, false));
-		this.defaultEditors.put(BigInteger.class, new CustomNumberEditor(BigInteger.class, false));
-	}
+	
 	
 	/**
 	 * Add property paths with all variations of stripped keys end/or indexes.
@@ -281,19 +308,19 @@ public class PropertyEditorRegistrySupport implements PropertyEditorRegistry {
 	 * @return
 	 */
 	private PropertyEditor getCustomEditor(Class<?> requiredType) {
-		if (requiredType == null) {
+		if (requiredType == null || this.customEditors == null) {
 			return null;
 		}
 		
-		PropertyEditor editor = (PropertyEditor) this.customEditors.get(requiredType);
+		PropertyEditor editor = this.customEditors.get(requiredType);
 		if (editor == null) {
 			if (this.customEditorCache != null) {
-				editor = (PropertyEditor) this.customEditorCache.get(requiredType);
+				editor = this.customEditorCache.get(requiredType);
 			}
 			if (editor == null) {
-				for (Object key : this.customEditors.keySet()) {
-					if (key instanceof Class && ((Class<?>)key).isAssignableFrom(requiredType)) {
-						editor = (PropertyEditor) this.customEditors.get(key);
+				for (Class<?> key : this.customEditors.keySet()) {
+					if (key.isAssignableFrom(requiredType)) {
+						editor = this.customEditors.get(key);
 						if (this.customEditorCache == null) {
 							this.customEditorCache = new HashMap<Class<?>, PropertyEditor>();
 						}
@@ -313,10 +340,9 @@ public class PropertyEditorRegistrySupport implements PropertyEditorRegistry {
 	 * @return
 	 */
 	private PropertyEditor getCustomEditor(String propertyName, Class<?> requiredType) {
-		CustomEditorHolder holder = (CustomEditorHolder) this.customEditors.get(propertyName);
+		CustomEditorHolder holder = customEditorsForPath.get(propertyName);
 		return (holder != null ? holder.getPropertyEditor(requiredType) : null);
 	}
-	
 	
 	//----------------------------------------------------------------------
 	// Implementation of PropertyEditorRegistry interafce
@@ -324,26 +350,29 @@ public class PropertyEditorRegistrySupport implements PropertyEditorRegistry {
 
 	@Override
 	public PropertyEditor findCustomEditor(Class<?> requiredType, String propertyPath) {
-		if (this.customEditors == null) {
-			return null;
-		}
+		Class<?> requiredTypeToUse = requiredType;
 		if (propertyPath != null) {
-			PropertyEditor editor = getCustomEditor(propertyPath, requiredType);
-			if (editor == null) {
-				List<String> strippedPaths = new LinkedList<String>();
-				addStrippedPropertyPaths(strippedPaths, "", propertyPath);
-				for (String strippedPath : strippedPaths) {
-					editor = getCustomEditor(strippedPath, requiredType);
+			if (customEditorsForPath != null) {
+				PropertyEditor editor = getCustomEditor(propertyPath, requiredType);
+				if (editor == null) {
+					List<String> strippedPaths = new LinkedList<String>();
+					addStrippedPropertyPaths(strippedPaths, "", propertyPath);
+					for (String strippedPath : strippedPaths) {
+						editor = getCustomEditor(strippedPath, requiredType);
+						if (editor != null) {
+							break;
+						}
+					}
+				}
+				if (editor != null) {
+					return editor;
 				}
 			}
-			if (editor != null) {
-				return editor;
-			}
-			else if (requiredType == null) {
-				requiredType = getPropertyType(propertyPath);
+			if (requiredType == null) {
+				requiredTypeToUse = getPropertyType(propertyPath);
 			}
 		}
-		return getCustomEditor(requiredType);
+		return getCustomEditor(requiredTypeToUse);
 	}
 
 	@Override
@@ -356,18 +385,67 @@ public class PropertyEditorRegistrySupport implements PropertyEditorRegistry {
 		if (requiredType == null && propertyPath == null) {
 			throw new IllegalArgumentException("Either requiredType or propertyPath is required");
 		}
-		if (this.customEditors == null) {
-			this.customEditors = new HashMap<Object,Object>(16);
-		}
 		if (propertyPath != null) {
-			this.customEditors.put(propertyPath, new CustomEditorHolder(propertyEditor, requiredType));
+			if (customEditorsForPath == null) {
+				customEditorsForPath = new LinkedHashMap<String, CustomEditorHolder>(16);
+			}
+			customEditorsForPath.put(propertyPath, new CustomEditorHolder(propertyEditor, requiredType));
 		}
 		else {
+			if (this.customEditors == null) {
+				this.customEditors = new LinkedHashMap<Class<?>, PropertyEditor>(16);
+			}
 			this.customEditors.put(requiredType, propertyEditor);
 			this.customEditorCache = null;
 		}
 	}
+	
+	/**
+	 * Register the given custom property editor for all properties
+	 * of the given type, indicating that the given instance is a 
+	 * shared editor that might be used concurrently.
+	 * @param requiredType
+	 * @param propertyEditor
+	 */
+	public void registerSharedEditor(Class<?> requiredType, PropertyEditor propertyEditor) {
+		registerCustomEditor(requiredType, null, propertyEditor);
+		if (sharedEditors == null) {
+			sharedEditors = new HashSet<PropertyEditor>();
+		}
+		sharedEditors.add(propertyEditor);
+	}
 
+	/**
+	 * Check whether the given editor instance is a shared editor, that is,
+	 * whether the given editor instance might be used concurrently.
+	 * @param propertyEditor
+	 * @return
+	 */
+	public boolean isSharedEditor(PropertyEditor propertyEditor) {
+		return (sharedEditors != null && sharedEditors.contains(propertyEditor));
+	}
+	
+	/**
+	 * Determine whether this registry contains a custom editor
+	 * for the specified array/collection element.
+	 * @param elementType
+	 * @param propertyPath
+	 * @return
+	 */
+	public boolean hasCustomEditorForElement(Class<?> elementType, String propertyPath) {
+		if (propertyPath != null && customEditorsForPath != null) {
+			for (Entry<String, CustomEditorHolder> entry : customEditorsForPath.entrySet()) {
+				if (PropertyAccessorUtils.matchesProperty(entry.getKey(), propertyPath)) {
+					if (entry.getValue().getPropertyEditor(elementType) != null) {
+						return true;
+					}
+				}
+			}
+		}
+		
+		return (elementType != null && customEditors != null && customEditors.containsKey(elementType));
+	}
+	
 	//----------------------------------------------------------------------
 	// Implementation inner class
 	//----------------------------------------------------------------------

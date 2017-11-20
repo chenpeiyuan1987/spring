@@ -107,4 +107,14 @@ public abstract class PropertyAccessorUtils {
 		}
 		return result;
 	}
+	
+	/**
+	 * 
+	 * @param str
+	 * @param path
+	 * @return
+	 */
+	public static boolean matchesProperty(String str, String path) {
+		return false;
+	}
 }
