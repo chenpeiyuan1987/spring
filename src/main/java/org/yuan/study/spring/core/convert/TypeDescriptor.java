@@ -6,9 +6,12 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.yuan.study.spring.core.GenericCollectionTypeResolver;
 import org.yuan.study.spring.core.MethodParameter;
 import org.yuan.study.spring.util.Assert;
 import org.yuan.study.spring.util.ClassUtils;
+import org.yuan.study.spring.util.CollectionUtils;
+import org.yuan.study.spring.util.ObjectUtils;
 
 public class TypeDescriptor {
 	
@@ -196,7 +199,6 @@ public class TypeDescriptor {
 		if (!type.isPrimitive()) {
 			return false;
 		}
-		
 		return true;
 	}
 	
@@ -208,7 +210,6 @@ public class TypeDescriptor {
 		if (!type.isArray()) {
 			return false;
 		}
-		
 		return true;
 	}
 	
@@ -240,7 +241,154 @@ public class TypeDescriptor {
 	}
 	
 	public boolean isMapEntryTypeKnown() {
-		
+		if (!isMap()) {
+			return false;
+		}
+		if (getMapKeyType() == null) {
+			return false;
+		}
+		if (getMapValueType() == null) {
+			return false;
+		}
+		return true;
+	}
+	
+	public Class<?> getMapKeyType() {
+		return getMapKeyTypeDescriptor().getType();
+	}
+	
+	public TypeDescriptor getMapKeyTypeDescriptor() {
+		if (mapKeyType == null) {
+			mapKeyType = forElementType(resolveMapKeyType());
+		}
+		return mapKeyType;
+	}
+	
+	public TypeDescriptor getMapKeyTypeDescriptor(Object key) {
+		TypeDescriptor keyType = getMapKeyTypeDescriptor();
+		if (TypeDescriptor.UNKNOWN.equals(keyType)) {
+			return TypeDescriptor.forObject(key);
+		}
+		return keyType;
+	}
+	
+	public Class<?> getMapValueType() {
+		return getMapValueTypeDescriptor().getType();
+	}
+	
+	public TypeDescriptor getMapValueTypeDescriptor() {
+		if (mapValueType == null) {
+			mapValueType = forElementType(resolveMapValueType());
+		}
+		return mapValueType;
+	}
+	
+	public TypeDescriptor getMapValueTypeDescriptor(Object value) {
+		TypeDescriptor valueType = getMapValueTypeDescriptor();
+		if (TypeDescriptor.UNKNOWN.equals(valueType)) {
+			return TypeDescriptor.forObject(value);
+		}
+		return valueType;
+	}
+	
+	public Annotation[] getAnnotations() {
+		if (annotations == null) {
+			annotations = resolveAnnotations();
+		}
+		return annotations;
+	}
+	
+	public Annotation getAnnotation(Class<? extends Annotation> annotationType) {
+		for (Annotation annotation : getAnnotations()) {
+			if (annotation.annotationType().equals(annotationType)) {
+				return annotation;
+			}
+		}
+		return null;
+	}
+	
+	public boolean isAssignableTo(TypeDescriptor targetType) {
+		if (this == TypeDescriptor.NULL || targetType == TypeDescriptor.NULL) {
+			return true;
+		}
+		if (isCollection() && targetType.isCollection() || isArray() && targetType.isArray()) {
+			return targetType.getType().isAssignableFrom(getType())
+				&& getElementTypeDescriptor().isAssignableTo(targetType.getElementTypeDescriptor());
+		}
+		if (isMap() && targetType.isMap()) {
+			return targetType.getType().isAssignableFrom(getType())
+				&& getMapKeyTypeDescriptor().isAssignableTo(targetType.getMapKeyTypeDescriptor())
+				&& getMapValueTypeDescriptor().isAssignableTo(targetType.getMapValueTypeDescriptor());
+		}
+		return targetType.getObjectType().isAssignableFrom(getObjectType());
+	}
+	
+	public TypeDescriptor forElementType(Class<?> elementType) {
+		if (elementType == null) {
+			return TypeDescriptor.UNKNOWN;
+		}
+		if (methodParameter != null) {
+			MethodParameter nested = new MethodParameter(methodParameter);
+			nested.increaseNestingLevel();
+			return new TypeDescriptor(nested, elementType);
+		}
+		if (field != null) {
+			return new TypeDescriptor(field, fieldNestingLevel + 1, elementType);
+		}
+		return TypeDescriptor.valueOf(elementType);
+	}
+	
+	public boolean equals(Object obj) {
+		if (this == obj) {
+			return true;
+		}
+		if (!(obj instanceof TypeDescriptor)) {
+			return false;
+		}
+		TypeDescriptor other = (TypeDescriptor) obj;
+		boolean annotatedTypeEquals = getType().equals(other.getType()) 
+			&& ObjectUtils.nullSafeEquals(getAnnotations(), other.getAnnotations());
+		if (isCollection()) {
+			return annotatedTypeEquals && ObjectUtils.nullSafeEquals(getElementType(), other.getElementType());
+		}
+		if (isMap()) {
+			return annotatedTypeEquals && ObjectUtils.nullSafeEquals(getMapKeyType(), other.getMapKeyType())
+				&& ObjectUtils.nullSafeEquals(getMapValueType(), other.getMapValueType());
+		}
+		return annotatedTypeEquals;
+	}
+	
+	public int hashCode() {
+		if (this == TypeDescriptor.NULL) {
+			return 0;
+		}
+		return getType().hashCode();
+	}
+	
+	public String asString() {
+		return toString();
+	}
+	
+	public String toString() {
+		if (this == TypeDescriptor.NULL) {
+			return "null";
+		}
+		else {
+			StringBuilder builder = new StringBuilder();
+			Annotation[] anns = getAnnotations();
+			for (Annotation ann : anns) {
+				builder.append("@").append(ann.annotationType().getName()).append(" ");
+			}
+			builder.append(ClassUtils.getQualifiedName(getType()));
+			if (isMap()) {
+				builder.append("<").append(getMapKeyTypeDescriptor());
+				builder.append(", ").append(getMapValueTypeDescriptor()).append(">");
+			}
+			else if (isCollection()) {
+				builder.append("<").append(getElementTypeDescriptor()).append(">");
+			}
+			return builder.toString();
+		}
 	}
 	
 	//--------------------------------------------------
@@ -249,8 +397,85 @@ public class TypeDescriptor {
 	
 	private Class<?> resolveElementType() {
 		if (isArray()) {
-			
+			return getType().getComponentType();
 		}
+		if (isCollection()) {
+			return resolveCollectionElementType();
+		}
+		return null;
+	}
+	
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	private Class<?> resolveCollectionElementType() {
+		if (field != null) {
+			return GenericCollectionTypeResolver.getCollectionFieldType(field, fieldNestingLevel);
+		}
+		if (methodParameter != null) {
+			return GenericCollectionTypeResolver.getCollectionParameterType(methodParameter);
+		}
+		if (value instanceof Collection) {
+			Class<?> type = CollectionUtils.findCommonElementType((Collection) value);
+			if (type != null) {
+				return type;
+			}
+		}
+		if (type != null) {
+			return GenericCollectionTypeResolver.getCollectionType((Class<? extends Collection>) type);
+		}
+		return null;
+	}
+	
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	private Class<?> resolveMapKeyType() {
+		if (field != null) {
+			return GenericCollectionTypeResolver.getMapKeyFieldType(field);
+		}
+		if (methodParameter != null) {
+			return GenericCollectionTypeResolver.getMapKeyParameterType(methodParameter);
+		}
+		if (value instanceof Map<?, ?>) {
+			Class<?> keyType = CollectionUtils.findCommonElementType(((Map<?, ?>) value).keySet());
+			if (keyType != null) {
+				return keyType;
+			}
+		}
+		if (type != null && isMap()) {
+			return GenericCollectionTypeResolver.getMapKeyType((Class<? extends Map>) type);
+		}
+		return null;
+	}
+	
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	private Class<?> resolveMapValueType() {
+		if (field != null) {
+			return GenericCollectionTypeResolver.getMapValueFieldType(field);
+		}
+		if (methodParameter != null) {
+			return GenericCollectionTypeResolver.getMapValueParameterType(methodParameter);
+		}
+		if (value instanceof Map<?, ?>) {
+			Class<?> type = CollectionUtils.findCommonElementType(((Map<?, ?>) value).values());
+			if (type != null) {
+				return type;
+			}
+		}
+		if (type != null && isMap()) {
+			return GenericCollectionTypeResolver.getMapValueType((Class<? extends Map>) type);
+		}
+		return null;
+	}
+	
+	private Annotation[] resolveAnnotations() {
+		if (field != null) {
+			return field.getAnnotations();
+		}
+		if (methodParameter != null) {
+			if (methodParameter.getParameterIndex() < 0) {
+				return methodParameter.getMethodAnnotations();
+			}
+			return methodParameter.getParameterAnnotations();
+		}
+		return EMPTY_ANNOTATION_ARRAY;
 	}
 	
 	//--------------------------------------------------

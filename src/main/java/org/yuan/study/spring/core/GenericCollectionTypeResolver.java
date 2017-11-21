@@ -11,6 +11,7 @@ import java.lang.reflect.WildcardType;
 import java.util.Collection;
 import java.util.Map;
 
+@SuppressWarnings("rawtypes")
 public abstract class GenericCollectionTypeResolver {
 
 	/**
@@ -231,12 +232,10 @@ public abstract class GenericCollectionTypeResolver {
 		if (resolvedType instanceof ParameterizedType) {
 			return extractTypeFromParameterizedType(methodParam, (ParameterizedType)resolvedType, source, typeIndex, nestingLevel, currentLevel);
 		}
-		else if (resolvedType instanceof Class) {
+		if (resolvedType instanceof Class) {
 			return extractTypeFromClass(methodParam, (Class<?>)resolvedType, source, typeIndex, nestingLevel, currentLevel);
 		}
-		else {
-			return null;
-		}
+		return null;
 	}
 	
 	
@@ -262,7 +261,7 @@ public abstract class GenericCollectionTypeResolver {
 			Integer currentTypeIndex = (methodParam != null ? methodParam.getTypeIndexForLevel(nextLevel) : null);
 			int indexToUse = (currentTypeIndex != null ? currentTypeIndex : paramTypes.length - 1);
 			Type paramType = paramTypes[indexToUse];
-			return extractType(methodParam, paramType, source, typeIndex, nestingLevel, currentLevel);
+			return extractType(methodParam, paramType, source, typeIndex, nestingLevel, nextLevel);
 		}
 		if (source != null && !source.isAssignableFrom(rawType)) {
 			return null;
