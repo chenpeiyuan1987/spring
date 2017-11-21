@@ -1,13 +1,20 @@
 package org.yuan.study.spring.core;
 
+import java.lang.ref.Reference;
 import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
+import java.util.Collections;
 import java.util.Map;
+import java.util.WeakHashMap;
 
 import org.yuan.study.spring.util.Assert;
 
 public abstract class GenericTypeResolver {
+	
+	private static final Map<Class, Reference<Map<TypeVariable, Type>>> typeVariableCache = 
+		Collections.synchronizedMap(new WeakHashMap<Class, Reference<Map<TypeVariable, Type>>>());
 
 	/**
 	 * 
@@ -27,6 +34,34 @@ public abstract class GenericTypeResolver {
 				return methodParam.getMethod().getGenericReturnType();
 			}
 		}
+	}
+	
+	public static Class<?> resolveParameterType(MethodParameter methodParam, Class<?> clazz) {
+		
+	}
+	
+	public static Class<?> resolveReturnType(Method method, Class<?> clazz) {
+		
+	}
+	
+	public static Class<?> resolveTypeArgument(Class<?> clazz, Class<?> genericIfc) {
+		
+	}
+	
+	public static Class[] resolveTypeArgument(Class<?> clazz, Class<?> genericIfc) {
+		
+	}
+	
+	private static Class[] doResolveTypeArguments(Class<?> ownerClass, Class<?> classToIntrospect, Class<?> genericIfc) {
+		
+	}
+	
+	private static Class[] doResolveTypeArguments(Class<?> ownerClass, Type ifc, Class<?> genericIfc) {
+		
+	}
+	
+	private static Class<?> extractClass(Class<?> ownerClass, Type arg) {
+		
 	}
 	
 	/**
@@ -51,15 +86,19 @@ public abstract class GenericTypeResolver {
 		return null;
 	}
 	
-	/**
-	 * 
-	 * @param method
-	 * @param clazz
-	 * @return
-	 */
-	public static Class<?> resolveReturnType(Method method, Class<?> clazz) {
-		Assert.notNull(method, "Method must not be null");
+	public static Map<TypeVariable, Type> getTypeVariableMap(Class<?> clazz) {
 		
-		return method.getReturnType();
+	}
+	
+	static Type extractBoundForTypeVariable(TypeVariable typeVariable) {
+		
+	}
+	
+	private static void extractTypeVariablesFromGenericInterfaces(Type[] genericInterfaces, Map<TypeVariable, Type> typeVariableMap) {
+		
+	}
+	
+	private static void populateTypeMapFromParameterizedType(ParameterizedType type, Map<TypeVariable, Type> typeVariableMap) {
+		
 	}
 }
