@@ -14,7 +14,7 @@ public class MethodParameter {
 
 	private Method method;
 	
-	private Constructor constructor;
+	private Constructor<?> constructor;
 	
 	private final int parameterIndex;
 	
@@ -32,7 +32,7 @@ public class MethodParameter {
 	
 	private Map<Integer, Integer> typeIndexesPerLevel;
 	
-	Map<TypeVariable, Type> typeVariableMap;
+	Map<TypeVariable<?>, Type> typeVariableMap;
 
 	
 	/**
@@ -64,7 +64,7 @@ public class MethodParameter {
 	 * @param parameterIndex
 	 * @param nestingLevel
 	 */
-	public MethodParameter(Constructor constructor, int parameterIndex) {
+	public MethodParameter(Constructor<?> constructor, int parameterIndex) {
 		this(constructor, parameterIndex, 1);
 	}
 	
@@ -74,7 +74,7 @@ public class MethodParameter {
 	 * @param parameterIndex
 	 * @param nestingLevel
 	 */
-	public MethodParameter(Constructor constructor, int parameterIndex, int nestingLevel) {
+	public MethodParameter(Constructor<?> constructor, int parameterIndex, int nestingLevel) {
 		Assert.notNull(constructor, "Constructor must not be null");
 		
 		this.constructor = constructor;
@@ -207,7 +207,6 @@ public class MethodParameter {
 	 * @param annotationType
 	 * @return
 	 */
-	@SuppressWarnings("unchecked")
 	public <T extends Annotation> T getMethodAnnotation(Class<T> annotationType) {
 		return (T)(method != null ? method.getAnnotation(annotationType) : constructor.getAnnotation(annotationType));
 	}
@@ -317,7 +316,7 @@ public class MethodParameter {
 			return new MethodParameter((Method) methodOrConstructor, parameterIndex);
 		} 
 		else if (methodOrConstructor instanceof Constructor) {
-			return new MethodParameter((Constructor) methodOrConstructor, parameterIndex);
+			return new MethodParameter((Constructor<?>) methodOrConstructor, parameterIndex);
 		}
 		else {
 			throw new IllegalArgumentException(String.format("Given object [%s] is neither a Method nor a Constructor", methodOrConstructor));
@@ -328,7 +327,7 @@ public class MethodParameter {
 	 * Return the wrapped Constructor, if any.
 	 * @param constructor
 	 */
-	public Constructor getConstructor() {
+	public Constructor<?> getConstructor() {
 		return constructor;
 	}
 	

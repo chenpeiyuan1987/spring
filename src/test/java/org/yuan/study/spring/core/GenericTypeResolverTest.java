@@ -34,7 +34,6 @@ public class GenericTypeResolverTest {
 		assertNull(GenericTypeResolver.resolveTypeArgument(new GenericClass<String>().getClass(), GenericClass.class));
 	}
 	
-	
 	//---------------------------------------------------------
 	// class for test
 	//---------------------------------------------------------
