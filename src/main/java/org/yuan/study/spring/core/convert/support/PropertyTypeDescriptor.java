@@ -1,5 +1,7 @@
 package org.yuan.study.spring.core.convert.support;
 
-public class PropertyTypeDescriptor {
+import org.yuan.study.spring.core.convert.TypeDescriptor;
+
+public class PropertyTypeDescriptor extends TypeDescriptor {
 
 }
