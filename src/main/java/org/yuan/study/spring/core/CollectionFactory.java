@@ -34,13 +34,13 @@ import org.yuan.study.spring.util.LinkedCaseInsensitiveMap;
  */
 public abstract class CollectionFactory {
 	
-	private static Class navigableSetClass = null;
+	private static Class<?> navigableSetClass = null;
 	
-	private static Class navigableMapClass = null;
+	private static Class<?> navigableMapClass = null;
 	
-	private static final Set<Class> approximableCollectionTypes = new HashSet<Class>(10);
+	private static final Set<Class<?>> approximableCollectionTypes = new HashSet<Class<?>>(10);
 	
-	private static final Set<Class> approximableMapTypes = new HashSet<Class>(6);
+	private static final Set<Class<?>> approximableMapTypes = new HashSet<Class<?>>(6);
 
 	static {
 		approximableCollectionTypes.add(Collection.class);
@@ -290,6 +290,8 @@ public abstract class CollectionFactory {
 	 */
 	@Deprecated
 	private static class JdkConcurrentHashMap<K,V> extends ConcurrentHashMap<K,V> implements ConcurrentMap<K,V> {
+		private static final long serialVersionUID = 1L;
+
 		private JdkConcurrentHashMap(int initial) {
 			super(initial);
 		}
