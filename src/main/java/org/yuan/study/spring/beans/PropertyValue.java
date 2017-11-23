@@ -6,7 +6,7 @@ import org.yuan.study.spring.util.Assert;
 import org.yuan.study.spring.util.ObjectUtils;
 
 
-public class PropertyValue implements Serializable {
+public class PropertyValue extends BeanMetadataAttributeAccessor implements Serializable {
 	private static final long serialVersionUID = 1L;
 	
 	private final String name;

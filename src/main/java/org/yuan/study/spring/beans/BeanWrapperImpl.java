@@ -20,6 +20,8 @@ import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.yuan.study.spring.core.CollectionFactory;
+import org.yuan.study.spring.core.GenericCollectionTypeResolver;
 import org.yuan.study.spring.core.MethodParameter;
 import org.yuan.study.spring.core.convert.ConversionException;
 import org.yuan.study.spring.core.convert.ConverterNotFoundException;
@@ -397,6 +399,17 @@ public class BeanWrapperImpl extends PropertyEditorRegistrySupport implements Be
 		
 	}
 	
+	private Object convertIfNecessary(String properName, Object oldValue, Object newValue, Class<?> requiredType) throws TypeMismatchException {
+		return convertIfNecessary(properName, oldValue, newValue, requiredType, TypeDescriptor.valueOf(requiredType));
+	}
+	
+	/**
+	 * Convert the given value for the specified property to the latter's type.
+	 * @param value
+	 * @param propertyName
+	 * @return
+	 * @throws TypeMismatchException
+	 */
 	public Object convertForProperty(Object value, String propertyName) throws TypeMismatchException {
 		PropertyDescriptor pd = getCachedIntrospectionResults().getPropertyDescriptor(propertyName);
 		if (pd == null) {
@@ -410,16 +423,8 @@ public class BeanWrapperImpl extends PropertyEditorRegistrySupport implements Be
 	}
 	
 	//---------------------------------------------------------
-	// Implementation of BeanWrapper interfacee
+	// Implementation methods
 	//---------------------------------------------------------
-	
-	@Override
-	public void setPropertyValues(PropertyValues pvs, boolean ignoreUnknown,
-			boolean ignoreInvalid) throws BeansException {
-		// TODO Auto-generated method stub
-		
-	}
-	
 	/**
 	 * Get the last component of the path. Also works if not nested.
 	 * @param bw
@@ -466,7 +471,13 @@ public class BeanWrapperImpl extends PropertyEditorRegistrySupport implements Be
 		String cannoicalName = tokens.canonicalName;
 		Object propertyValue = getPropertyValue(tokens);
 		if (propertyValue == null) {
-			throw new NullValueInNestedPathException(getRootClass(), this.nestedPath + cannoicalName);
+			if (autoGrowNestedPaths) {
+				propertyValue = setDefaultValue(tokens);
+			} 
+			else {
+				throw new NullValueInNestedPathException(getRootClass(), this.nestedPath + cannoicalName);
+			}
+			
 		}
 		
 		BeanWrapperImpl nestedBw = (BeanWrapperImpl) this.nestedBeanWrappers.get(cannoicalName);
@@ -487,22 +498,56 @@ public class BeanWrapperImpl extends PropertyEditorRegistrySupport implements Be
 		return nestedBw;
 	}
 	
-	/**
-	 * Create a new PropertyChangeEvent
-	 * @param propertyName
-	 * @param oldValue
-	 * @param newValue
-	 * @return
-	 */
-	private PropertyChangeEvent createPropertyChangeEvent(String propertyName, Object oldValue, Object newValue) {
-		return new PropertyChangeEvent((this.rootObject != null ? this.rootObject : "constructor"), 
-			(propertyName != null ? this.nestedPath + propertyName : null), oldValue, newValue);
+	private Object setDefaultValue(String propertyName) {
+		PropertyTokenHolder tokens = new PropertyTokenHolder();
+		tokens.actualName = propertyName;
+		tokens.canonicalName = propertyName;
+		return setDefaultValue(tokens);
+	}
+	
+	private Object setDefaultValue(PropertyTokenHolder tokens) {
+		PropertyValue pv = createDefaultPropertyValue(tokens);
+		setPropertyValue(tokens, pv);
+		return getPropertyValue(tokens);
+	}
+	
+	private PropertyValue createDefaultPropertyValue(PropertyTokenHolder tokens) {
+		Class<?> type = getPropertyType(tokens.canonicalName);
+		if (type == null) {
+			throw new NullValueInNestedPathException(getRootClass(), this.nestedPath + tokens.canonicalName, 
+				"Could not determine property type for auto-growing a fefault value");
+		}
+		Object defaultValue = newValue(type, tokens.canonicalName);
+		return new PropertyValue(tokens.canonicalName, defaultValue);
 	}
 	
 	private Object newValue(Class<?> type, String name) {
-		// TODO
-		return null;
+		try {
+			if (type.isArray()) {
+				Class<?> componentType = type.getComponentType();
+				if (componentType.isArray()) {
+					Object array = Array.newInstance(componentType, 1);
+					Array.set(array, 0, Array.newInstance(componentType.getComponentType(), 0));
+					return array;
+				}
+				else {
+					return Array.newInstance(componentType, 0);
+				}
+			}
+			if (Collection.class.isAssignableFrom(type)) {
+				return CollectionFactory.createCollection(type, 16);
+			}
+			if (Map.class.isAssignableFrom(type)) {
+				return CollectionFactory.createMap(type, 16);
+			}
+			return type.newInstance();
+		} 
+		catch (Exception ex) {
+			throw new NullValueInNestedPathException(getRootClass(), this.nestedPath + name, 
+				"Could not instantiate property type [" + type.getName() + "] to auto-growing nested property path: " + ex);
+		}
 	}
+	
 	
 	/**
 	 * Create a new nested BeanWrapper instance.
@@ -557,6 +602,11 @@ public class BeanWrapperImpl extends PropertyEditorRegistrySupport implements Be
 	//---------------------------------------------------------
 	// Implementation of PropertyAccessor interfacee
 	//---------------------------------------------------------
+	
+	
+	//---------------------------------------------------------------------
+	// Implementation of PropertyAccessor interface
+	//---------------------------------------------------------------------
 	
 	@Override
 	public Object getPropertyValue(String propertyName) throws BeansException {
@@ -646,14 +696,47 @@ public class BeanWrapperImpl extends PropertyEditorRegistrySupport implements Be
 		}
 	}
 	
+	
+
 	private Object growArrayIfNecessary(Object array, int index, String name) {
-		// TODO
+		if (!autoGrowNestedPaths) {
+			return array;
+		}
+		
+		int length = Array.getLength(array);
+		if (index >= length && index < autoGrowCollectionLimit) {
+			Class<?> componentType = array.getClass().getComponentType();
+			Object newArray = Array.newInstance(componentType, index + 1);
+			System.arraycopy(array, 0, newArray, 0, length);
+			for (int i = length; i < Array.getLength(newArray); i++) {
+				Array.set(newArray, i, newValue(componentType, name));
+			}
+			setPropertyValue(name, newArray);
+			return getPropertyValue(name);
+		} 
+		else {
+			return array;
+		}
 	}
 	
+	
 	private void growCollectionIfNecessary(Collection collection, int index, String name, PropertyDescriptor pd, int nestingLevel) {
-		// TODO
+		if (!autoGrowNestedPaths) {
+			return;
+		}
+		
+		int size = collection.size();
+		if (index >= size && index < autoGrowCollectionLimit) {
+			Class<?> elementType = GenericCollectionTypeResolver.getCollectionReturnType(pd.getReadMethod(), nestingLevel);
+			if (elementType != null) {
+				for (int i = collection.size(); i < index + 1; i++) {
+					collection.add(newValue(elementType, name));
+				}
+			}
+		}
 	}
 
+	
 	@Override
 	public void setPropertyValue(String propertyName, Object value) throws BeansException {
 		BeanWrapperImpl nestedBw = null;
@@ -668,14 +751,17 @@ public class BeanWrapperImpl extends PropertyEditorRegistrySupport implements Be
 		nestedBw.setPropertyValue(tokens, new PropertyValue(propertyName, value));
 	}
 	
+	
 	@Override
 	public void setPropertyValue(PropertyValue pv) throws BeansException {
-		// TODO
+		PropertyTokenHolder tokens = (PropertyTokenHolder) pv.
 	}
+	
 	
 	private void setPropertyValue(PropertyTokenHolder tokens, PropertyValue pv) throws BeansException {
 		// TODO
 	}
+	
 	
 	@Override
 	public String toString() {
@@ -689,6 +775,11 @@ public class BeanWrapperImpl extends PropertyEditorRegistrySupport implements Be
 		}
 		return sb.toString();
 	}
+	
+	//---------------------------------------------------------------------
+	// Inner class for internal use
+	//---------------------------------------------------------------------
+	
 	
 	//-------------------------------------------------------------
 	// Inner class for internal use
