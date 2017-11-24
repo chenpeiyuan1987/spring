@@ -1,5 +1,8 @@
 package org.yuan.study.spring.beans;
 
+import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 
 public abstract class AbstractPropertyAccessor extends PropertyEditorRegistrySupport implements ConfigurablePropertyAccessor {
@@ -8,14 +11,7 @@ public abstract class AbstractPropertyAccessor extends PropertyEditorRegistrySup
 
 	@Override
 	public <T> T convertIfNecessary(Object value, Class<T> requiredType) throws TypeMismatchException {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	public Object getPropertyValue(String propertyName) throws BeansException {
-		// TODO Auto-generated method stub
-		return null;
+		return convertIfNecessary(value, requiredType, null);
 	}
 
 	@Override
@@ -24,15 +20,8 @@ public abstract class AbstractPropertyAccessor extends PropertyEditorRegistrySup
 	}
 
 	@Override
-	public void setPropertyValue(String propertyName, Object value) throws BeansException {
-		// TODO Auto-generated method stub
-		
-	}
-
-	@Override
 	public void setPropertyValues(Map<?, ?> map) throws BeansException {
-		// TODO Auto-generated method stub
-		
+		setPropertyValues(new MutablePropertyValues(map));
 	}
 
 	@Override
@@ -46,6 +35,29 @@ public abstract class AbstractPropertyAccessor extends PropertyEditorRegistrySup
 	}
 	
 	public void setPropertyValues(PropertyValues pvs, boolean ignoreUnknown, boolean ignoreInvalid) throws BeansException {
+		List<PropertyAccessException> propertyAccessExceptions = null;
+		List<PropertyValue> propertyValues = (pvs instanceof MutablePropertyValues ? ((MutablePropertyValues) pvs).getPropertyValueList() : Arrays.asList(pvs.getPropertyValues()));
+		for (PropertyValue propertyValue : propertyValues) {
+			try {
+				setPropertyValue(propertyValue);
+			} 
+			catch (NotWritablePropertyException ex) {
+				if (!ignoreUnknown) {
+					throw ex;
+				}
+			}
+			catch (NullValueInNestedPathException ex) {
+				if (!ignoreUnknown) {
+					throw ex;
+				}
+			}
+			catch (PropertyAccessException ex) {
+				if (propertyAccessExceptions == null) {
+					propertyAccessExceptions = new LinkedList<PropertyAccessException>();
+				}
+				propertyAccessExceptions.add(ex);
+			}
+		}
 		
 	}
 
@@ -59,5 +71,20 @@ public abstract class AbstractPropertyAccessor extends PropertyEditorRegistrySup
 		return this.extractOldValueForEditor;
 	}
 	
+	/**
+	 * Readfined with public visibility.
+	 */
+	public Class<?> getPropertyType(String propertyPath) {
+		return null;
+	}
 	
+	/**
+	 * Actually get the value of a property.
+	 */
+	public abstract Object getPropertyValue(String propertyName) throws BeansException;
+	
+	/**
+	 * Actually set a property value.
+	 */
+	public abstract void setPropertyValue(String propertyName, Object value) throws BeansException;
 }

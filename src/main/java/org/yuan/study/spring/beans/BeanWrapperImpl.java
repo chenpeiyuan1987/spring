@@ -20,6 +20,7 @@ import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.hamcrest.core.IsEqual;
 import org.yuan.study.spring.core.CollectionFactory;
 import org.yuan.study.spring.core.GenericCollectionTypeResolver;
 import org.yuan.study.spring.core.MethodParameter;
@@ -30,7 +31,7 @@ import org.yuan.study.spring.core.convert.support.PropertyTypeDescriptor;
 import org.yuan.study.spring.util.Assert;
 import org.yuan.study.spring.util.StringUtils;
 
-public class BeanWrapperImpl extends PropertyEditorRegistrySupport implements BeanWrapper {
+public class BeanWrapperImpl extends AbstractPropertyAccessor implements BeanWrapper {
 
 	private static final Log logger = LogFactory.getLog(BeanWrapperImpl.class);
 	
@@ -628,14 +629,13 @@ public class BeanWrapperImpl extends PropertyEditorRegistrySupport implements Be
 		if (propertyDescriptor == null || propertyDescriptor.getReadMethod() == null) {
 			throw new NotReadablePropertyException(getRootClass(), this.nestedPath + propertyName);
 		}
+		
 		Method readMethod = propertyDescriptor.getReadMethod();
-		if (logger.isDebugEnabled()) {
-			logger.debug(String.format("About to invoke read method [%s] on object of class [%s]", readMethod, this.object.getClass().getName()));
-		}
 		try {
 			if (!Modifier.isPrivate(readMethod.getDeclaringClass().getModifiers())) {
 				readMethod.setAccessible(true);
 			}
+			
 			Object value = readMethod.invoke(this.object, (Object[]) null);
 			if (tokens.keys != null) {
 				for (String  key : tokens.keys) {
@@ -695,8 +695,6 @@ public class BeanWrapperImpl extends PropertyEditorRegistrySupport implements Be
 					String.format("Invalid index in property path '%s'", propertyName), ex);
 		}
 	}
-	
-	
 
 	private Object growArrayIfNecessary(Object array, int index, String name) {
 		if (!autoGrowNestedPaths) {
@@ -718,7 +716,6 @@ public class BeanWrapperImpl extends PropertyEditorRegistrySupport implements Be
 			return array;
 		}
 	}
-	
 	
 	private void growCollectionIfNecessary(Collection collection, int index, String name, PropertyDescriptor pd, int nestingLevel) {
 		if (!autoGrowNestedPaths) {
@@ -754,12 +751,101 @@ public class BeanWrapperImpl extends PropertyEditorRegistrySupport implements Be
 	
 	@Override
 	public void setPropertyValue(PropertyValue pv) throws BeansException {
-		PropertyTokenHolder tokens = (PropertyTokenHolder) pv.
+		PropertyTokenHolder tokens = (PropertyTokenHolder) pv.resolvedTokens;
+		if (tokens == null) {
+			String propertyName = pv.getName();
+			BeanWrapperImpl nestedBw;
+			try {
+				nestedBw = getBeanWrapperForPropertyPath(propertyName);
+			}
+			catch (NotReadablePropertyException ex) {
+				throw new NotWritablePropertyException(getRootClass(), this.nestedPath + propertyName, 
+					String.format("Nested property in path '%s' does not exist", propertyName), ex);
+			}
+			tokens = getPropertyNameTokens(getFinalPath(nestedBw, propertyName));
+			if (nestedBw == this) {
+				pv.getOriginalPropertyValue().resolvedTokens = tokens;
+			}
+			nestedBw.setPropertyValue(tokens, pv);
+		}
+		else {
+			setPropertyValue(tokens, pv);
+		}
 	}
 	
 	
 	private void setPropertyValue(PropertyTokenHolder tokens, PropertyValue pv) throws BeansException {
-		// TODO
+		String propertyName = tokens.canonicalName;
+		String actualName = tokens.actualName;
+		
+		if (tokens.keys != null) {
+			PropertyTokenHolder getterTokens = new PropertyTokenHolder();
+			getterTokens.canonicalName = tokens.canonicalName;
+			getterTokens.actualName = tokens.actualName;
+			getterTokens.keys = new String[tokens.keys.length - 1];
+			System.arraycopy(tokens.keys, 0, getterTokens.keys, 0, tokens.keys.length - 1);
+			Object propValue;
+			try {
+				propValue = getPropertyValue(getterTokens);
+			} 
+			catch (NotReadablePropertyException ex) {
+				throw new NotWritablePropertyException(getRootClass(), this.nestedPath + propertyName, 
+					String.format("Cannot access indexed value in property referenced in indexed property path '%s'", propertyName), ex);
+			}
+			
+			String key = tokens.keys[tokens.keys.length - 1];
+			if (propValue == null) {
+				throw new NullValueInNestedPathException(getRootClass(), this.nestedPath + propertyName, 
+					String.format("Cannot access indexed value in property referenced in indexed property path '%s': returned null", propertyName));
+			}
+			if (propValue.getClass().isArray()) {
+				PropertyDescriptor pd = getCachedIntrospectionResults().getPropertyDescriptor(actualName);
+				Class<?> requiredType = propValue.getClass().getComponentType();
+				int arrayIndex = Integer.parseInt(key);
+				Object oldValue = null;
+				try {
+					if (arrayIndex < Array.getLength(propValue) && ) {
+						oldValue = Array.get(propValue, arrayIndex);
+					}
+					Object convertedValue = convertIfNecessary(propertyName, oldValue, pv.getValue(), requiredType, 
+						new PropertyTypeDescriptor(pd, new MethodParameter(pd.getReadMethod(), -1), requiredType));
+					Array.set(propValue, arrayIndex, convertedValue);
+				} 
+				catch (IndexOutOfBoundsException e) {
+					// TODO: handle exception
+				}
+			}
+			else if (propValue instanceof List) {
+				
+			}
+			else if (propValue instanceof Map) {
+				
+			}
+			else {
+				
+			}
+		} 
+		else {
+			PropertyDescriptor pd = pv.resolvedDescriptor;
+			if (pd == null || !pd.getWriteMethod().getDeclaringClass().isInstance(this.object)) {
+				
+			}
+			
+			Object oldValue = null;
+			try {
+				
+			} 
+			catch (TypeMismatchException ex) {
+				throw ex;
+			}
+			catch (InvocationTargetException ex) {
+				
+			}
+			catch (Exception ex) {
+				
+			}
+		}
+		
 	}
 	
 	
@@ -775,11 +861,6 @@ public class BeanWrapperImpl extends PropertyEditorRegistrySupport implements Be
 		}
 		return sb.toString();
 	}
-	
-	//---------------------------------------------------------------------
-	// Inner class for internal use
-	//---------------------------------------------------------------------
-	
 	
 	//-------------------------------------------------------------
 	// Inner class for internal use

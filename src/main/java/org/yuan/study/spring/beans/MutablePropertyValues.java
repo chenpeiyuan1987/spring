@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 
 import org.yuan.study.spring.util.StringUtils;
 
@@ -13,22 +14,26 @@ public class MutablePropertyValues implements PropertyValues, Serializable {
 
 	private final List<PropertyValue> propertyValueList;
 	
+	private Set<String> processedProperties;
+	
+	private volatile boolean converted = false;
+	
 	/**
 	 * Creates a new empty MutablePropertyValues object.
 	 */
 	public MutablePropertyValues() {
-		this.propertyValueList = new ArrayList<PropertyValue>();
+		this.propertyValueList = new ArrayList<PropertyValue>(0);
 	}
 	
 	/**
 	 * Construct a new PropertyValues object from a Map.
 	 * @param original
 	 */
-	public MutablePropertyValues(Map<String,Object> original) {
+	public MutablePropertyValues(Map<?, ?> original) {
 		if (original != null) {
 			this.propertyValueList = new ArrayList<PropertyValue>(original.size());
-			for (Entry<String,Object> entry : original.entrySet()) {
-				PropertyValue pv = new PropertyValue(entry.getKey(), entry.getValue());
+			for (Entry<?, ?> entry : original.entrySet()) {
+				PropertyValue pv = new PropertyValue(entry.getKey().toString(), entry.getValue());
 				this.propertyValueList.add(pv);
 			}
 		}
@@ -46,8 +51,7 @@ public class MutablePropertyValues implements PropertyValues, Serializable {
 			PropertyValue[] pvs = original.getPropertyValues();
 			this.propertyValueList = new ArrayList<PropertyValue>(pvs.length);
 			for (PropertyValue pv : pvs) {
-				PropertyValue newPv = new PropertyValue(pv.getName(), pv.getValue());
-				this.propertyValueList.add(newPv);
+				this.propertyValueList.add(new PropertyValue(pv));
 			}
 		}
 		else {
@@ -55,6 +59,15 @@ public class MutablePropertyValues implements PropertyValues, Serializable {
 		}
 	}
 
+	/**
+	 * Construct a new MutablePropertyValues object using the given List 
+	 * of PropertyValue objects as-is.
+	 * @param propertyValueList
+	 */
+	public MutablePropertyValues(List<PropertyValue> propertyValueList) {
+		this.propertyValueList = (propertyValueList != null ? propertyValueList : new ArrayList<PropertyValue>());
+	}
+	
 	//---------------------------------------------------------
 	// Implementation methods
 	//---------------------------------------------------------
@@ -68,6 +81,7 @@ public class MutablePropertyValues implements PropertyValues, Serializable {
 		for (int i = 0; i < this.propertyValueList.size(); i++) {
 			PropertyValue currentPv = (PropertyValue) this.propertyValueList.get(i);
 			if (currentPv.getName().equals(pv.getName())) {
+				pv = mergeIfRequired(pv, currentPv);
 				setPropertyValueAt(pv, i);
 				return this;
 			}
@@ -86,14 +100,26 @@ public class MutablePropertyValues implements PropertyValues, Serializable {
 	}
 	
 	/**
+	 * Add a PropertyValue object, replacing any existing one for the 
+	 * corresponding property or getting merged with it.
+	 * @param propertyName
+	 * @param propertyValue
+	 * @return
+	 */
+	public MutablePropertyValues add(String propertyName, Object propertyValue) {
+		addPropertyValue(new PropertyValue(propertyName, propertyValue));
+		return this;
+	}
+	
+	/**
 	 * Add all property values from the given Map.
 	 * @param other
 	 * @return
 	 */
-	public MutablePropertyValues addPropertyValues(Map<String,Object> other) {
+	public MutablePropertyValues addPropertyValues(Map<?, ?> other) {
 		if (other != null) {
-			for (Entry<String,Object> entry : other.entrySet()) {
-				PropertyValue pv = new PropertyValue(entry.getKey(), entry.getValue());
+			for (Entry<?, ?> entry : other.entrySet()) {
+				PropertyValue pv = new PropertyValue(entry.getKey().toString(), entry.getValue());
 				addPropertyValue(pv);
 			}
 		}
@@ -109,8 +135,7 @@ public class MutablePropertyValues implements PropertyValues, Serializable {
 		if (other != null) {
 			PropertyValue[] pvs = other.getPropertyValues();
 			for (PropertyValue pv : pvs) {
-				PropertyValue newPv = new PropertyValue(pv.getName(), pv.getValue());
-				addPropertyValue(newPv);
+				addPropertyValue(new PropertyValue(pv));
 			}
 		}
 		return this;
@@ -149,9 +174,35 @@ public class MutablePropertyValues implements PropertyValues, Serializable {
 	}
 	
 	public boolean isEmpty() {
-		return this.propertyValueList.isEmpty();
+		return propertyValueList.isEmpty();
 	}
 	
+	/**
+	 * Return the underlying List of PropertyValue objects in its raw form.
+	 * The returned List can be modified directly, although this is not recommended.
+	 * @return
+	 */
+	public List<PropertyValue> getPropertyValueList() {
+		return propertyValueList;
+	}
+	
+	/**
+	 * Return the number of PropertyValue entries in the list.
+	 * @return
+	 */
+	public int size() {
+		return propertyValueList.size();
+	}
+	
+	/**
+	 * 
+	 * @param newPv
+	 * @param currentPv
+	 * @return
+	 */
+	private PropertyValue mergeIfRequired(PropertyValue newPv, PropertyValue currentPv) {
+		
+	}
 	
 	//---------------------------------------------------------
 	// Implementation of PropertyValues interface
