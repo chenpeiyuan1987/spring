@@ -10,7 +10,7 @@ import java.util.Map;
 
 import org.junit.Test;
 
-public final class MutablePropertyValuesTest {
+public final class MutablePropertyValuesTest extends AbstractPropertyValuesTest {
 
 	@Test
 	public void testValid() throws Exception {
@@ -89,25 +89,4 @@ public final class MutablePropertyValuesTest {
 		return pvs;
 	}
 	
-	private void doTestTony(PropertyValues pvs) throws Exception {
-		assertEquals(3, pvs.getPropertyValues().length);
-		assertTrue(pvs.contains("forname"));
-		assertTrue(pvs.contains("surname"));
-		assertTrue(pvs.contains("age"));
-		assertFalse(pvs.contains("tory"));
-		
-		PropertyValue[] ps = pvs.getPropertyValues();
-		Map<String,String> m = new HashMap<String,String>();
-		m.put("forname", "Tony");
-		m.put("surname", "Blair");
-		m.put("age", "50");
-		for (PropertyValue pv : ps) {
-			Object val = m.get(pv.getName());
-			assertNotNull(val);
-			assertTrue(val instanceof String);
-			assertEquals(pv.getValue(), val);
-			m.remove(pv.getName());
-		}
-		assertEquals(0, m.size());
-	}
 }
