@@ -804,19 +804,21 @@ public class BeanWrapperImpl extends AbstractPropertyAccessor implements BeanWra
 				int arrayIndex = Integer.parseInt(key);
 				Object oldValue = null;
 				try {
-					if (arrayIndex < Array.getLength(propValue) && ) {
+					if (arrayIndex < Array.getLength(propValue) && isExtractOldValueForEditor()) {
 						oldValue = Array.get(propValue, arrayIndex);
 					}
 					Object convertedValue = convertIfNecessary(propertyName, oldValue, pv.getValue(), requiredType, 
 						new PropertyTypeDescriptor(pd, new MethodParameter(pd.getReadMethod(), -1), requiredType));
 					Array.set(propValue, arrayIndex, convertedValue);
 				} 
-				catch (IndexOutOfBoundsException e) {
-					// TODO: handle exception
+				catch (IndexOutOfBoundsException ex) {
+					throw new InvalidPropertyException(getRootClass(), this.nestedPath + propertyName, 
+						String.format("Invalid array index in property path '%s'", propertyName), ex);
 				}
 			}
 			else if (propValue instanceof List) {
-				
+				PropertyDescriptor pd = getCachedIntrospectionResults().getPropertyDescriptor(actualName);
+				Class<?> 
 			}
 			else if (propValue instanceof Map) {
 				

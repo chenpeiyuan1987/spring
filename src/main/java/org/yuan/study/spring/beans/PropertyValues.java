@@ -28,4 +28,10 @@ public interface PropertyValues {
 	 * @return
 	 */
 	PropertyValue[] getPropertyValues();
+	
+	/**
+	 * Does this holder not contain any PropertyValue objects at all?
+	 * @return
+	 */
+	boolean isEmpty();
 }
