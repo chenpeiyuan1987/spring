@@ -2,10 +2,7 @@ package org.yuan.study.spring.beans;
 
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyDescriptor;
-import java.beans.PropertyEditor;
-import java.beans.PropertyEditorManager;
 import java.lang.reflect.Array;
-import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -13,14 +10,12 @@ import java.security.AccessControlContext;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.hamcrest.core.IsEqual;
 import org.yuan.study.spring.core.CollectionFactory;
 import org.yuan.study.spring.core.GenericCollectionTypeResolver;
 import org.yuan.study.spring.core.MethodParameter;
@@ -818,19 +813,83 @@ public class BeanWrapperImpl extends AbstractPropertyAccessor implements BeanWra
 			}
 			else if (propValue instanceof List) {
 				PropertyDescriptor pd = getCachedIntrospectionResults().getPropertyDescriptor(actualName);
-				Class<?> 
+				Class<?> requiredType = GenericCollectionTypeResolver.getCollectionReturnType(pd.getReadMethod(), tokens.keys.length);
+				List<Object> list = (List<Object>)propValue;
+				int index = Integer.parseInt(key);
+				Object oldValue = null;
+				if (isExtractOldValueForEditor() && index < list.size()) {
+					oldValue = list.get(index);
+				}
+				Object convertedValue = convertIfNecessary(propertyName, oldValue, pv.getValue(), requiredType, 
+					new PropertyTypeDescriptor(pd, new MethodParameter(pd.getReadMethod(), -1), requiredType));
+				int size = list.size();
+				if (index >= size && index < autoGrowCollectionLimit) {
+					for (int i = size; i < index; i++) {
+						try {
+							list.add(null);
+						} 
+						catch (NullPointerException ex) {
+							throw new InvalidPropertyException(getRootClass(), this.nestedPath + propertyName, 
+								String.format("Cannot set element with index %s in List of size %s, accessed "
+									+ "using property path '%s': List does not support filling up gaps with null elements", 
+										index, size, propertyName));
+						}
+					}
+					list.add(convertedValue);
+				}
+				else {
+					try {
+						list.set(index, convertedValue);
+					} 
+					catch (IndexOutOfBoundsException ex) {
+						throw new InvalidPropertyException(getRootClass(), this.nestedPath + propertyName, 
+							String.format("Invalid list index in property path '%s'", propertyName), ex);
+					}
+				}
+				
 			}
 			else if (propValue instanceof Map) {
-				
+				PropertyDescriptor pd = getCachedIntrospectionResults().getPropertyDescriptor(propertyName);
+				Class<?> mapKeyType = GenericCollectionTypeResolver.getMapKeyReturnType(
+					pd.getReadMethod(), tokens.keys.length);
+				Class<?> mapValType = GenericCollectionTypeResolver.getMapValueReturnType(
+					pd.getReadMethod(), tokens.keys.length);
+				Map map = (Map) propValue;
+				Object convertedMapKey = convertIfNecessary(null, null, key, mapKeyType, 
+					new PropertyTypeDescriptor(pd, new MethodParameter(pd.getReadMethod(), -1), mapKeyType));
+				Object oldValue = null;
+				if (isExtractOldValueForEditor()) {
+					oldValue = map.get(convertedMapKey);
+				}
+				Object convertedMapValue = convertIfNecessary(propertyName, oldValue, pv.getValue(), 
+					mapValType, new TypeDescriptor(new MethodParameter(pd.getReadMethod(), -1, tokens.keys.length + 1)));
+				map.put(convertedMapKey, convertedMapValue);
 			}
 			else {
-				
+				throw new InvalidPropertyException(getRootClass(), this.nestedPath + propertyName, 
+					String.format("Property referenced in indexed property path '%s' "
+						+ "is neither an array nor a List nor a Map; returned value was [%s]", 
+							propertyName, pv.getValue()));
 			}
 		} 
 		else {
 			PropertyDescriptor pd = pv.resolvedDescriptor;
 			if (pd == null || !pd.getWriteMethod().getDeclaringClass().isInstance(this.object)) {
-				
+				pd = getCachedIntrospectionResults().getPropertyDescriptor(actualName);
+				if (pd == null || pd.getWriteMethod() == null) {
+					if (pv.isOptional()) {
+						logger.debug(String.format(
+							"Ignoring optional value for property '%s' - property not found on bean class [%s]", 
+								actualName, getRootClass().getName()));
+						return;
+					}
+					else {
+						PropertyMatches matches = PropertyMatches.forProperty(propertyName, getRootClass());
+						throw new NotWritablePropertyException(getRootClass(), nestedPath + propertyName, 
+							matches.buildErrorMessage(), matches.getPossibleMatches());
+					}
+				}
+				pv.getOriginalPropertyValue().resolvedDescriptor = pd;
 			}
 			
 			Object oldValue = null;
@@ -841,10 +900,17 @@ public class BeanWrapperImpl extends AbstractPropertyAccessor implements BeanWra
 				throw ex;
 			}
 			catch (InvocationTargetException ex) {
-				
+				PropertyChangeEvent pce = new PropertyChangeEvent(rootObject, nestedPath + propertyName, oldValue, pv.getValue());
+				if (ex.getTargetException() instanceof ClassCastException) {
+					throw new TypeMismatchException(pce, pd.getPropertyType(), ex.getTargetException());
+				}
+				else {
+					throw new MethodInvocationException(pce, ex.getTargetException());
+				}
 			}
 			catch (Exception ex) {
-				
+				PropertyChangeEvent pce = new PropertyChangeEvent(rootObject, nestedPath + propertyName, oldValue, pv.getValue());
+				throw new MethodInvocationException(pce, ex);
 			}
 		}
 		
