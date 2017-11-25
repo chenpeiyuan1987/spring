@@ -6,6 +6,8 @@ import java.lang.reflect.Method;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.yuan.study.spring.core.BridgeMethodResolver;
 import org.yuan.study.spring.core.GenericTypeResolver;
 import org.yuan.study.spring.core.MethodParameter;
@@ -13,6 +15,8 @@ import org.yuan.study.spring.util.ClassUtils;
 import org.yuan.study.spring.util.StringUtils;
 
 public class GenericTypeAwarePropertyDescriptor extends PropertyDescriptor {
+	
+	private static final Log LOG = LogFactory.getLog(GenericTypeAwarePropertyDescriptor.class);
 	
 	private final Class<?> beanClass;
 	
@@ -104,4 +108,13 @@ public class GenericTypeAwarePropertyDescriptor extends PropertyDescriptor {
 		return writeMethodParameter;
 	}
 
+	public Method getWriteMethodForActualAccess() {
+		if (ambiguousWriteMethods != null) {
+			ambiguousWriteMethods = null;
+			LOG.warn(String.format(
+				"Invalid JavaBean property '%s' being accessed! Ambiguous write methods found next to actually used [%s]: %s", 
+					getName(), writeMethod, ambiguousWriteMethods));
+		}
+		return writeMethod;
+	}
 }
