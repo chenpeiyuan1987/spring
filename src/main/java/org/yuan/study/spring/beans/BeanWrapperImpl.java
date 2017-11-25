@@ -647,7 +647,7 @@ public class BeanWrapperImpl extends AbstractPropertyAccessor implements BeanWra
 				}
 			}
 			
-			Object value = readMethod.invoke(this.object, (Object[]) null);
+			Object value;
 			if (System.getSecurityManager() != null) {
 				try {
 					value = AccessController.doPrivileged(new PrivilegedExceptionAction<Object>() {
@@ -906,7 +906,7 @@ public class BeanWrapperImpl extends AbstractPropertyAccessor implements BeanWra
 				
 			}
 			else if (propValue instanceof Map) {
-				PropertyDescriptor pd = getCachedIntrospectionResults().getPropertyDescriptor(propertyName);
+				PropertyDescriptor pd = getCachedIntrospectionResults().getPropertyDescriptor(actualName);
 				Class<?> mapKeyType = GenericCollectionTypeResolver.getMapKeyReturnType(
 					pd.getReadMethod(), tokens.keys.length);
 				Class<?> mapValType = GenericCollectionTypeResolver.getMapValueReturnType(
