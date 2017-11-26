@@ -213,6 +213,8 @@ public final class BeanWrapperTest {
 	
 	private static class NoRead {
 		
+		public void setAge(int age) {}
+		
 	}
 	
 	private static class Getter {
@@ -225,6 +227,19 @@ public final class BeanWrapperTest {
 
 		public void setName(String name) {
 			this.name = name;
+		}
+		
+	}
+	
+	private static class EnumTester {
+		private Autowire autowire;
+
+		public Autowire getAutowire() {
+			return autowire;
+		}
+
+		public void setAutowire(Autowire autowire) {
+			this.autowire = autowire;
 		}
 		
 	}
