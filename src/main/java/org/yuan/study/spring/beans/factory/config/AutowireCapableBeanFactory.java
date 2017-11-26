@@ -5,6 +5,7 @@ import org.yuan.study.spring.beans.factory.BeanFactory;
 
 public interface AutowireCapableBeanFactory extends BeanFactory {
 	
+	int AUTOWIRE_NO = 0;
 	/** Constant that indicates determining an appropriate autowire strategy through introspection of the bean class. */
 	int AUTOWIRE_AUTODETECT = 1;
 	/** Constant that indicates autowiring bean properties by name. */
