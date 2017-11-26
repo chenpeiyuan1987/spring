@@ -15,6 +15,7 @@ import java.util.Set;
 
 import org.junit.Test;
 import org.yuan.study.spring.beans.propertyeditors.CustomNumberEditor;
+import org.yuan.study.spring.beans.propertyeditors.StringTrimmerEditor;
 import org.yuan.study.spring.core.io.Resource;
 import org.yuan.study.spring.core.io.UrlResource;
 
@@ -177,7 +178,99 @@ public final class BeanWrapperGenericsTest {
 	
 	@Test
 	public void testGenericListOfArrays() throws MalformedURLException {
-		
+		GenericBean<String> gb = new GenericBean<String>();
+		ArrayList<String[]> list = new ArrayList<String[]>();
+		list.add(new String[] {"str1", "str2"});
+		gb.setListOfArrays(list);
+		BeanWrapper bw = new BeanWrapperImpl(gb);
+		bw.setPropertyValue("listOfArrays[0][1]", "str3 ");
+		assertEquals("str3 ", bw.getPropertyValue("listOfArrays[0][1]"));
+		assertEquals("str3 ", gb.getListOfArrays().get(0)[1]);
+	}
+	
+	@Test
+	public void testGenericListOfArraysWithElementConversion() throws MalformedURLException {
+		GenericBean<String> gb = new GenericBean<String>();
+		ArrayList<String[]> list = new ArrayList<String[]>();
+		list.add(new String[] {"str1", "str2"});
+		gb.setListOfArrays(list);
+		BeanWrapper bw = new BeanWrapperImpl(gb);
+		bw.registerCustomEditor(String.class, new StringTrimmerEditor(false));
+		bw.setPropertyValue("listOfArrays[0][1]", "str3 ");
+		assertEquals("str3", bw.getPropertyValue("listOfArrays[0][1]"));
+		assertEquals("str3", gb.getListOfArrays().get(0)[1]);
+	}
+	
+	@Test
+	public void testGenericListOfMaps() {
+		GenericBean<String> gb = new GenericBean<String>();
+		List<Map<Integer, Long>> list = new LinkedList<Map<Integer, Long>>();
+		list.add(new HashMap<Integer, Long>());
+		gb.setListOfMaps(list);
+		BeanWrapper bw = new BeanWrapperImpl(gb);
+		bw.setPropertyValue("listOfMaps[0][10]", new Long(5));
+		assertEquals(new Long(5), bw.getPropertyValue("listOfMaps[0][10]"));
+		assertEquals(new Long(5), gb.getListOfMaps().get(0).get(10));
+	}
+	
+	@Test
+	public void testGenericListOfMapsWithElementConversion() {
+		GenericBean<String> gb = new GenericBean<String>();
+		List<Map<Integer, Long>> list = new LinkedList<Map<Integer, Long>>();
+		list.add(new HashMap<Integer, Long>());
+		gb.setListOfMaps(list);
+		BeanWrapper bw = new BeanWrapperImpl(gb);
+		bw.setPropertyValue("listOfMaps[0][10]", "5");
+		assertEquals(new Long(5), bw.getPropertyValue("listOfMaps[0][10]"));
+		assertEquals(new Long(5), gb.getListOfMaps().get(0).get(10));
+	}
+	
+	@Test
+	public void testGenericMapOfMaps() {
+		GenericBean<String> gb = new GenericBean<String>();
+		Map<String, Map<Integer, Long>> map = new HashMap<String, Map<Integer, Long>>();
+		map.put("mykey", new HashMap<Integer, Long>());
+		gb.setMapOfMaps(map);
+		BeanWrapper bw = new BeanWrapperImpl(gb);
+		bw.setPropertyValue("mapOfMaps[mykey][10]", new Long(5));
+		assertEquals(new Long(5), bw.getPropertyValue("mapOfMaps[mykey][10]"));
+		assertEquals(new Long(5), gb.getMapOfMaps().get("mykey").get(10));
+	}
+	
+	@Test
+	public void testGenericMapOfMapsWithElementConversion() {
+		GenericBean<String> gb = new GenericBean<String>();
+		Map<String, Map<Integer, Long>> map = new HashMap<String, Map<Integer, Long>>();
+		map.put("mykey", new HashMap<Integer, Long>());
+		gb.setMapOfMaps(map);
+		BeanWrapper bw = new BeanWrapperImpl(gb);
+		bw.setPropertyValue("mapOfMaps[mykey][10]", "5");
+		assertEquals(new Long(5), bw.getPropertyValue("mapOfMaps[mykey][10]"));
+		assertEquals(new Long(5), gb.getMapOfMaps().get("mykey").get(10));
+	}
+	
+	@Test
+	public void testGenericMapOfLists() throws MalformedURLException {
+		GenericBean<String> gb = new GenericBean<String>();
+		Map<Integer, List<Integer>> map = new HashMap<Integer, List<Integer>>();
+		map.put(new Integer(1), new LinkedList<Integer>());
+		gb.setMapOfLists(map);
+		BeanWrapper bw = new BeanWrapperImpl(gb);
+		bw.setPropertyValue("mapOfLists[1][0]", new Integer(5));
+		assertEquals(new Integer(5), bw.getPropertyValue("mapOfLists[1][0]"));
+		assertEquals(new Integer(5), gb.getMapOfLists().get(new Integer(1)).get(0));
+	}
+	
+	@Test
+	public void testGenericMapOfListsWithElementConversion() throws MalformedURLException {
+		GenericBean<String> gb = new GenericBean<String>();
+		Map<Integer, List<Integer>> map = new HashMap<Integer, List<Integer>>();
+		map.put(new Integer(1), new LinkedList<Integer>());
+		gb.setMapOfLists(map);
+		BeanWrapper bw = new BeanWrapperImpl(gb);
+		bw.setPropertyValue("mapOfLists[1][0]", "5");
+		assertEquals(new Integer(5), bw.getPropertyValue("mapOfLists[1][0]"));
+		assertEquals(new Integer(5), gb.getMapOfLists().get(new Integer(1)).get(0));
 	}
 	
 	//------------------------------------------------------------------
