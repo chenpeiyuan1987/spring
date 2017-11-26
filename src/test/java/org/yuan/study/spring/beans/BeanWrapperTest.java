@@ -5,12 +5,15 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.beans.PropertyEditorSupport;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
 import org.junit.Test;
+import org.yuan.study.spring.beans.factory.annotation.Autowire;
 import org.yuan.study.spring.beans.propertyeditors.StringTrimmerEditor;
 
+import test.beans.BooleanTestBean;
 import test.beans.IndexedTestBean;
 import test.beans.NumberTestBean;
 import test.beans.TestBean;
@@ -166,15 +169,70 @@ public final class BeanWrapperTest {
 	}
 	
 	@Test
-	public void testSetPropertyValue() {
-		Getter getter = new Getter();
-		BeanWrapper bw = new BeanWrapperImpl(getter);
-		bw.setPropertyValue("name", "tom");
-		assertEquals("tom", getter.getName());
+	public void testValidNullUpdate() {
+		TestBean tb = new TestBean();
+		tb.setName("Frank");
+		tb.setSpouse(tb);
+		
+		BeanWrapper bw = new BeanWrapperImpl(tb);
+		assertTrue(tb.getName() != null);
+		bw.setPropertyValue("name", null);
+		assertTrue(tb.getName() == null);
+		
+		assertTrue(tb.getSpouse() != null);
+		bw.setPropertyValue("spouse", null);
+		assertTrue(tb.getSpouse() == null);
 	}
 	
 	@Test
-	public void testNumberObject() {
+	public void testIgnoringIndexedProperty() {
+		MutablePropertyValues values = new MutablePropertyValues();
+		values.add("toBeIgnored[0]", new Integer(42));
+		BeanWrapper bw = new BeanWrapperImpl(new Object());
+		bw.setPropertyValues(values, true);
+	}
+	
+	@Test
+	public void testConvertPrimitiveToString() {
+		MutablePropertyValues values = new MutablePropertyValues();
+		values.add("name", new Integer(42));
+		TestBean tb = new TestBean();
+		BeanWrapper bw = new BeanWrapperImpl(tb);
+		bw.setPropertyValues(values);
+		assertEquals("42", tb.getName());
+	}
+	
+	@Test
+	public void testConvertClassToString() {
+		MutablePropertyValues values = new MutablePropertyValues();
+		values.add("name", Integer.class);
+		TestBean tb = new TestBean();
+		BeanWrapper bw = new BeanWrapperImpl(tb);
+		bw.registerCustomEditor(String.class, new PropertyEditorSupport() {
+			public void setValue(Object value) {
+				super.setValue(value.toString());
+			}
+		});
+		bw.setPropertyValues(values);
+		assertEquals(Integer.class.toString(), tb.getName());
+	}
+	
+	@Test
+	public void testBooleanObject() {
+		BooleanTestBean bt = new BooleanTestBean();
+		BeanWrapper bw = new BeanWrapperImpl(bt);
+		
+		bw.setPropertyValue("bool2", "true");
+		assertTrue(Boolean.TRUE.equals(bw.getPropertyValue("bool2")));
+		assertTrue(bt.getBool2().booleanValue());
+		
+		bw.setPropertyValue("bool2", "false");
+		assertTrue(Boolean.FALSE.equals(bw.getPropertyValue("bool2")));
+		assertTrue(!bt.getBool2().booleanValue());
+	}
+	
+	@Test
+	public void testNumberObjects() {
 		NumberTestBean nt = new NumberTestBean();
 		BeanWrapper bw = new BeanWrapperImpl(nt);
 		
@@ -205,6 +263,21 @@ public final class BeanWrapperTest {
 		assertEquals(new BigInteger("7"), nt.getBigInteger());
 		assertEquals(new BigDecimal("8.1"), bw.getPropertyValue("bigDecimal"));
 		assertEquals(new BigDecimal("8.1"), nt.getBigDecimal());
+	}
+	
+	@Test
+	public void testNumberCoercion() {
+		
+	}
+	
+	@Test
+	public void testEnumByFieldName() {
+		
+	}
+	
+	@Test
+	public  void testPropertiesProperty() throws Exception {
+		
 	}
 	
 	//------------------------------------------------------
