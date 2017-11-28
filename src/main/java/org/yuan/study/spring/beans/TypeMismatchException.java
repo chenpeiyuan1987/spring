@@ -23,7 +23,7 @@ public class TypeMismatchException extends PropertyAccessException {
 		super(propertyChangeEvent, 
 			String.format("Failed to convert property value of type [%s]%s%s", 
 			(propertyChangeEvent.getNewValue() != null ? ClassUtils.getQualifiedName(propertyChangeEvent.getNewValue().getClass()) : null),
-			(requiredType != null ? String.format(" to requried type [%s]", ClassUtils.getQualifiedName(requiredType)) : ""),
+			(requiredType != null ? String.format(" to required type [%s]", ClassUtils.getQualifiedName(requiredType)) : ""),
 			(propertyChangeEvent.getPropertyName() != null ? String.format(" for property '%s'", propertyChangeEvent.getPropertyName()): "")),
 			cause);
 		this.value = propertyChangeEvent.getNewValue();

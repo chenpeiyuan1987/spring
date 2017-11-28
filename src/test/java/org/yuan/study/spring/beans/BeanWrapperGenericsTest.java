@@ -273,7 +273,238 @@ public final class BeanWrapperGenericsTest {
 		assertEquals(new Integer(5), gb.getMapOfLists().get(new Integer(1)).get(0));
 	}
 	
+	
+	@Test
+	public void testGenericTypeNestingMapOfInteger() throws Exception {
+		
+	}
+	
+	@Test
+	public void testGenericTypeNestingMapOfListOfInteger() throws Exception {
+		
+	}
+	
+	@Test
+	public void testGenericTypeNestingListOfMapOfInteger() throws Exception {
+		
+	}
+	
+	@Test
+	public void testGenericTypeNestingMapOfListOfListOfInteger() throws Exception {
+		
+	}
+	
+	@Test
+	public void testComplexGenericMap() {
+		Map<List<String>, List<String>> inputMap = new HashMap<List<String>, List<String>>();
+		List<String> inputKey = new LinkedList<String>();
+		inputKey.add("1");
+		List<String> inputVal = new LinkedList<String>();
+		inputKey.add("10");
+		inputMap.put(inputKey, inputVal);
+		
+		ComplexMapHolder holder = new ComplexMapHolder();
+		BeanWrapper bw = new BeanWrapperImpl(holder);
+		bw.setPropertyValue("genericMap", inputMap);
+		
+		assertEquals(new Integer(1), holder.getGenericMap().keySet().iterator().next().get(0));
+		assertEquals(new Long(10), holder.getGenericMap().values().iterator().next().get(0));
+	}
+	
+	@Test
+	public void testComplexGenericMapWithCollectionConversion() {
+		
+	}
+	
+	@Test
+	public void testComplexGenericIndexedMapEntry() {
+		List<String> inputValue = new LinkedList<String>();
+		inputValue.add("10");
+		
+		ComplexMapHolder holder = new ComplexMapHolder();
+		BeanWrapper bw = new BeanWrapperImpl(holder);
+		bw.setPropertyValue("derivedIndexedMap[1]", inputValue);
+		
+		assertEquals(new Integer(1), holder.getDerivedIndexedMap().keySet().iterator().next());
+		assertEquals(new Long(10), holder.getDerivedIndexedMap().values().iterator().next().get(0));
+	}
+	
+	@Test
+	public void testComplexGenericIndexedMapEntryWithCollectionConversion() {
+		Set<String> inputValue = new HashSet<String>();
+		inputValue.add("10");
+		
+		ComplexMapHolder holder = new ComplexMapHolder();
+		BeanWrapper bw = new BeanWrapperImpl(holder);
+		bw.setPropertyValue("derivedIndexedMap[1]", inputValue);
+		
+		assertEquals(new Integer(1), holder.getDerivedIndexedMap().keySet().iterator().next());
+		assertEquals(new Long(10), holder.getDerivedIndexedMap().values().iterator().next().get(0));
+	}
+	
+	@Test
+	public void testGenericallyTypedIntegerBean() throws Exception {
+		
+	}
+	
+	@Test
+	public void testGenericallyTypedSetOfIntegerBean() throws Exception {
+	}
+	
+	@Test
+	public void testSettingGenericPropertyWithReadOnlyInterface() {
+		Bar bar = new Bar();
+		BeanWrapper bw = new BeanWrapperImpl(bar);
+		bw.setPropertyValue("version", "10");
+		assertEquals(new Double(10.0), bar.getVersion());
+	}
+	
+	@Test
+	public void testSettingLongPropertyWithGenericInterface() {
+		Promotion bean = new Promotion();
+		BeanWrapper bw = new BeanWrapperImpl(bean);
+		bw.setPropertyValue("id", "10");
+		assertEquals(new Long(10), bean.getId());
+	}
+	
 	//------------------------------------------------------------------
 	// class section
 	//------------------------------------------------------------------
+	
+	private static abstract class BaseGenericCollectionBean {
+		
+		public abstract Object getMapOfInteger();
+		
+		public abstract Map<String, List<Integer>> getMapOfListOfInteger();
+		
+		public abstract void setMapOfListOfInteger(Map<String, List<Integer>> mapOfListOfInteger);
+	}
+	
+	private static class NestedGenericCollectionBean extends BaseGenericCollectionBean {
+
+		private Map<String, Integer> mapOfInteger;
+		
+		private Map<String, List<Integer>> mapOfListOfInteger;
+		
+		private List<Map<String, Integer>> listOfMapOfInteger;
+		
+		private Map<String, List<List<Integer>>> mapOfListOfListOfInteger;
+		
+		@Override
+		public Object getMapOfInteger() {
+			return mapOfInteger;
+		}
+
+		@Override
+		public Map<String, List<Integer>> getMapOfListOfInteger() {
+			return mapOfListOfInteger;
+		}
+
+		@Override
+		public void setMapOfListOfInteger(Map<String, List<Integer>> mapOfListOfInteger) {
+			
+		}
+
+		public List<Map<String, Integer>> getListOfMapOfInteger() {
+			return listOfMapOfInteger;
+		}
+
+		public void setListOfMapOfInteger(List<Map<String, Integer>> listOfMapOfInteger) {
+			this.listOfMapOfInteger = listOfMapOfInteger;
+		}
+
+		public Map<String, List<List<Integer>>> getMapOfListOfListOfInteger() {
+			return mapOfListOfListOfInteger;
+		}
+
+		public void setMapOfListOfListOfInteger(
+				Map<String, List<List<Integer>>> mapOfListOfListOfInteger) {
+			this.mapOfListOfListOfInteger = mapOfListOfListOfInteger;
+		}
+
+		public void setMapOfInteger(Map<String, Integer> mapOfInteger) {
+			this.mapOfInteger = mapOfInteger;
+		}
+		
+	}
+	
+	private static class ComplexMapHolder {
+		
+		private Map<List<Integer>, List<Long>> genericMap;
+		
+		private Map<Integer, List<Long>> genericIndexedMap = new HashMap<Integer, List<Long>>();
+		
+		private DerivedMap derivedIndexedMap = new DerivedMap();
+
+		public Map<List<Integer>, List<Long>> getGenericMap() {
+			return genericMap;
+		}
+
+		public void setGenericMap(Map<List<Integer>, List<Long>> genericMap) {
+			this.genericMap = genericMap;
+		}
+
+		public Map<Integer, List<Long>> getGenericIndexedMap() {
+			return genericIndexedMap;
+		}
+
+		public void setGenericIndexedMap(Map<Integer, List<Long>> genericIndexedMap) {
+			this.genericIndexedMap = genericIndexedMap;
+		}
+
+		public DerivedMap getDerivedIndexedMap() {
+			return derivedIndexedMap;
+		}
+
+		public void setDerivedIndexedMap(DerivedMap derivedIndexedMap) {
+			this.derivedIndexedMap = derivedIndexedMap;
+		}
+		
+	}
+	
+	private static class DerivedMap extends HashMap<Integer, List<Long>> {
+		
+	}
+	
+	public interface Foo {
+		
+		Number getVersion();
+	}
+	
+	public class Bar implements Foo {
+		
+		private double version;
+
+		@Override
+		public Double getVersion() {
+			return version;
+		}
+
+		public void setVersion(Double version) {
+			this.version = version;
+		}
+		
+	}
+	
+	public interface ObjectWithId<T extends Comparable<T>> {
+		T getId();
+		
+		void setId(T id);
+	}
+	
+	public class Promotion implements ObjectWithId<Long> {
+		
+		private Long id;
+
+		@Override
+		public Long getId() {
+			return id;
+		}
+
+		@Override
+		public void setId(Long id) {
+			this.id = id;
+		}
+		
+	}
 }
