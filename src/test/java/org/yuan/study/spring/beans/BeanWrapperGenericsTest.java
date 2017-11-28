@@ -5,7 +5,9 @@ import static org.junit.Assert.assertTrue;
 
 import java.net.MalformedURLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -20,6 +22,8 @@ import org.yuan.study.spring.core.io.Resource;
 import org.yuan.study.spring.core.io.UrlResource;
 
 import test.beans.GenericBean;
+import test.beans.GenericIntegerBean;
+import test.beans.GenericSetOfIntegerBean;
 import test.beans.TestBean;
 
 public final class BeanWrapperGenericsTest {
@@ -276,22 +280,62 @@ public final class BeanWrapperGenericsTest {
 	
 	@Test
 	public void testGenericTypeNestingMapOfInteger() throws Exception {
+		Map<String, String> map = new HashMap<String, String>();
+		map.put("testKey", "100");
+		
+		NestedGenericCollectionBean gb = new NestedGenericCollectionBean();
+		BeanWrapper bw = new BeanWrapperImpl(gb);
+		bw.setPropertyValue("mapOfInteger", map);
+		
+		Object obj = gb.getMapOfInteger().get("testKey");
+		assertTrue(obj instanceof Integer);
 		
 	}
 	
 	@Test
 	public void testGenericTypeNestingMapOfListOfInteger() throws Exception {
+		Map<String, List<String>> map = new HashMap<String, List<String>>();
+		List<String> list = Arrays.asList(new String[] {"1", "2", "3"});
+		map.put("testKey", list);
 		
+		NestedGenericCollectionBean gb = new NestedGenericCollectionBean();
+		BeanWrapper bw = new BeanWrapperImpl(gb);
+		bw.setPropertyValue("mapOfListOfInteger", map);
+		
+		Object obj = gb.getMapOfListOfInteger().get("testKey").get(0);
+		assertTrue(obj instanceof Integer);
+		assertEquals(1, ((Integer) obj).intValue());
 	}
 	
 	@Test
 	public void testGenericTypeNestingListOfMapOfInteger() throws Exception {
+		List<Map<String, String>> list = new LinkedList<Map<String, String>>();
+		Map<String, String> map = new HashMap<String, String>();
+		map.put("testKey", "5");
+		list.add(map);
 		
+		NestedGenericCollectionBean gb = new NestedGenericCollectionBean();
+		BeanWrapper bw = new BeanWrapperImpl(gb);
+		bw.setPropertyValue("listOfMapOfInteger", list);
+		
+		Object obj = gb.getListOfMapOfInteger().get(0).get("testKey");
+		assertTrue(obj instanceof Integer);
+		assertEquals(5, ((Integer) obj).intValue());
 	}
 	
 	@Test
 	public void testGenericTypeNestingMapOfListOfListOfInteger() throws Exception {
+		Map<String, List<List<String>>> map = new HashMap<String, List<List<String>>>();
+		List<String> list = Arrays.asList(new String[] {"1", "2", "3"});
+		map.put("testKey", Collections.singletonList(list));
 		
+		NestedGenericCollectionBean gb = new NestedGenericCollectionBean();
+		BeanWrapper bw = new BeanWrapperImpl(gb);
+		bw.setPropertyValue("mapOfListOfListOfInteger", map);
+		
+		Object obj = gb.getMapOfListOfListOfInteger().get("testKey").get(0).get(0);
+		assertTrue(obj instanceof Integer);
+		assertEquals(1, ((Integer) obj).intValue());
 	}
 	
 	@Test
@@ -313,7 +357,19 @@ public final class BeanWrapperGenericsTest {
 	
 	@Test
 	public void testComplexGenericMapWithCollectionConversion() {
+		Map<Set<String>, Set<String>> inputMap = new HashMap<Set<String>, Set<String>>();
+		Set<String> inputKey = new HashSet<String>();
+		inputKey.add("1");
+		Set<String> inputVal = new HashSet<String>();
+		inputVal.add("10");
+		inputMap.put(inputKey, inputVal);
 		
+		ComplexMapHolder holder = new ComplexMapHolder();
+		BeanWrapper bw = new BeanWrapperImpl(holder);
+		bw.setPropertyValue("genericMap", inputMap);
+		
+		assertEquals(new Integer(1), holder.getGenericMap().keySet().iterator().next().get(0));
+		assertEquals(new Long(1), holder.getGenericMap().values().iterator().next().get(0));
 	}
 	
 	@Test
@@ -344,11 +400,24 @@ public final class BeanWrapperGenericsTest {
 	
 	@Test
 	public void testGenericallyTypedIntegerBean() throws Exception {
-		
+		GenericIntegerBean gb = new GenericIntegerBean();
+		BeanWrapper bw = new BeanWrapperImpl(gb);
+		bw.setPropertyValue("genericProperty", "10");
+		bw.setPropertyValue("genericListProperty", new String[] {"20", "30"});
+		assertEquals(new Integer(10), gb.getGenericProperty());
+		assertEquals(new Integer(20), gb.getGenericListProperty().get(0));
+		assertEquals(new Integer(30), gb.getGenericListProperty().get(1));
 	}
 	
 	@Test
 	public void testGenericallyTypedSetOfIntegerBean() throws Exception {
+		GenericSetOfIntegerBean gb = new GenericSetOfIntegerBean();
+		BeanWrapper bw = new  BeanWrapperImpl();
+		bw.setPropertyValue("genericProperty", "10");
+		bw.setPropertyValue("genericListProperty", new String[] {"20", "30"});
+		assertEquals(new Integer(10), gb.getGenericProperty().iterator().next());
+		assertEquals(new Integer(20), gb.getGenericListProperty().get(0).iterator().next());
+		assertEquals(new Integer(30), gb.getGenericListProperty().get(0).iterator().next());
 	}
 	
 	@Test
@@ -391,7 +460,7 @@ public final class BeanWrapperGenericsTest {
 		private Map<String, List<List<Integer>>> mapOfListOfListOfInteger;
 		
 		@Override
-		public Object getMapOfInteger() {
+		public Map<String, Integer> getMapOfInteger() {
 			return mapOfInteger;
 		}
 
@@ -402,7 +471,7 @@ public final class BeanWrapperGenericsTest {
 
 		@Override
 		public void setMapOfListOfInteger(Map<String, List<Integer>> mapOfListOfInteger) {
-			
+			this.mapOfListOfInteger = mapOfListOfInteger;
 		}
 
 		public List<Map<String, Integer>> getListOfMapOfInteger() {
