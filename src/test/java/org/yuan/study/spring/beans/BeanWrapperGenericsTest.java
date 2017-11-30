@@ -344,7 +344,7 @@ public final class BeanWrapperGenericsTest {
 		List<String> inputKey = new LinkedList<String>();
 		inputKey.add("1");
 		List<String> inputVal = new LinkedList<String>();
-		inputKey.add("10");
+		inputVal.add("10");
 		inputMap.put(inputKey, inputVal);
 		
 		ComplexMapHolder holder = new ComplexMapHolder();
@@ -412,7 +412,7 @@ public final class BeanWrapperGenericsTest {
 	@Test
 	public void testGenericallyTypedSetOfIntegerBean() throws Exception {
 		GenericSetOfIntegerBean gb = new GenericSetOfIntegerBean();
-		BeanWrapper bw = new  BeanWrapperImpl();
+		BeanWrapper bw = new  BeanWrapperImpl(gb);
 		bw.setPropertyValue("genericProperty", "10");
 		bw.setPropertyValue("genericListProperty", new String[] {"20", "30"});
 		assertEquals(new Integer(10), gb.getGenericProperty().iterator().next());

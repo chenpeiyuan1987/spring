@@ -24,12 +24,14 @@ public class CharacterEditor extends PropertyEditorSupport {
 
 	@Override
 	public void setAsText(String text) throws IllegalArgumentException {
-		if (allowEmpty && !StringUtils.hasText(text)) {
+		if (allowEmpty && !StringUtils.hasLength(text)) {
 			setValue(null);
 		} 
-		else if (text.startsWith(UNICODE_PREFIX) && text.length() == UNICODE_LENGTH) {
-			int code = Integer.parseInt(text.substring(UNICODE_PREFIX.length()), 16);
-			setValue(new Character((char) code));
+		else if (text == null) {
+			throw new IllegalArgumentException("null String cannot be converted to char type");
+		}
+		else if (isUnicodeCharacterSequence(text)) {
+			setAsUnicode(text);
 		}
 		else if (text.length() != 1) {
 			throw new IllegalArgumentException(
@@ -40,4 +42,12 @@ public class CharacterEditor extends PropertyEditorSupport {
 		}
 	}
 
+	private boolean isUnicodeCharacterSequence(String sequence) {
+		return (sequence.startsWith(UNICODE_PREFIX) && sequence.length() == UNICODE_LENGTH);
+	}
+	
+	private void setAsUnicode(String text) {
+		int code = Integer.parseInt(text.substring(UNICODE_PREFIX.length()), 16);
+		setValue(new Character((char) code));
+	}
 }

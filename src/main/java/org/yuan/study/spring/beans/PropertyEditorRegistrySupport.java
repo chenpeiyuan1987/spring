@@ -30,16 +30,25 @@ import org.xml.sax.InputSource;
 import org.yuan.study.spring.beans.propertyeditors.ByteArrayPropertyEditor;
 import org.yuan.study.spring.beans.propertyeditors.CharArrayPropertyEditor;
 import org.yuan.study.spring.beans.propertyeditors.CharacterEditor;
+import org.yuan.study.spring.beans.propertyeditors.CharsetEditor;
+import org.yuan.study.spring.beans.propertyeditors.ClassArrayEditor;
 import org.yuan.study.spring.beans.propertyeditors.ClassEditor;
+import org.yuan.study.spring.beans.propertyeditors.CurrencyEditor;
 import org.yuan.study.spring.beans.propertyeditors.CustomBooleanEditor;
 import org.yuan.study.spring.beans.propertyeditors.CustomCollectionEditor;
+import org.yuan.study.spring.beans.propertyeditors.CustomMapEditor;
 import org.yuan.study.spring.beans.propertyeditors.CustomNumberEditor;
 import org.yuan.study.spring.beans.propertyeditors.FileEditor;
+import org.yuan.study.spring.beans.propertyeditors.InputSourceEditor;
 import org.yuan.study.spring.beans.propertyeditors.InputStreamEditor;
 import org.yuan.study.spring.beans.propertyeditors.LocaleEditor;
+import org.yuan.study.spring.beans.propertyeditors.PatternEditor;
 import org.yuan.study.spring.beans.propertyeditors.PropertiesEditor;
 import org.yuan.study.spring.beans.propertyeditors.StringArrayPropertyEditor;
+import org.yuan.study.spring.beans.propertyeditors.TimeZoneEditor;
+import org.yuan.study.spring.beans.propertyeditors.URIEditor;
 import org.yuan.study.spring.beans.propertyeditors.URLEditor;
+import org.yuan.study.spring.beans.propertyeditors.UUIDEditor;
 import org.yuan.study.spring.core.convert.ConversionService;
 import org.yuan.study.spring.core.io.Resource;
 import org.yuan.study.spring.core.io.ResourceEditor;
@@ -140,28 +149,28 @@ public class PropertyEditorRegistrySupport implements PropertyEditorRegistry {
 	private void createDefaultEditors() {
 		this.defaultEditors = new HashMap<Class<?>, PropertyEditor>(64);
 		
-		this.defaultEditors.put(Charset.class, null);
+		this.defaultEditors.put(Charset.class, new CharsetEditor());
 		this.defaultEditors.put(Class.class, new ClassEditor());
-		this.defaultEditors.put(Class[].class, null);
-		this.defaultEditors.put(Currency.class, null);
+		this.defaultEditors.put(Class[].class, new ClassArrayEditor());
+		this.defaultEditors.put(Currency.class, new CurrencyEditor());
 		this.defaultEditors.put(File.class, new FileEditor());
 		this.defaultEditors.put(InputStream.class, new InputStreamEditor());
-		this.defaultEditors.put(InputSource.class, null);
+		this.defaultEditors.put(InputSource.class, new InputSourceEditor());
 		this.defaultEditors.put(Locale.class, new LocaleEditor());
-		this.defaultEditors.put(Pattern.class, null);
+		this.defaultEditors.put(Pattern.class, new PatternEditor());
 		this.defaultEditors.put(Properties.class, new PropertiesEditor());
 		this.defaultEditors.put(Resource[].class, new ResourceEditor());
-		this.defaultEditors.put(TimeZone.class, null);
-		this.defaultEditors.put(URI.class, null);
+		this.defaultEditors.put(TimeZone.class, new TimeZoneEditor());
+		this.defaultEditors.put(URI.class, new URIEditor());
 		this.defaultEditors.put(URL.class, new URLEditor());
-		this.defaultEditors.put(UUID.class, null);
+		this.defaultEditors.put(UUID.class, new UUIDEditor());
 		
 		
 		this.defaultEditors.put(Collection.class, new CustomCollectionEditor(Collection.class));
 		this.defaultEditors.put(Set.class, new CustomCollectionEditor(Set.class));
 		this.defaultEditors.put(SortedSet.class, new CustomCollectionEditor(SortedSet.class));
 		this.defaultEditors.put(List.class, new CustomCollectionEditor(List.class));
-		this.defaultEditors.put(SortedMap.class, null);
+		this.defaultEditors.put(SortedMap.class, new CustomMapEditor(SortedMap.class));
 		
 		
 		this.defaultEditors.put(byte[].class, new ByteArrayPropertyEditor());

@@ -26,6 +26,7 @@ public class InputStreamEditor extends PropertyEditorSupport {
 	 */
 	public InputStreamEditor(ResourceEditor resourceEditor) {
 		Assert.notNull(resourceEditor, "ResourceEditor must not be null");
+		
 		this.resourceEditor = resourceEditor;
 	}
 

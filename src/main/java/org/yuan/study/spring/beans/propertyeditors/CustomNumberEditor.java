@@ -72,13 +72,13 @@ public class CustomNumberEditor extends PropertyEditorSupport {
 	public void setAsText(String text) throws IllegalArgumentException {
 		if (this.allowEmpty && !StringUtils.hasText(text)) {
 			setValue(null);
-			return;
 		}
-		if (numberFormat != null) {
+		else if (numberFormat != null) {
 			setValue(NumberUtils.parseNumber(text, numberClass, numberFormat));
-			return;
 		}
-		setValue(NumberUtils.parseNumber(text, numberClass));
+		else {
+			setValue(NumberUtils.parseNumber(text, numberClass));
+		}
 	}
 	
 }

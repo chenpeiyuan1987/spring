@@ -1,14 +1,13 @@
 package org.yuan.study.spring.beans.propertyeditors;
 
-import java.awt.List;
 import java.beans.PropertyEditorSupport;
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.SortedSet;
 import java.util.TreeSet;
-
-import org.yuan.study.spring.core.CollectionFactory;
 
 
 public class CustomCollectionEditor extends PropertyEditorSupport {
@@ -56,7 +55,8 @@ public class CustomCollectionEditor extends PropertyEditorSupport {
 				return (Collection<?>) collectionType.newInstance();
 			}
 			catch (Exception ex) {
-				throw new IllegalArgumentException(String.format("Could not instantiate collection class [%s]: %s", collectionType.getName(), ex.getMessage()));
+				throw new IllegalArgumentException(String.format(
+					"Could not instantiate collection class [%s]: %s", collectionType.getName(), ex.getMessage()));
 			}
 		}
 		if (List.class.equals(collectionType)) {
@@ -65,7 +65,7 @@ public class CustomCollectionEditor extends PropertyEditorSupport {
 		if (SortedSet.class.equals(collectionType)) {
 			return new TreeSet<Object>();
 		}
-		return CollectionFactory.createLinkedSetIfPossible(initialCapacity);
+		return new LinkedHashSet(initialCapacity);
 	}
 
 	/**
@@ -91,26 +91,24 @@ public class CustomCollectionEditor extends PropertyEditorSupport {
 		if (value == null) {
 			if (nullAsEmptyCollection) {
 				super.setValue(createCollection(this.collectionType, 0));
-				return;
 			}
-			super.setValue(value);
-			return;
+			else {
+				super.setValue(value);
+			}
 		} 
 		else {
 			if (collectionType.isInstance(value) && !alwaysCreateNewCollection()) {
 				super.setValue(value);
-				return;
 			}
-			if (value instanceof Collection) {
+			else if (value instanceof Collection) {
 				Collection<Object> source = (Collection<Object>) value;
 				Collection<Object> target = (Collection<Object>)createCollection(collectionType, source.size());
 				for (Object object : source) {
 					target.add(convertElement(object));
 				}
 				super.setValue(target);
-				return;
 			}
-			if (value.getClass().isArray()) {
+			else if (value.getClass().isArray()) {
 				int length = Array.getLength(value);
 				Collection<Object> target = (Collection<Object>)createCollection(collectionType, length);
 				for (int i = 0; i < length; i++) {
@@ -119,10 +117,11 @@ public class CustomCollectionEditor extends PropertyEditorSupport {
 				super.setValue(target);
 				return;
 			}
-			Collection<Object> target = (Collection<Object>)createCollection(collectionType, 1);
-			target.add(convertElement(value));
-			super.setValue(target);
-			return;
+			else {
+				Collection<Object> target = (Collection<Object>)createCollection(collectionType, 1);
+				target.add(convertElement(value));
+				super.setValue(target);
+			}
 		}
 	}
 

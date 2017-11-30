@@ -40,16 +40,14 @@ public class PropertiesEditor extends PropertyEditorSupport {
 
 	@Override
 	public void setAsText(String text) throws IllegalArgumentException {
-		if (text == null) {
-			throw new IllegalArgumentException("Cannot set Properties to null");
-		}
 		Properties props = new Properties();
-		try {
-			props.load(new ByteArrayInputStream(text.getBytes()));
-			dropComments(props);
-		}
-		catch (IOException ex) {
-			throw new IllegalArgumentException(String.format("Failed to parse [%s] into Properties", text));
+		if (text != null) {
+			try {
+				props.load(new ByteArrayInputStream(text.getBytes("ISO-8859-1")));
+			}
+			catch (IOException ex) {
+				throw new IllegalArgumentException(String.format("Failed to parse [%s] into Properties", text));
+			}
 		}
 		setValue(props);
 	}

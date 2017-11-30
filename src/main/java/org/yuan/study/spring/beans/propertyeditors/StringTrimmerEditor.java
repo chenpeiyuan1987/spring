@@ -15,6 +15,7 @@ public class StringTrimmerEditor extends PropertyEditorSupport {
 	 * @param emptyAsNull
 	 */
 	public StringTrimmerEditor(boolean emptyAsNull) {
+		this.charsToDelete = null;
 		this.emptyAsNull = emptyAsNull;
 	}
 	
@@ -46,7 +47,8 @@ public class StringTrimmerEditor extends PropertyEditorSupport {
 			}
 			if (this.emptyAsNull && "".equals(value)) {
 				setValue(null);
-			} else {
+			} 
+			else {
 				setValue(value);
 			}
 		}

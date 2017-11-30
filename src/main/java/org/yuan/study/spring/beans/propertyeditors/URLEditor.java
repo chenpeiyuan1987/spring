@@ -25,6 +25,7 @@ public class URLEditor extends PropertyEditorSupport {
 	 */
 	public URLEditor(ResourceEditor resourceEditor) {
 		Assert.notNull(resourceEditor, "ResourceEditor must not be null");
+		
 		this.resourceEditor = resourceEditor;
 	}
 
@@ -42,7 +43,8 @@ public class URLEditor extends PropertyEditorSupport {
 			setValue(resource != null ? resource.getURL() : null);
 		}
 		catch (IOException ex) {
-			throw new IllegalArgumentException(String.format("Could not retrieve URL for %s: %s", resource, ex.getMessage()));
+			throw new IllegalArgumentException(String.format(
+				"Could not retrieve URL for %s: %s", resource, ex.getMessage()));
 		}
 	}
 	

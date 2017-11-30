@@ -27,12 +27,7 @@ public class ClassEditor extends PropertyEditorSupport {
 	@Override
 	public void setAsText(String text) throws IllegalArgumentException {
 		if (StringUtils.hasText(text)) {
-			try {
-				setValue(ClassUtils.forName(text.trim(), this.classLoader));
-			}
-			catch (ClassNotFoundException ex) {
-				throw new IllegalArgumentException("Class not found: " + ex.getMessage());
-			}
+			setValue(ClassUtils.resolveClassName(text.trim(), classLoader));
 		}
 		else {
 			setValue(null);

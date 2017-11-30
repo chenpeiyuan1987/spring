@@ -61,23 +61,25 @@ public class CustomBooleanEditor extends PropertyEditorSupport {
 
 	@Override
 	public void setAsText(String text) throws IllegalArgumentException {
-		if (this.allowEmpty && !StringUtils.hasText(text)) {
+		String input = (text != null ? text.trim() : null);
+		
+		if (this.allowEmpty && !StringUtils.hasLength(input)) {
 			setValue(null);
 		} 
-		else if (this.trueString != null && text.equalsIgnoreCase(this.trueString)) {
+		else if (this.trueString != null && input.equalsIgnoreCase(this.trueString)) {
 			setValue(Boolean.TRUE);
 		}
-		else if (this.falseString != null && text.equalsIgnoreCase(this.falseString)) {
+		else if (this.falseString != null && input.equalsIgnoreCase(this.falseString)) {
 			setValue(Boolean.FALSE);
 		}
 		else if (this.trueString == null && 
-				(text.equalsIgnoreCase(VALUE_TRUE) || text.equalsIgnoreCase(VALUE_ON) || 
-				text.equalsIgnoreCase(VALUE_YES) || text.equalsIgnoreCase(VALUE_1))) {
+				(input.equalsIgnoreCase(VALUE_TRUE) || input.equalsIgnoreCase(VALUE_ON) || 
+				input.equalsIgnoreCase(VALUE_YES) || input.equalsIgnoreCase(VALUE_1))) {
 			setValue(Boolean.TRUE);
 		}
 		else if (this.falseString == null && 
-				(text.equalsIgnoreCase(VALUE_FALSE) || text.equalsIgnoreCase(VALUE_OFF) || 
-				text.equalsIgnoreCase(VALUE_NO) || text.equalsIgnoreCase(VALUE_0))) {
+				(input.equalsIgnoreCase(VALUE_FALSE) || input.equalsIgnoreCase(VALUE_OFF) || 
+				input.equalsIgnoreCase(VALUE_NO) || input.equalsIgnoreCase(VALUE_0))) {
 			setValue(Boolean.FALSE);
 		}
 		else {
