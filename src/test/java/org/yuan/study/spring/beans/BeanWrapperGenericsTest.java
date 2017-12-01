@@ -3,8 +3,9 @@ package org.yuan.study.spring.beans;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import java.lang.reflect.Method;
-import java.lang.reflect.TypeVariable;
+import java.beans.BeanInfo;
+import java.beans.Introspector;
+import java.beans.PropertyDescriptor;
 import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -371,7 +372,7 @@ public final class BeanWrapperGenericsTest {
 		bw.setPropertyValue("genericMap", inputMap);
 		
 		assertEquals(new Integer(1), holder.getGenericMap().keySet().iterator().next().get(0));
-		assertEquals(new Long(1), holder.getGenericMap().values().iterator().next().get(0));
+		assertEquals(new Long(10), holder.getGenericMap().values().iterator().next().get(0));
 	}
 	
 	@Test
@@ -419,7 +420,7 @@ public final class BeanWrapperGenericsTest {
 		bw.setPropertyValue("genericListProperty", new String[] {"20", "30"});
 		assertEquals(new Integer(10), gb.getGenericProperty().iterator().next());
 		assertEquals(new Integer(20), gb.getGenericListProperty().get(0).iterator().next());
-		assertEquals(new Integer(30), gb.getGenericListProperty().get(0).iterator().next());
+		assertEquals(new Integer(30), gb.getGenericListProperty().get(1).iterator().next());
 	}
 	
 	@Test

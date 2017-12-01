@@ -104,6 +104,7 @@ public class GenericTypeAwarePropertyDescriptor extends PropertyDescriptor {
 		}
 		if (writeMethodParameter == null) {
 			writeMethodParameter = new MethodParameter(writeMethod, 0);
+			GenericTypeResolver.resolveParameterType(writeMethodParameter, beanClass);
 		}
 		return writeMethodParameter;
 	}
