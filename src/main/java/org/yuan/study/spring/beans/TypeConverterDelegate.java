@@ -441,7 +441,7 @@ class TypeConverterDelegate {
 			Object element = it.next();
 			String indexedPropertyName = buildIndexedPropertyName(propertyName, i);
 			if (methodParam != null) {
-				methodParam.decreaseNestingLevel();
+				methodParam.increaseNestingLevel();
 			}
 			Object convertedElement = convertIfNecessary(
 				indexedPropertyName, null, element, elementType, typeDescriptor);
