@@ -8,6 +8,7 @@ import static org.junit.Assert.fail;
 import java.beans.PropertyEditorSupport;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.util.Properties;
 
 import org.junit.Test;
 import org.yuan.study.spring.beans.factory.annotation.Autowire;
@@ -267,18 +268,113 @@ public final class BeanWrapperTest {
 	
 	@Test
 	public void testNumberCoercion() {
+		NumberTestBean nt = new NumberTestBean();
+		BeanWrapper bw = new BeanWrapperImpl(nt);
 		
+		try {
+			bw.setPropertyValue("int2", new Long(2));
+			bw.setPropertyValue("long2", new BigInteger("3"));
+			bw.setPropertyValue("short2", new Integer(4));
+			bw.setPropertyValue("float2", new Double(5.1));
+			bw.setPropertyValue("double2", new BigDecimal(6.1));
+			bw.setPropertyValue("bigInteger", new Integer(7));
+			bw.setPropertyValue("bigDecimal", new Float(8.1));
+		}
+		catch (BeansException ex) {
+			fail();
+		}
+		
+		assertEquals(new Integer(2), bw.getPropertyValue("int2"));
+		assertEquals(new Integer(2), nt.getInt2());
+		assertEquals(new Long(3), bw.getPropertyValue("long2"));
+		assertEquals(new Long(3), nt.getLong2());
+		assertEquals(new Short("4"), bw.getPropertyValue("short2"));
+		assertEquals(new Short("4"), nt.getShort2());
+		assertEquals(new Float(5.1), bw.getPropertyValue("float2"));
+		assertEquals(new Float(5.1), nt.getFloat2());
+		assertEquals(new Double(6.1), bw.getPropertyValue("double2"));
+		assertEquals(new Double(6.1), nt.getDouble2());
+		assertEquals(new BigInteger("7"), bw.getPropertyValue("bigInteger"));
+		assertEquals(new BigInteger("7"), nt.getBigInteger());
+		assertEquals(new BigDecimal("8.1"), bw.getPropertyValue("bigDecimal"));
+		assertEquals(new BigDecimal("8.1"), nt.getBigDecimal());
 	}
 	
 	@Test
 	public void testEnumByFieldName() {
+		EnumTester et = new EnumTester();
+		BeanWrapper bw = new BeanWrapperImpl(et);
+		
+		bw.setPropertyValue("autowire", "BY_NAME");
+		assertEquals(Autowire.BY_NAME, et.getAutowire());
+		
+		bw.setPropertyValue("autowire", "  BY_TYPE ");
+		assertEquals(Autowire.BY_TYPE, et.getAutowire());
+		
+		try {
+			bw.setPropertyValue("autowire", "NHERITED");
+			fail();
+		} catch (Exception e) {}
+	}
+	
+	@Test
+	public void testPropertiesProperty() throws Exception {
+		PropsTester pt = new PropsTester();
+		BeanWrapper bw = new BeanWrapperImpl(pt);
+		bw.setPropertyValue("name", "ptest");
+		
+		String ps = "peace=war\nfreedom=slavery";
+		bw.setPropertyValue("properties", ps);
+		
+		assertTrue(pt.name.equals("ptest"));
+		assertTrue(pt.props != null);
+		String freedomVal = pt.props.getProperty("freedom");
+		String peaceVal = pt.props.getProperty("peace");
+		assertTrue(peaceVal.equals("war"));
+		assertTrue(freedomVal.equals("slavery"));
+	}
+	
+	@Test
+	public void testStringArrayProperty() throws Exception {
 		
 	}
 	
 	@Test
-	public  void testPropertiesProperty() throws Exception {
+	public void testStringArrayPropertyWithCustomStringEditor() throws Exception {
 		
 	}
+	
+	@Test
+	public void testStringArrayPropertyWithStringSplitting() throws Exception {
+		
+	}
+	
+	@Test
+	public void testStringArrayPropertyWithCustomStringDelimiter() throws Exception {
+		
+	}
+	
+	@Test
+	public void testStringArrayPropertyWithCustomEditor() throws Exception {
+		
+	}
+	
+	@Test
+	public void testIntArrayProperty() {
+		
+	}
+	
+	@Test
+	public void testIntArrayPropertyWithCustomEditor() {
+		
+	}
+	
+	@Test
+	public void testIntArrayPropertyWithStringSplitting() {
+		
+	}
+	
+	
 	
 	//------------------------------------------------------
 	// Private static class for test use
@@ -313,6 +409,33 @@ public final class BeanWrapperTest {
 
 		public void setAutowire(Autowire autowire) {
 			this.autowire = autowire;
+		}
+		
+	}
+	
+	private static class PropsTester {
+		private Properties props;
+		
+		private String name;
+		
+		private String[] stringArray;
+		
+		private int[] intArray;
+
+		public void setProperties(Properties props) {
+			this.props = props;
+		}
+
+		public void setName(String name) {
+			this.name = name;
+		}
+
+		public void setStringArray(String[] stringArray) {
+			this.stringArray = stringArray;
+		}
+
+		public void setIntArray(int[] intArray) {
+			this.intArray = intArray;
 		}
 		
 	}

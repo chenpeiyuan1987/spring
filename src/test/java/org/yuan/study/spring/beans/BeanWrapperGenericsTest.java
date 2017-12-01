@@ -3,6 +3,8 @@ package org.yuan.study.spring.beans;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import java.lang.reflect.Method;
+import java.lang.reflect.TypeVariable;
 import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.Arrays;
