@@ -772,17 +772,27 @@ public final class BeanWrapperTest {
 	
 	@Test
 	public void testGenericEnum() {
-		
+		EnumConsumer consumer = new EnumConsumer();
+		BeanWrapper bw = new BeanWrapperImpl(consumer);
+		bw.setPropertyValue("enumValue", TestEnum.class.getName() + ".TEST_VALUE");
+		assertEquals(TestEnum.TEST_VALUE, consumer.getEnumValue());
 	}
 	
 	@Test
 	public void testWildcardedGenericEnum() {
-		
+		WildcardEnumConsumer consumer = new WildcardEnumConsumer();
+		BeanWrapper bw = new BeanWrapperImpl(consumer);
+		bw.setPropertyValue("enumValue", TestEnum.class.getName() + ".TEST_VALUE");
+		assertEquals(TestEnum.TEST_VALUE, consumer.getEnumValue());
 	}
 	
 	//------------------------------------------------------
 	// Private static class for test use
 	//------------------------------------------------------
+	
+	private static class DifferentTestBean extends TestBean {
+		
+	}
 	
 	private static class NoRead {
 		
@@ -817,6 +827,7 @@ public final class BeanWrapperTest {
 		
 	}
 	
+	
 	private static class PropsTester {
 		private Properties props;
 		
@@ -844,4 +855,152 @@ public final class BeanWrapperTest {
 		
 	}
 	
+	private static class ThrowsException {
+		
+		public void doSomething(Throwable t) throws Throwable {
+			throw t;
+		}
+	}
+	
+	private static class PrimitiveArrayBean {
+		
+		private int[] array;
+
+		public int[] getArray() {
+			return array;
+		}
+
+		public void setArray(int[] array) {
+			this.array = array;
+		}
+		
+	}
+	
+	private static class NumberPropertyBean {
+		
+		private byte myPrimitiveByte;
+		private Byte myByte;
+		
+		private short myPrimitiveShort;
+		private Short myShort;
+		
+		private int myPrimitiveInt;
+		private Integer myInteger;
+		
+		private long myPrimitiveLong;
+		private Long myLong;
+		
+		private float myPrimitiveFloat;
+		private Float myFloat;
+		
+		private double myPrimitiveDouble;
+		private Double myDouble;
+		
+		
+		public byte getMyPrimitiveByte() {
+			return myPrimitiveByte;
+		}
+		public void setMyPrimitiveByte(byte myPrimitiveByte) {
+			this.myPrimitiveByte = myPrimitiveByte;
+		}
+		public Byte getMyByte() {
+			return myByte;
+		}
+		public void setMyByte(Byte myByte) {
+			this.myByte = myByte;
+		}
+		public short getMyPrimitiveShort() {
+			return myPrimitiveShort;
+		}
+		public void setMyPrimitiveShort(short myPrimitiveShort) {
+			this.myPrimitiveShort = myPrimitiveShort;
+		}
+		public Short getMyShort() {
+			return myShort;
+		}
+		public void setMyShort(Short myShort) {
+			this.myShort = myShort;
+		}
+		public int getMyPrimitiveInt() {
+			return myPrimitiveInt;
+		}
+		public void setMyPrimitiveInt(int myPrimitiveInt) {
+			this.myPrimitiveInt = myPrimitiveInt;
+		}
+		public Integer getMyInteger() {
+			return myInteger;
+		}
+		public void setMyInteger(Integer myInteger) {
+			this.myInteger = myInteger;
+		}
+		public long getMyPrimitiveLong() {
+			return myPrimitiveLong;
+		}
+		public void setMyPrimitiveLong(long myPrimitiveLong) {
+			this.myPrimitiveLong = myPrimitiveLong;
+		}
+		public Long getMyLong() {
+			return myLong;
+		}
+		public void setMyLong(Long myLong) {
+			this.myLong = myLong;
+		}
+		public float getMyPrimitiveFloat() {
+			return myPrimitiveFloat;
+		}
+		public void setMyPrimitiveFloat(float myPrimitiveFloat) {
+			this.myPrimitiveFloat = myPrimitiveFloat;
+		}
+		public Float getMyFloat() {
+			return myFloat;
+		}
+		public void setMyFloat(Float myFloat) {
+			this.myFloat = myFloat;
+		}
+		public double getMyPrimitiveDouble() {
+			return myPrimitiveDouble;
+		}
+		public void setMyPrimitiveDouble(double myPrimitiveDouble) {
+			this.myPrimitiveDouble = myPrimitiveDouble;
+		}
+		public Double getMyDouble() {
+			return myDouble;
+		}
+		public void setMyDouble(Double myDouble) {
+			this.myDouble = myDouble;
+		}
+	}
+	
+	public static class EnumConsumer {
+		
+		private Enum<TestEnum> enumValue;
+
+		public Enum<TestEnum> getEnumValue() {
+			return enumValue;
+		}
+
+		public void setEnumValue(Enum<TestEnum> enumValue) {
+			this.enumValue = enumValue;
+		}
+		
+	}
+	
+	public static class WildcardEnumConsumer {
+		
+		private Enum<?> enumValue;
+
+		public Enum<?> getEnumValue() {
+			return enumValue;
+		}
+
+		public void setEnumValue(Enum<?> enumValue) {
+			this.enumValue = enumValue;
+		}
+		
+	}
+	
+	public enum TestEnum {
+		
+		TEST_VALUE;
+	}
 }
