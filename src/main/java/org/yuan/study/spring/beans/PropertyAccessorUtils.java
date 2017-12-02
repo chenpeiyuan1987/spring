@@ -13,6 +13,25 @@ public abstract class PropertyAccessorUtils {
 	}
 	
 	/**
+	 * Check whether the given property path indicates an indexed or nested property.
+	 * @param propertyPath
+	 * @return
+	 */
+	public static boolean isNestedOrIndexedProperty(String propertyPath) {
+		if (propertyPath == null) {
+			return false;
+		}
+		for (int i = 0; i < propertyPath.length(); i++) {
+			char ch = propertyPath.charAt(i);
+			if (ch == PropertyAccessor.NESTED_PROPERTY_SEPARATOR_CHAR
+				|| ch == PropertyAccessor.PROPERTY_KEY_PREFIX_CHAR) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	/**
 	 * Determine the first nested property separator in the given property path, ignoring dots in keys.
 	 * @param propertyPath
 	 * @return
@@ -109,12 +128,25 @@ public abstract class PropertyAccessorUtils {
 	}
 	
 	/**
-	 * 
+	 * Determine whether the given registered path matches the given property path,
+	 * either indicating the property itself or an indexed element of the property.
 	 * @param str
 	 * @param path
 	 * @return
 	 */
-	public static boolean matchesProperty(String str, String path) {
+	public static boolean matchesProperty(String registeredPath, String propertyPath) {
+		if (!registeredPath.startsWith(propertyPath)) {
+			return false;
+		}
+		if (registeredPath.length() == propertyPath.length()) {
+			return true;
+		}
+		if (registeredPath.charAt(propertyPath.length()) != PropertyAccessor.PROPERTY_KEY_PREFIX_CHAR) {
+			return false;
+		}
+		if (registeredPath.charAt(registeredPath.length() - 1) == PropertyAccessor.PROPERTY_KEY_SUFFIX_CHAR) {
+			return true;
+		}
 		return false;
 	}
 }

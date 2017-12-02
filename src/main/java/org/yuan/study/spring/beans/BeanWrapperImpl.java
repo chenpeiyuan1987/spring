@@ -600,11 +600,6 @@ public class BeanWrapperImpl extends AbstractPropertyAccessor implements BeanWra
 		return tokens;
 	}
 	
-	//---------------------------------------------------------
-	// Implementation of PropertyAccessor interfacee
-	//---------------------------------------------------------
-	
-	
 	//---------------------------------------------------------------------
 	// Implementation of PropertyAccessor interface
 	//---------------------------------------------------------------------

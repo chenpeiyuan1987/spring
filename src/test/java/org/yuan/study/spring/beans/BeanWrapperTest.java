@@ -2,17 +2,25 @@ package org.yuan.study.spring.beans;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.beans.PropertyEditorSupport;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Properties;
+import java.util.Set;
 
 import org.junit.Test;
 import org.yuan.study.spring.beans.factory.annotation.Autowire;
+import org.yuan.study.spring.beans.propertyeditors.StringArrayPropertyEditor;
 import org.yuan.study.spring.beans.propertyeditors.StringTrimmerEditor;
+import org.yuan.study.spring.util.StringUtils;
 
 import test.beans.BooleanTestBean;
 import test.beans.IndexedTestBean;
@@ -336,45 +344,441 @@ public final class BeanWrapperTest {
 	
 	@Test
 	public void testStringArrayProperty() throws Exception {
+		PropsTester pt = new PropsTester();
+		BeanWrapper bw = new BeanWrapperImpl(pt);
 		
+		bw.setPropertyValue("stringArray", new String[] {"foo", "fi", "fi", "fum"});
+		assertEquals(4, pt.stringArray.length);
+		assertEquals("foo", pt.stringArray[0]);
+		assertEquals("fi", pt.stringArray[1]);
+		assertEquals("fi", pt.stringArray[2]);
+		assertEquals("fum", pt.stringArray[3]);
+		
+		List<String> list = new ArrayList<String>();
+		list.add("foo");
+		list.add("fi");
+		list.add("fi");
+		list.add("fum");
+		bw.setPropertyValue("stringArray", list);
+		assertEquals(4, pt.stringArray.length);
+		assertEquals("foo", pt.stringArray[0]);
+		assertEquals("fi", pt.stringArray[1]);
+		assertEquals("fi", pt.stringArray[2]);
+		assertEquals("fum", pt.stringArray[3]);
+		
+		Set<String> set = new HashSet<String>();
+		set.add("foo");
+		set.add("fi");
+		set.add("fum");
+		bw.setPropertyValue("stringArray", set);
+		assertEquals(3, pt.stringArray.length);
+		List<String> result = Arrays.asList(pt.stringArray);
+		assertTrue(result.contains("foo"));
+		assertTrue(result.contains("fi"));
+		assertTrue(result.contains("fum"));
+		
+		bw.setPropertyValue("stringArray", "one");
+		assertEquals(1, pt.stringArray.length);
+		assertEquals("one", pt.stringArray[0]);
+		
+		bw.setPropertyValue("stringArray", null);
+		assertNull(pt.stringArray);
 	}
 	
 	@Test
 	public void testStringArrayPropertyWithCustomStringEditor() throws Exception {
+		PropsTester pt = new PropsTester();
+		BeanWrapper bw = new BeanWrapperImpl(pt);
+		bw.registerCustomEditor(String.class, "stringArray", new PropertyEditorSupport() {
+			@Override
+			public void setAsText(String text) throws IllegalArgumentException {
+				setValue(text.substring(1));
+			}
+		});
 		
+		bw.setPropertyValue("stringArray", new String[] {"0foo", "0fi", "0fi", "0fum"});
+		assertEquals(4, pt.stringArray.length);
+		assertEquals("foo", pt.stringArray[0]);
+		assertEquals("fi", pt.stringArray[1]);
+		assertEquals("fi", pt.stringArray[2]);
+		assertEquals("fum", pt.stringArray[3]);
+		
+		List<String> list = new ArrayList<String>();
+		list.add("0foo");
+		list.add("0fi");
+		list.add("0fi");
+		list.add("0fum");
+		bw.setPropertyValue("stringArray", list);
+		assertEquals(4, pt.stringArray.length);
+		assertEquals("foo", pt.stringArray[0]);
+		assertEquals("fi", pt.stringArray[1]);
+		assertEquals("fi", pt.stringArray[2]);
+		assertEquals("fum", pt.stringArray[3]);
+		
+		Set<String> set = new HashSet<String>();
+		set.add("0foo");
+		set.add("0fi");
+		set.add("0fum");
+		bw.setPropertyValue("stringArray", set);
+		assertEquals(3, pt.stringArray.length);
+		List<String> result = Arrays.asList(pt.stringArray);
+		assertTrue(result.contains("foo"));
+		assertTrue(result.contains("fi"));
+		assertTrue(result.contains("fum"));
+		
+		bw.setPropertyValue("stringArray", "0one");
+		assertEquals(1, pt.stringArray.length);
+		assertEquals("one", pt.stringArray[0]);
 	}
 	
 	@Test
 	public void testStringArrayPropertyWithStringSplitting() throws Exception {
-		
+		PropsTester pt = new PropsTester();
+		BeanWrapperImpl bw = new BeanWrapperImpl(pt);
+		bw.useConfigValueEditors();
+		bw.setPropertyValue("stringArray", "a1,b2");
+		assertEquals(2, pt.stringArray.length);
+		assertEquals("a1", pt.stringArray[0]);
+		assertEquals("b2", pt.stringArray[1]);
 	}
 	
 	@Test
 	public void testStringArrayPropertyWithCustomStringDelimiter() throws Exception {
-		
+		PropsTester pt = new PropsTester();
+		BeanWrapperImpl bw = new BeanWrapperImpl(pt);
+		bw.registerCustomEditor(String[].class, "stringArray", new StringArrayPropertyEditor("-"));
+		bw.setPropertyValue("stringArray", "a1-b2");
+		assertEquals(2, pt.stringArray.length);
+		assertEquals("a1", pt.stringArray[0]);
+		assertEquals("b2", pt.stringArray[1]);
 	}
 	
 	@Test
-	public void testStringArrayPropertyWithCustomEditor() throws Exception {
-		
+	public void testStringPropertyWithCustomEditor() throws Exception {
+		TestBean tb = new TestBean();
+		BeanWrapper bw = new BeanWrapperImpl(tb);
+		bw.registerCustomEditor(String.class, "name", new PropertyEditorSupport() {
+			@Override
+			public void setValue(Object value) {
+				if (value instanceof String[]) {
+					setValue(StringUtils.arrayToDelimitedString((String[])value, "-"));
+				} 
+				else {
+					super.setValue(value != null ? value : "");
+				}
+			}
+		});
+		bw.setPropertyValue("name", new String[]{});
+		assertEquals("", tb.getName());
+		bw.setPropertyValue("name", new String[]{"a1", "b2"});
+		assertEquals("a1-b2", tb.getName());
+		bw.setPropertyValue("name", null);
+		assertEquals("", tb.getName());
 	}
 	
 	@Test
 	public void testIntArrayProperty() {
+		PropsTester pt = new PropsTester();
+		BeanWrapper bw = new BeanWrapperImpl(pt);
 		
+		bw.setPropertyValue("intArray", new int[] {4, 5, 2, 3});
+		assertEquals(4, pt.intArray.length);
+		assertEquals(4, pt.intArray[0]);
+		assertEquals(5, pt.intArray[1]);
+		assertEquals(2, pt.intArray[2]);
+		assertEquals(3, pt.intArray[3]);
+		
+		List<Object> list = new ArrayList<Object>();
+		list.add(new Integer(4));
+		list.add("5");
+		list.add(new Integer(2));
+		list.add("3");
+		bw.setPropertyValue("intArray", list);
+		assertEquals(4, pt.intArray.length);
+		assertEquals(4, pt.intArray[0]);
+		assertEquals(5, pt.intArray[1]);
+		assertEquals(2, pt.intArray[2]);
+		assertEquals(3, pt.intArray[3]);
+		
+		Set<Object> set = new HashSet<Object>();
+		set.add("4");
+		set.add(new Integer(5));
+		set.add("3");
+		bw.setPropertyValue("intArray", set);
+		assertEquals(3, pt.intArray.length);
+		List<Integer> result = new ArrayList<Integer>();
+		result.add(new Integer(pt.intArray[0]));
+		result.add(new Integer(pt.intArray[1]));
+		result.add(new Integer(pt.intArray[2]));
+		assertTrue(result.contains(new Integer(4)));
+		assertTrue(result.contains(new Integer(5)));
+		assertTrue(result.contains(new Integer(3)));
+		
+		bw.setPropertyValue("intArray", new Integer[] {new Integer(1)});
+		assertEquals(1, pt.intArray.length);
+		assertEquals(1, pt.intArray[0]);
+		
+		bw.setPropertyValue("intArray", new Integer(1));
+		assertEquals(1, pt.intArray.length);
+		assertEquals(1, pt.intArray[0]);
+		
+		bw.setPropertyValue("intArray", new String[] {"1"});
+		assertEquals(1, pt.intArray.length);
+		assertEquals(1, pt.intArray[0]);
+		
+		bw.setPropertyValue("intArray", "1");
+		assertEquals(1, pt.intArray.length);
+		assertEquals(1, pt.intArray[0]);
 	}
 	
 	@Test
 	public void testIntArrayPropertyWithCustomEditor() {
+		PropsTester pt = new PropsTester();
+		BeanWrapper bw = new BeanWrapperImpl(pt);
+		bw.registerCustomEditor(int.class, new PropertyEditorSupport() {
+			@Override
+			public void setAsText(String text) throws IllegalArgumentException {
+				setValue(new Integer(Integer.parseInt(text) + 1));
+			}
+		});
 		
+		bw.setPropertyValue("intArray", new int[] {4, 5, 2, 3});
+		assertEquals(4, pt.intArray.length);
+		assertEquals(4, pt.intArray[0]);
+		assertEquals(5, pt.intArray[1]);
+		assertEquals(2, pt.intArray[2]);
+		assertEquals(3, pt.intArray[3]);
+		
+		bw.setPropertyValue("intArray", new String[] {"4", "5", "2", "3"});
+		assertEquals(4, pt.intArray.length);
+		assertEquals(5, pt.intArray[0]);
+		assertEquals(6, pt.intArray[1]);
+		assertEquals(3, pt.intArray[2]);
+		assertEquals(4, pt.intArray[3]);
+		
+		bw.setPropertyValue("intArray", new Integer(1));
+		assertEquals(1, pt.intArray.length);
+		assertEquals(1, pt.intArray[0]);
+		
+		bw.setPropertyValue("intArray", new String[] {"1"});
+		assertEquals(1, pt.intArray.length);
+		assertEquals(2, pt.intArray[0]);
+		
+		bw.setPropertyValue("intArray", "1");
+		assertEquals(1, pt.intArray.length);
+		assertEquals(2, pt.intArray[0]);
 	}
 	
 	@Test
 	public void testIntArrayPropertyWithStringSplitting() {
+		PropsTester pt = new PropsTester();
+		BeanWrapperImpl bw = new BeanWrapperImpl(pt);
+		bw.useConfigValueEditors();
+		bw.setPropertyValue("intArray", "4,5");
+		assertEquals(2, pt.intArray.length);
+		assertEquals(4, pt.intArray[0]);
+		assertEquals(5, pt.intArray[1]);
+	}
+	
+	@Test
+	public void testIndividualAllValid() {
 		
 	}
 	
+	@Test
+	public void test2Invalid() {
+		
+	}
 	
+	@Test
+	public void testPossibleMatches() {
+		
+	}
+	
+	@Test
+	public void testTypeMismatch() {
+		
+	}
+	
+	@Test
+	public void testEmptyValueForPrimitiveProperty() {
+		
+	}
+	
+	@Test
+	public void testSetPropertyValuesIgnoresInvalidNestedOnRequest() {
+		
+	}
+	
+	@Test
+	public void testGetNestedProperty() {
+		
+	}
+	
+	@Test
+	public void testGetNestedPropertyNullValue() {
+		
+	}
+	
+	@Test
+	public void testSetNestedProperty() {
+		
+	}
+	
+	@Test
+	public void testSetNestedPropertyNullValue() {
+		
+	}
+	
+	@Test
+	public void testSetNestedPropertyPolymorphic() {
+		
+	}
+	
+	@Test(expected=IllegalArgumentException.class)
+	public void testNullObject() {
+		new BeanWrapperImpl((Object) null);
+	}
+	
+	@Test
+	public void testNestedProperties() {
+		
+	}
+	
+	@Test
+	public void testIndexedProperties() {
+		
+	}
+	
+	@Test
+	public void testIndexedPropertiesWithDirectAccess() {
+		
+	}
+	
+	@Test
+	public void testMapAccessWithTypeConversion() {
+		
+	}
+	
+	@Test
+	public void testMapAccessWithUnmodifiableMap() {
+		
+	}
+	
+	@Test
+	public void testMapAccessWithCustomUnmodifiableMap() {
+		
+	}
+	
+	@Test
+	public void testRawMapAccessWithNoEditorRegistered() {
+		
+	}
+	
+	@Test
+	public void testTypedMapReadOnlyMap() {
+		
+	}
+	
+	@Test
+	public void testPrimitiveArray() {
+		
+	}
+	
+	@Test
+	public void testLargeMatchingPrimitiveArray() {
+		
+	}
+	
+	@Test
+	public void testLargeMatchingPrimitiveArrayWithSpecificEditor() {
+		
+	}
+	
+	@Test
+	public void testLargeMatchingPrimitiveArrayWithIndexSpecificEditor() {
+		
+	}
+	
+	@Test
+	public void testPropertiesInProtectedBaseBean() {
+		
+	}
+	
+	@Test
+	public void testErrorMessageOfNestedProperty() {
+		
+	}
+	
+	@Test
+	public void testMatchingCollections() {
+		
+	}
+	
+	@Test
+	public void testNonMatchingCollections() {
+		
+	}
+	
+	@Test
+	public void testCollectionsWithArrayValues() {
+		
+	}
+	
+	@Test
+	public void testCollectionsWithIntArrayValues() {
+		
+	}
+	
+	@Test
+	public void testCollectionsWithIntegerValues() {
+		
+	}
+	
+	@Test
+	public void testCollectionsWithStringValues() {
+		
+	}
+	
+	@Test
+	public void testCollectionsWithStringValuesAndCustomEditor() {
+		
+	}
+	
+	@Test
+	public void testMatchingMaps() {
+		
+	}
+	
+	@Test
+	public void testNonMatchingMaps() {
+		
+	}
+	
+	@Test
+	public void testSetNumberProperties() {
+		
+	}
+	
+	@Test
+	public void testAlternativesForTypo() {
+		
+	}
+	
+	@Test
+	public void testAlternativesForTypos() {
+		
+	}
+	
+	@Test
+	public void testGenericEnum() {
+		
+	}
+	
+	@Test
+	public void testWildcardedGenericEnum() {
+		
+	}
 	
 	//------------------------------------------------------
 	// Private static class for test use
