@@ -3,6 +3,7 @@ package org.yuan.study.spring.beans;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -11,10 +12,14 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.SortedMap;
+import java.util.TreeMap;
 
 import org.junit.Test;
 import org.yuan.study.spring.beans.factory.annotation.Autowire;
@@ -747,27 +752,107 @@ public final class BeanWrapperTest {
 	
 	@Test
 	public void testMatchingMaps() {
-		
+		IndexedTestBean tb = new IndexedTestBean();
+		BeanWrapper bw = new BeanWrapperImpl(tb);
+		Map<String, String> map = new HashMap<String, String>();
+		map.put("key", "value");
+		bw.setPropertyValue("map", map);
+		SortedMap<?, ?> sortedMap = new TreeMap<Object, Object>();
+		map.put("sortedKey", "sortedValue");
+		bw.setPropertyValue("sortedMap", sortedMap);
+		assertSame(map, tb.getMap());
+		assertSame(sortedMap, tb.getSortedMap());
 	}
 	
 	@Test
 	public void testNonMatchingMaps() {
-		
+		IndexedTestBean tb = new IndexedTestBean();
+		BeanWrapper bw = new BeanWrapperImpl(tb);
+		Map<String, String> map = new HashMap<String, String>();
+		map.put("key", "value");
+		bw.setPropertyValue("map", map);
+		SortedMap<String, String> sortedMap = new TreeMap<String, String>();
+		sortedMap.put("sortedKey", "sortedValue");
+		bw.setPropertyValue("sortedMap", sortedMap);
+		assertEquals(1, tb.getMap().size());
+		assertEquals("value", tb.getMap().get("key"));
+		assertEquals(1, tb.getSortedMap().size());
+		assertEquals("sortedValue", tb.getSortedMap().get("sortedKey"));
 	}
 	
 	@Test
 	public void testSetNumberProperties() {
+		NumberPropertyBean bean = new NumberPropertyBean();
+		BeanWrapper bw = new BeanWrapperImpl(bean);
 		
+		String byteValue = " " + Byte.MAX_VALUE + " ";
+		String shortValue = " " + Short.MAX_VALUE + " ";
+		String intValue = " " + Integer.MAX_VALUE + " ";
+		String longValue = " " + Long.MAX_VALUE + " ";
+		String floatValue = " " + Float.MAX_VALUE + " ";
+		String doubleValue = " " + Double.MAX_VALUE + " ";
+		
+		bw.setPropertyValue("myPrimitiveByte", byteValue);
+		bw.setPropertyValue("myByte", byteValue);
+		
+		assertEquals(Byte.MAX_VALUE, bean.getMyPrimitiveByte());
+		assertEquals(Byte.MAX_VALUE, bean.getMyByte().byteValue());
+		
+		bw.setPropertyValue("myPrimitiveShort", shortValue);
+		bw.setPropertyValue("myShort", shortValue);
+		
+		assertEquals(Short.MAX_VALUE, bean.getMyPrimitiveShort());
+		assertEquals(Short.MAX_VALUE, bean.getMyShort().shortValue());
+		
+		bw.setPropertyValue("myPrimitiveInt", intValue);
+		bw.setPropertyValue("myInteger", intValue);
+		
+		assertEquals(Integer.MAX_VALUE, bean.getMyPrimitiveInt());
+		assertEquals(Integer.MAX_VALUE, bean.getMyInteger().intValue());
+		
+		bw.setPropertyValue("myPrimitiveLong", longValue);
+		bw.setPropertyValue("myLong", longValue);
+		
+		assertEquals(Long.MAX_VALUE, bean.getMyPrimitiveLong());
+		assertEquals(Long.MAX_VALUE, bean.getMyLong().longValue());
+		
+		bw.setPropertyValue("myPrimitiveFloat", floatValue);
+		bw.setPropertyValue("myFloat", floatValue);
+		
+		assertEquals(Float.MAX_VALUE, bean.getMyPrimitiveFloat(), 0);
+		assertEquals(Float.MAX_VALUE, bean.getMyFloat().floatValue(), 0);
+		
+		bw.setPropertyValue("myPrimitiveDouble", doubleValue);
+		bw.setPropertyValue("myDouble", doubleValue);
+		
+		assertEquals(Double.MAX_VALUE, bean.getMyPrimitiveDouble(), 0);
+		assertEquals(Double.MAX_VALUE, bean.getMyDouble().doubleValue(), 0);
 	}
 	
 	@Test
 	public void testAlternativesForTypo() {
-		
+		IntelliBean ib = new IntelliBean();
+		BeanWrapper bw = new BeanWrapperImpl(ib);
+		try {
+			bw.setPropertyValue("names", "Alef");
+		} 
+		catch (NotWritablePropertyException ex) {
+			assertTrue(ex.getPossibleMatches() != null);
+			assertEquals(1, ex.getPossibleMatches().length);
+		}
 	}
 	
 	@Test
 	public void testAlternativesForTypos() {
-		
+		IntelliBean ib = new IntelliBean();
+		BeanWrapper bw = new BeanWrapperImpl(ib);
+		try {
+			bw.setPropertyValue("mystring", "Arjen");
+		} 
+		catch (NotWritablePropertyException ex) {
+			assertTrue(ex.getPossibleMatches() != null);
+			assertEquals(3, ex.getPossibleMatches().length);
+		}
 	}
 	
 	@Test
@@ -826,7 +911,6 @@ public final class BeanWrapperTest {
 		}
 		
 	}
-	
 	
 	private static class PropsTester {
 		private Properties props;
@@ -970,6 +1054,27 @@ public final class BeanWrapperTest {
 			this.myDouble = myDouble;
 		}
 	}
+	
+	private static class IntelliBean {
+		
+		public void setName(String name) {}
+		
+		public void setMyString(String string) {}
+		
+		public void setMyStrings(String string) {}
+		
+		public void setMyStriNg(String string) {}
+		
+		public void setMyStringss(String string) {}
+	}
+	
+	private static class Employee extends TestBean {}
+	
+	public static class ReadOnlyMap<K, V> extends HashMap<K, V> {}
+	
+	public static class TypedReadOnlyMap extends ReadOnlyMap<String, TestBean> {}
+	
+	public static class TypedReadOnlyMapClient {}
 	
 	public static class EnumConsumer {
 		

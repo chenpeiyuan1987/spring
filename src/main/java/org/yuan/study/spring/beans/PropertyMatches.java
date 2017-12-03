@@ -136,15 +136,15 @@ final class PropertyMatches {
 		for (int i = 0; i <= s1.length(); i++) {
 			d[i][0] = i;
 		}
-		for (int i = 0; i < s2.length(); i++) {
+		for (int i = 0; i <= s2.length(); i++) {
 			d[0][i] = i;
 		}
 		
-		for (int i = 1; i < s1.length(); i++) {
+		for (int i = 1; i <= s1.length(); i++) {
 			char si = s1.charAt(i - 1);
-			for (int j = 1; j < s2.length(); j++) {
+			for (int j = 1; j <= s2.length(); j++) {
 				int cost;
-				char sj = s2.charAt(i - 1);
+				char sj = s2.charAt(j - 1);
 				if (si == sj) {
 					cost = 0;
 				} 
