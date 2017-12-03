@@ -587,12 +587,35 @@ public final class BeanWrapperTest {
 	
 	@Test
 	public void testIndividualAllValid() {
-		
+		TestBean tb = new TestBean();
+		String name = "tony";
+		int age = 65;
+		String touchy = "valid";
+		BeanWrapper bw = new BeanWrapperImpl(tb);
+		bw.setPropertyValue("age", new Integer(age));
+		bw.setPropertyValue(new PropertyValue("name", name));
+		bw.setPropertyValue(new PropertyValue("touchy", touchy));
+		assertEquals(name, tb.getName());
+		assertEquals(touchy, tb.getTouchy());
+		assertEquals(age, tb.getAge());
 	}
 	
 	@Test
 	public void test2Invalid() {
+		TestBean tb = new TestBean();
+		String name = "tony";
+		String touchy = "valid";
 		
+		try {
+			MutablePropertyValues pvs = new MutablePropertyValues();
+			pvs.addPropertyValue("age", "foobar");
+			pvs.addPropertyValue(new PropertyValue("name", name));
+			pvs.addPropertyValue(new PropertyValue("touchy", touchy));
+			BeanWrapper bw = new BeanWrapperImpl(tb);
+			bw.setPropertyValues(pvs);
+		} catch (PropertyBatchUpdateException ex) {
+			
+		}
 	}
 	
 	@Test
@@ -647,12 +670,80 @@ public final class BeanWrapperTest {
 	
 	@Test
 	public void testNestedProperties() {
+		String doctorCompany = "";
+		String lawyerCompany = "Dr. Sueem";
 		
+		TestBean tb = new TestBean();
+		BeanWrapper bw = new BeanWrapperImpl(tb);
+		bw.setPropertyValue("doctor.company", doctorCompany);
+		bw.setPropertyValue("lawyer.company", lawyerCompany);
+		assertEquals(doctorCompany, tb.getDoctor().getCompany());
+		assertEquals(lawyerCompany, tb.getLawyer().getCompany());
 	}
 	
 	@Test
 	public void testIndexedProperties() {
+		IndexedTestBean bean = new IndexedTestBean();
+		BeanWrapper bw = new BeanWrapperImpl(bean);
+		TestBean[] tbs = {
+			bean.getArray()[0],
+			bean.getArray()[1],
+			(TestBean) bean.getList().get(0),
+			(TestBean) bean.getList().get(1),
+			(TestBean) bean.getSet().toArray()[0],
+			(TestBean) bean.getSet().toArray()[1],
+			(TestBean) bean.getMap().get("key1"),
+			(TestBean) bean.getMap().get("key.3"),
+		};
+		assertEquals("name0", tbs[0].getName());
+		assertEquals("name1", tbs[1].getName());
+		assertEquals("name2", tbs[2].getName());
+		assertEquals("name3", tbs[3].getName());
+		assertEquals("name6", tbs[4].getName());
+		assertEquals("name7", tbs[5].getName());
+		assertEquals("name4", tbs[6].getName());
+		assertEquals("name5", tbs[7].getName());
+		assertEquals("name0", bw.getPropertyValue("array[0].name"));
+		assertEquals("name1", bw.getPropertyValue("array[1].name"));
+		assertEquals("name2", bw.getPropertyValue("list[0].name"));
+		assertEquals("name3", bw.getPropertyValue("list[1].name"));
+		assertEquals("name6", bw.getPropertyValue("set[0].name"));
+		assertEquals("name7", bw.getPropertyValue("set[1].name"));
+		assertEquals("name4", bw.getPropertyValue("map[key1].name"));
+		assertEquals("name5", bw.getPropertyValue("map[key.3].name"));
+		assertEquals("name4", bw.getPropertyValue("map['key1'].name"));
+		assertEquals("name5", bw.getPropertyValue("map[\"key.3\"].name"));
+		assertEquals("name8", bw.getPropertyValue("map[key4][0].name"));
+		assertEquals("name9", bw.getPropertyValue("map[key4][1].name"));
 		
+		MutablePropertyValues pvs = new MutablePropertyValues();
+		pvs.add("array[0].name", "name5");
+		pvs.add("array[1].name", "name4");
+		pvs.add("list[0].name", "name3");
+		pvs.add("list[1].name", "name2");
+		pvs.add("set[0].name", "name8");
+		pvs.add("set[1].name", "name9");
+		pvs.add("map[key1].name", "name1");
+		pvs.add("map['key.3'].name", "name0");
+		pvs.add("map[key4][0].name", "nameA");
+		pvs.add("map[key4][1].name", "nameB");
+		bw.setPropertyValues(pvs);
+		assertEquals("name5", tbs[0].getName());
+		assertEquals("name4", tbs[1].getName());
+		assertEquals("name3", tbs[2].getName());
+		assertEquals("name2", tbs[3].getName());
+		assertEquals("name1", tbs[6].getName());
+		assertEquals("name0", tbs[7].getName());
+		assertEquals("name5", bw.getPropertyValue("array[0].name"));
+		assertEquals("name4", bw.getPropertyValue("array[1].name"));
+		assertEquals("name3", bw.getPropertyValue("list[0].name"));
+		assertEquals("name2", bw.getPropertyValue("list[1].name"));
+		assertEquals("name8", bw.getPropertyValue("set[0].name"));
+		assertEquals("name9", bw.getPropertyValue("set[1].name"));
+		assertEquals("name1", bw.getPropertyValue("map[\"key1\"].name"));
+		assertEquals("name0", bw.getPropertyValue("map['key.3'].name"));
+		assertEquals("nameA", bw.getPropertyValue("map[key4][0].name"));
+		assertEquals("nameB", bw.getPropertyValue("map[key4][1].name"));
 	}
 	
 	@Test

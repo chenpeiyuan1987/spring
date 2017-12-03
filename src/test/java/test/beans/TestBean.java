@@ -1,12 +1,14 @@
 package test.beans;
 
 import java.io.IOException;
+import java.time.chrono.ThaiBuddhistChronology;
 import java.util.Properties;
 
 import org.yuan.study.spring.beans.BeansException;
 import org.yuan.study.spring.beans.factory.BeanFactory;
 import org.yuan.study.spring.beans.factory.BeanFactoryAware;
 import org.yuan.study.spring.beans.factory.BeanNameAware;
+import org.yuan.study.spring.util.ObjectUtils;
 
 public class TestBean implements BeanNameAware, BeanFactoryAware, ITestBean, IOther , Comparable {
 
@@ -17,6 +19,9 @@ public class TestBean implements BeanNameAware, BeanFactoryAware, ITestBean, IOt
 	private ITestBean[] spouses;
 	private Properties properties = new Properties();
 	
+	private INestedTestBean doctor = new NestedTestBean();
+	
+	private INestedTestBean lawyer = new NestedTestBean();
 	
 	public TestBean() {
 	}
@@ -60,12 +65,6 @@ public class TestBean implements BeanNameAware, BeanFactoryAware, ITestBean, IOt
 	}
 
 	@Override
-	public int compareTo(Object o) {
-		// TODO Auto-generated method stub
-		return 0;
-	}
-
-	@Override
 	public void setBeanFactory(BeanFactory beanFactory) throws BeansException {
 		// TODO Auto-generated method stub
 
@@ -82,6 +81,7 @@ public class TestBean implements BeanNameAware, BeanFactoryAware, ITestBean, IOt
 		// TODO Auto-generated method stub
 		
 	}
+	
 	@Override
 	public ITestBean getSpouse() {
 		return (spouses != null ? spouses[0] : null);
@@ -90,15 +90,18 @@ public class TestBean implements BeanNameAware, BeanFactoryAware, ITestBean, IOt
 	public void setSpouse(ITestBean spouse) {
 		this.spouses = new ITestBean[] {spouse};
 	}
+	
 	@Override
 	public ITestBean[] getSpouses() {
 		return spouses;
 	}
+	
 	@Override
 	public String[] getStringArray() {
 		// TODO Auto-generated method stub
 		return null;
 	}
+	
 	@Override
 	public void setStringArray(String[] stringArray) {
 		// TODO Auto-generated method stub
@@ -119,16 +122,25 @@ public class TestBean implements BeanNameAware, BeanFactoryAware, ITestBean, IOt
 		// TODO Auto-generated method stub
 		return 0;
 	}
+	
 	@Override
 	public INestedTestBean getDoctor() {
-		// TODO Auto-generated method stub
-		return null;
+		return doctor;
 	}
+	
 	@Override
 	public INestedTestBean getLawyer() {
-		// TODO Auto-generated method stub
-		return null;
+		return lawyer;
 	}
+	
+	public void setDoctor(INestedTestBean doctor) {
+		this.doctor = doctor;
+	}
+	
+	public void setLawyer(INestedTestBean lawyer) {
+		this.lawyer = lawyer;
+	}
+	
 	@Override
 	public IndexedTestBean getNestedIndexedBean() {
 		// TODO Auto-generated method stub
@@ -139,5 +151,37 @@ public class TestBean implements BeanNameAware, BeanFactoryAware, ITestBean, IOt
 		// TODO Auto-generated method stub
 		
 	}
+	
+	@Override
+	public int hashCode() {
+		return age;
+	}
+	
+	@Override
+	public boolean equals(Object other) {
+		if (this == other) {
+			return true;
+		}
+		if (other == null || !(other instanceof TestBean)) {
+			return false;
+		}
+		TestBean tb2 = (TestBean) other;
+		return (ObjectUtils.nullSafeEquals(name, tb2.name) && age == tb2.age);
+	}
+	
+	@Override
+	public String toString() {
+		return name;
+	}
 
+	@Override
+	public int compareTo(Object other) {
+		if (name != null && other instanceof TestBean) {
+			return name.compareTo(((TestBean) other).getName());
+		}
+		else {
+			return 1;
+		}
+	}
+	
 }

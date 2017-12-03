@@ -55,7 +55,7 @@ public class IndexedTestBean {
 		List<Object> list1 = new ArrayList<Object>();
 		list1.add(tb8);
 		list1.add(tb9);
-		map.put("key4", list);
+		map.put("key4", list1);
 	}
 	
 	public TestBean[] getArray() {
