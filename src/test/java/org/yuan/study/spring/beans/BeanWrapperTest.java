@@ -620,17 +620,33 @@ public final class BeanWrapperTest {
 	
 	@Test
 	public void testPossibleMatches() {
-		
+		TestBean tb = new TestBean();
+		try {
+			BeanWrapper bw = new BeanWrapperImpl(tb);
+			bw.setPropertyValue("ag", "foobar");
+			fail();
+		} 
+		catch (NotWritablePropertyException ex) {
+			assertEquals(1, ex.getPossibleMatches().length);
+			assertEquals("age", ex.getPossibleMatches()[0]);
+		}
 	}
 	
-	@Test
+	@Test(expected=TypeMismatchException.class)
 	public void testTypeMismatch() {
-		
+		TestBean tb = new TestBean();
+		BeanWrapper bw = new BeanWrapperImpl(tb);
+		bw.setPropertyValue("age", "foobar");
+		fail();
 	}
 	
-	@Test
+	@Test(expected=TypeMismatchException.class)
 	public void testEmptyValueForPrimitiveProperty() {
-		
+		TestBean tb = new TestBean();
+		BeanWrapper bw = new BeanWrapperImpl(tb);
+		bw.setPropertyValue("ag", "");
+		fail();
+		}
 	}
 	
 	@Test
