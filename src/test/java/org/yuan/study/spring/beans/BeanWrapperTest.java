@@ -12,6 +12,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -28,6 +29,7 @@ import org.yuan.study.spring.beans.propertyeditors.StringTrimmerEditor;
 import org.yuan.study.spring.util.StringUtils;
 
 import test.beans.BooleanTestBean;
+import test.beans.ITestBean;
 import test.beans.IndexedTestBean;
 import test.beans.NumberTestBean;
 import test.beans.TestBean;
@@ -644,39 +646,93 @@ public final class BeanWrapperTest {
 	public void testEmptyValueForPrimitiveProperty() {
 		TestBean tb = new TestBean();
 		BeanWrapper bw = new BeanWrapperImpl(tb);
-		bw.setPropertyValue("ag", "");
+		bw.setPropertyValue("age", "");
 		fail();
-		}
 	}
 	
-	@Test
+	@Test(expected=NotWritablePropertyException.class)
 	public void testSetPropertyValuesIgnoresInvalidNestedOnRequest() {
-		
+		ITestBean rod = new TestBean();
+		MutablePropertyValues pvs = new MutablePropertyValues();
+		pvs.addPropertyValue(new PropertyValue("name", "rod"));
+		pvs.addPropertyValue(new PropertyValue("graceful.rubbish", "tony"));
+		pvs.addPropertyValue(new PropertyValue("more.garbage", new Object()));
+		BeanWrapper bw = new BeanWrapperImpl(rod);
+		bw.setPropertyValues(pvs, true);
+		assertEquals("rod", rod.getName());
+		bw.setPropertyValues(pvs, false);
 	}
 	
 	@Test
 	public void testGetNestedProperty() {
-		
+		ITestBean rod = new TestBean("rod", 31);
+		ITestBean kerry = new TestBean("kerry", 35);
+		rod.setSpouse(kerry);
+		kerry.setSpouse(rod);
+		BeanWrapper bw = new BeanWrapperImpl(rod);
+		Integer KA = (Integer) bw.getPropertyValue("spouse.age");
+		assertEquals(35, KA.intValue());
+		Integer RA = (Integer) bw.getPropertyValue("spouse.spouse.age");
+		assertEquals(31, RA.intValue());
+		ITestBean spousesSpouse = (ITestBean) bw.getPropertyValue("spouse.spouse");
+		assertEquals(spousesSpouse, rod);
 	}
 	
-	@Test
+	@Test(expected=NullValueInNestedPathException.class)
 	public void testGetNestedPropertyNullValue() {
+		ITestBean rod = new TestBean("rod", 31);
+		ITestBean kerry = new TestBean("kerry", 35);
+		rod.setSpouse(kerry);
 		
+		BeanWrapper bw = new BeanWrapperImpl(rod);
+		bw.getPropertyValue("spouse.spouse.age");
 	}
 	
 	@Test
 	public void testSetNestedProperty() {
+		ITestBean rod = new TestBean("rod", 31);
+		ITestBean kerry = new TestBean("kerry", 0);
 		
+		BeanWrapper bw = new BeanWrapperImpl(rod);
+		bw.setPropertyValue("spouse", kerry);
+		
+		assertEquals(kerry, rod.getSpouse());
+		assertNull(kerry.getSpouse());
+		bw.setPropertyValue(new PropertyValue("spouse.spouse", rod));
+		assertEquals(rod, kerry.getSpouse());
+		assertEquals(0, kerry.getAge());
+		bw.setPropertyValue(new PropertyValue("spouse.age", new Integer(35)));
+		assertEquals(35, kerry.getAge());
+		assertEquals(kerry, bw.getPropertyValue("spouse"));
+		assertEquals(rod, bw.getPropertyValue("spouse.spouse"));
 	}
 	
-	@Test
+	@Test(expected=NullValueInNestedPathException.class)
 	public void testSetNestedPropertyNullValue() {
-		
+		ITestBean rod = new TestBean("rod", 31);
+		BeanWrapper bw = new BeanWrapperImpl(rod);
+		bw.setPropertyValue("spouse.age", new Integer(31));
 	}
 	
 	@Test
 	public void testSetNestedPropertyPolymorphic() {
+		ITestBean rod = new TestBean("rod", 31);
+		ITestBean kerry = new Employee();
 		
+		BeanWrapper bw = new BeanWrapperImpl(rod);
+		bw.setPropertyValue("spouse", kerry);
+		bw.setPropertyValue("spouse.age", new Integer(35));
+		bw.setPropertyValue("spouse.name", "kerry");
+		bw.setPropertyValue("spouse.company", "Lewisham");
+		assertEquals("kerry", kerry.getName());
+		
+		assertEquals(kerry, rod.getSpouse());
+		assertNull(kerry.getSpouse());
+		bw.setPropertyValue(new PropertyValue("spouse.spouse", rod));
+		assertEquals(rod, kerry.getSpouse());
+		
+		bw = new BeanWrapperImpl(kerry);
+		assertEquals("Lewisham", bw.getPropertyValue("spouse.spouse.spouse.spouse.company"));
 	}
 	
 	@Test(expected=IllegalArgumentException.class)
@@ -764,98 +820,251 @@ public final class BeanWrapperTest {
 	
 	@Test
 	public void testIndexedPropertiesWithDirectAccess() {
+		IndexedTestBean bean = new IndexedTestBean();
+		BeanWrapper bw = new BeanWrapperImpl(bean);
+		TestBean[] tbs = {
+			bean.getArray()[0],
+			bean.getArray()[1],
+			(TestBean) bean.getList().get(0),
+			(TestBean) bean.getList().get(1),
+			(TestBean) bean.getSet().toArray()[0],
+			(TestBean) bean.getSet().toArray()[1],
+			(TestBean) bean.getMap().get("key1"),
+			(TestBean) bean.getMap().get("key2"),
+		};
+		assertEquals(tbs[0], bw.getPropertyValue("array[0]"));
+		assertEquals(tbs[1], bw.getPropertyValue("array[1]"));
+		assertEquals(tbs[2], bw.getPropertyValue("list[0]"));
+		assertEquals(tbs[3], bw.getPropertyValue("list[1]"));
+		assertEquals(tbs[4], bw.getPropertyValue("set[0]"));
+		assertEquals(tbs[5], bw.getPropertyValue("set[1]"));
+		assertEquals(tbs[6], bw.getPropertyValue("map[key1]"));
+		assertEquals(tbs[7], bw.getPropertyValue("map[key2]"));
+		assertEquals(tbs[6], bw.getPropertyValue("map['key1']"));
+		assertEquals(tbs[7], bw.getPropertyValue("map[\"key2\"]"));
 		
+		MutablePropertyValues pvs = new MutablePropertyValues();
+		pvs.add("array[0]", tbs[7]);
+		pvs.add("array[1]", tbs[6]);
+		pvs.add("list[0]", tbs[3]);
+		pvs.add("list[1]", tbs[2]);
+		pvs.add("list[2]", tbs[0]);
+		pvs.add("list[4]", tbs[1]);
+		pvs.add("map[key1]", tbs[1]);
+		pvs.add("map['key2']", tbs[0]);
+		pvs.add("map[key5]", tbs[6]);
+		pvs.add("map['key9']", tbs[7]);
+		bw.setPropertyValues(pvs);
+		assertEquals(tbs[7], bean.getArray()[0]);
+		assertEquals(tbs[6], bean.getArray()[1]);
+		assertEquals(tbs[3], bean.getList().get(0));
+		assertEquals(tbs[2], bean.getList().get(1));
+		assertEquals(tbs[0], bean.getList().get(2));
+		assertNull(bean.getList().get(3));
+		assertEquals(tbs[1], bean.getList().get(4));
+		assertEquals(tbs[1], bean.getMap().get("key1"));
+		assertEquals(tbs[0], bean.getMap().get("key2"));
+		assertEquals(tbs[6], bean.getMap().get("key5"));
+		assertEquals(tbs[7], bean.getMap().get("key9"));
+		assertEquals(tbs[7], bw.getPropertyValue("array[0]"));
+		assertEquals(tbs[6], bw.getPropertyValue("array[1]"));
+		assertEquals(tbs[3], bw.getPropertyValue("list[0]"));
+		assertEquals(tbs[2], bw.getPropertyValue("list[1]"));
+		assertEquals(tbs[0], bw.getPropertyValue("list[2]"));
+		assertNull(bw.getPropertyValue("list[3]"));
+		assertEquals(tbs[1], bw.getPropertyValue("list[4]"));
+		assertEquals(tbs[1], bw.getPropertyValue("map[\"key1\"]"));
+		assertEquals(tbs[0], bw.getPropertyValue("map['key2']"));
+		assertEquals(tbs[6], bw.getPropertyValue("map[\"key5\"]"));
+		assertEquals(tbs[7], bw.getPropertyValue("map['key9']"));
 	}
+	
 	
 	@Test
 	public void testMapAccessWithTypeConversion() {
+		IndexedTestBean bean = new IndexedTestBean();
+		BeanWrapper bw = new BeanWrapperImpl(bean);
+		bw.registerCustomEditor(TestBean.class, "map", new PropertyEditorSupport() {
+			@Override
+			public void setAsText(String text) throws IllegalArgumentException {
+				if (!StringUtils.hasLength(text)) {
+					throw new IllegalArgumentException();
+				}
+				setValue(new TestBean(text));
+			}
+		});
 		
+		MutablePropertyValues pvs = new MutablePropertyValues();
+		pvs.add("map[key1]", "rod");
+		pvs.add("map[key2]", "rob");
+		bw.setPropertyValues(pvs);
+		assertEquals("rod", ((TestBean) bean.getMap().get("key1")).getName());
+		assertEquals("rob", ((TestBean) bean.getMap().get("key2")).getName());
+		
+		pvs = new MutablePropertyValues();
+		pvs.add("map[key1]", "rod");
+		pvs.add("map[key2]", "");
+		try {
+			bw.setPropertyValues(pvs);
+			fail();
+		} 
+		catch (PropertyBatchUpdateException ex) {
+			PropertyAccessException pae = ex.getPropertyAccessException("map[key2]");
+			assertTrue(pae instanceof TypeMismatchException);
+		}
 	}
+	
 	
 	@Test
 	public void testMapAccessWithUnmodifiableMap() {
+		IndexedTestBean bean = new IndexedTestBean();
+		BeanWrapper bw = new BeanWrapperImpl(bean);
+		bw.registerCustomEditor(TestBean.class, "map", new PropertyEditorSupport() {
+			@Override
+			public void setAsText(String text) throws IllegalArgumentException {
+				if (!StringUtils.hasLength(text)) {
+					throw new IllegalArgumentException();
+				}
+				setValue(new TestBean(text));
+			}
+		});
 		
+		Map<Integer, String> inputMap = new HashMap<Integer, String>();
+		inputMap.put(new Integer(1), "rod");
+		inputMap.put(new Integer(2), "rob");
+		MutablePropertyValues pvs = new MutablePropertyValues();
+		pvs.add("map", Collections.unmodifiableMap(inputMap));
+		bw.setPropertyValues(pvs);
+		assertEquals("rod", ((TestBean) bean.getMap().get(new Integer(1))).getName());
+		assertEquals("rob", ((TestBean) bean.getMap().get(new Integer(2))).getName());
 	}
+	
 	
 	@Test
 	public void testMapAccessWithCustomUnmodifiableMap() {
+		IndexedTestBean bean = new IndexedTestBean();
+		BeanWrapper bw = new BeanWrapperImpl(bean);
+		bw.registerCustomEditor(TestBean.class, "map", new PropertyEditorSupport() {
+			@Override
+			public void setAsText(String text) throws IllegalArgumentException {
+				if (!StringUtils.hasLength(text)) {
+					throw new IllegalArgumentException();
+				}
+				setValue(new TestBean(text));
+			}
+		});
 		
+		Map<Integer, String> inputMap = new HashMap<Integer, String>();
+		inputMap.put(new Integer(1), "rod");
+		inputMap.put(new Integer(2), "rob");
+		MutablePropertyValues pvs = new MutablePropertyValues();
+		pvs.add("map", new ReadOnlyMap(inputMap));
+		bw.setPropertyValues(pvs);
+		assertEquals("rod", ((TestBean) bean.getMap().get(new Integer(1))).getName());
+		assertEquals("rob", ((TestBean) bean.getMap().get(new Integer(2))).getName());
 	}
+	
 	
 	@Test
 	public void testRawMapAccessWithNoEditorRegistered() {
+		IndexedTestBean bean = new IndexedTestBean();
+		BeanWrapper bw = new BeanWrapperImpl(bean);
 		
+		Map<Integer, String> inputMap = new HashMap<Integer, String>();
+		inputMap.put(new Integer(1), "rod");
+		inputMap.put(new Integer(2), "rob");
+		ReadOnlyMap readOnlyMap = new ReadOnlyMap(inputMap);
+		MutablePropertyValues pvs = new MutablePropertyValues();
+		pvs.add("map", readOnlyMap);
+		bw.setPropertyValues(pvs);
+		assertSame(readOnlyMap, bean.getMap());
+		assertFalse(readOnlyMap.isAccessed());
 	}
+	
 	
 	@Test
 	public void testTypedMapReadOnlyMap() {
 		
 	}
 	
+	
 	@Test
 	public void testPrimitiveArray() {
 		
 	}
+	
 	
 	@Test
 	public void testLargeMatchingPrimitiveArray() {
 		
 	}
 	
+	
 	@Test
 	public void testLargeMatchingPrimitiveArrayWithSpecificEditor() {
 		
 	}
+	
 	
 	@Test
 	public void testLargeMatchingPrimitiveArrayWithIndexSpecificEditor() {
 		
 	}
 	
+	
 	@Test
 	public void testPropertiesInProtectedBaseBean() {
 		
 	}
+	
 	
 	@Test
 	public void testErrorMessageOfNestedProperty() {
 		
 	}
 	
+	
 	@Test
 	public void testMatchingCollections() {
 		
 	}
+	
 	
 	@Test
 	public void testNonMatchingCollections() {
 		
 	}
 	
+	
 	@Test
 	public void testCollectionsWithArrayValues() {
 		
 	}
+	
 	
 	@Test
 	public void testCollectionsWithIntArrayValues() {
 		
 	}
 	
+	
 	@Test
 	public void testCollectionsWithIntegerValues() {
 		
 	}
+	
 	
 	@Test
 	public void testCollectionsWithStringValues() {
 		
 	}
 	
+	
 	@Test
 	public void testCollectionsWithStringValuesAndCustomEditor() {
 		
 	}
+	
 	
 	@Test
 	public void testMatchingMaps() {
@@ -870,6 +1079,7 @@ public final class BeanWrapperTest {
 		assertSame(map, tb.getMap());
 		assertSame(sortedMap, tb.getSortedMap());
 	}
+	
 	
 	@Test
 	public void testNonMatchingMaps() {
@@ -886,6 +1096,7 @@ public final class BeanWrapperTest {
 		assertEquals(1, tb.getSortedMap().size());
 		assertEquals("sortedValue", tb.getSortedMap().get("sortedKey"));
 	}
+	
 	
 	@Test
 	public void testSetNumberProperties() {
@@ -936,6 +1147,7 @@ public final class BeanWrapperTest {
 		assertEquals(Double.MAX_VALUE, bean.getMyDouble().doubleValue(), 0);
 	}
 	
+	
 	@Test
 	public void testAlternativesForTypo() {
 		IntelliBean ib = new IntelliBean();
@@ -948,6 +1160,7 @@ public final class BeanWrapperTest {
 			assertEquals(1, ex.getPossibleMatches().length);
 		}
 	}
+	
 	
 	@Test
 	public void testAlternativesForTypos() {
@@ -962,6 +1175,7 @@ public final class BeanWrapperTest {
 		}
 	}
 	
+	
 	@Test
 	public void testGenericEnum() {
 		EnumConsumer consumer = new EnumConsumer();
@@ -969,6 +1183,7 @@ public final class BeanWrapperTest {
 		bw.setPropertyValue("enumValue", TestEnum.class.getName() + ".TEST_VALUE");
 		assertEquals(TestEnum.TEST_VALUE, consumer.getEnumValue());
 	}
+	
 	
 	@Test
 	public void testWildcardedGenericEnum() {
@@ -1175,9 +1390,66 @@ public final class BeanWrapperTest {
 		public void setMyStringss(String string) {}
 	}
 	
-	private static class Employee extends TestBean {}
+	private static class Employee extends TestBean {
+		
+		private String company;
+
+		public String getCompany() {
+			return company;
+		}
+
+		public void setCompany(String company) {
+			this.company = company;
+		}
+		
+	}
 	
-	public static class ReadOnlyMap<K, V> extends HashMap<K, V> {}
+	public static class ReadOnlyMap<K, V> extends HashMap<K, V> {
+		
+		private boolean frozen = false;
+		
+		private boolean accessed = false;
+
+		public ReadOnlyMap() {
+			frozen = true;
+		}
+		
+		public ReadOnlyMap(Map<? extends K, ? extends V> map) {
+			super(map);
+			frozen = true;
+		}
+		
+		public V put(K key, V value) {
+			if (frozen) {
+				throw new UnsupportedOperationException();
+			} 
+			else {
+				return super.put(key, value);
+			}
+		}
+		
+		public Set<Map.Entry<K, V>> entrySet() {
+			accessed = true;
+			return super.entrySet();
+		}
+		
+		public Set<K> keySet() {
+			accessed = true;
+			return super.keySet();
+		}
+		
+		public int size() {
+			accessed = true;
+			return super.size();
+		}
+		
+		public boolean isAccessed() {
+			return accessed;
+		}
+		
+		
+		
+	}
 	
 	public static class TypedReadOnlyMap extends ReadOnlyMap<String, TestBean> {}
 	

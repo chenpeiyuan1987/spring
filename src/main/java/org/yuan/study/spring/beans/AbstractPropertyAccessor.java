@@ -36,7 +36,9 @@ public abstract class AbstractPropertyAccessor extends PropertyEditorRegistrySup
 	
 	public void setPropertyValues(PropertyValues pvs, boolean ignoreUnknown, boolean ignoreInvalid) throws BeansException {
 		List<PropertyAccessException> propertyAccessExceptions = null;
-		List<PropertyValue> propertyValues = (pvs instanceof MutablePropertyValues ? ((MutablePropertyValues) pvs).getPropertyValueList() : Arrays.asList(pvs.getPropertyValues()));
+		List<PropertyValue> propertyValues = (pvs instanceof MutablePropertyValues 
+			? ((MutablePropertyValues) pvs).getPropertyValueList() 
+			: Arrays.asList(pvs.getPropertyValues()));
 		for (PropertyValue propertyValue : propertyValues) {
 			try {
 				setPropertyValue(propertyValue);
@@ -59,6 +61,11 @@ public abstract class AbstractPropertyAccessor extends PropertyEditorRegistrySup
 			}
 		}
 		
+		if (propertyAccessExceptions != null) {
+			PropertyAccessException[] paeArray = propertyAccessExceptions.toArray(
+				new PropertyAccessException[propertyAccessExceptions.size()]);
+			throw new PropertyBatchUpdateException(paeArray);
+		}
 	}
 
 	@Override

@@ -17,7 +17,7 @@ public class PropertyBatchUpdateException extends BeansException {
 	 * @param message
 	 * @param propertyAccessExceptions
 	 */
-	public PropertyBatchUpdateException(String message, PropertyAccessException[] propertyAccessExceptions) {
+	public PropertyBatchUpdateException(PropertyAccessException[] propertyAccessExceptions) {
 		super(null);
 		Assert.notNull(propertyAccessExceptions, "At least 1 PropertyAccessException required");
 		this.propertyAccessExceptions = propertyAccessExceptions;
