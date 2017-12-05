@@ -12,20 +12,25 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.SortedMap;
+import java.util.SortedSet;
 import java.util.TreeMap;
+import java.util.TreeSet;
 
 import org.junit.Test;
 import org.yuan.study.spring.beans.factory.annotation.Autowire;
 import org.yuan.study.spring.beans.propertyeditors.StringArrayPropertyEditor;
 import org.yuan.study.spring.beans.propertyeditors.StringTrimmerEditor;
+import org.yuan.study.spring.beans.support.DerivedFromProtectedBaseBean;
 import org.yuan.study.spring.util.StringUtils;
 
 import test.beans.BooleanTestBean;
@@ -984,13 +989,21 @@ public final class BeanWrapperTest {
 	
 	@Test
 	public void testTypedMapReadOnlyMap() {
-		
+		TypedReadOnlyMap map = new TypedReadOnlyMap(Collections.singletonMap("key", new TestBean()));
+		TypedReadOnlyMapClient bean = new TypedReadOnlyMapClient();
+		BeanWrapper bw = new BeanWrapperImpl(bean);
+		bw.setPropertyValue("map", map);
 	}
 	
 	
 	@Test
 	public void testPrimitiveArray() {
-		
+		PrimitiveArrayBean pb = new PrimitiveArrayBean();
+		BeanWrapper bw = new BeanWrapperImpl(pb);
+		bw.setPropertyValue("array", new String[]{"1", "2"});
+		assertEquals(2, pb.getArray().length);
+		assertEquals(1, pb.getArray()[0]);
+		assertEquals(2, pb.getArray()[1]);
 	}
 	
 	
@@ -1002,67 +1015,269 @@ public final class BeanWrapperTest {
 	
 	@Test
 	public void testLargeMatchingPrimitiveArrayWithSpecificEditor() {
-		
+		PrimitiveArrayBean pb = new PrimitiveArrayBean();
+		BeanWrapper bw = new BeanWrapperImpl(pb);
+		bw.registerCustomEditor(int.class, "array", new PropertyEditorSupport() {
+			@Override
+			public void setValue(Object value) {
+				if (value instanceof Integer) {
+					super.setValue(new Integer(((Integer) value).intValue() + 1));
+				}
+			}
+		});
+		int[] input = new int[1024];
+		bw.setPropertyValue("array", input);
+		assertEquals(1024, pb.getArray().length);
+		assertEquals(1, pb.getArray()[0]);
+		assertEquals(1, pb.getArray()[1]);
 	}
 	
 	
 	@Test
 	public void testLargeMatchingPrimitiveArrayWithIndexSpecificEditor() {
-		
+		PrimitiveArrayBean pb = new PrimitiveArrayBean();
+		BeanWrapper bw = new BeanWrapperImpl(pb);
+		bw.registerCustomEditor(int.class, "array[1]", new PropertyEditorSupport() {
+			@Override
+			public void setValue(Object value) {
+				if (value instanceof Integer) {
+					super.setValue(new Integer(((Integer) value).intValue() + 1));
+				}
+			}
+		});
+		int[] input = new int[1024];
+		bw.setPropertyValue("array", input);
+		assertEquals(1024, pb.getArray().length);
+		assertEquals(0, pb.getArray()[0]);
+		assertEquals(1, pb.getArray()[1]);
 	}
 	
 	
 	@Test
 	public void testPropertiesInProtectedBaseBean() {
-		
+		DerivedFromProtectedBaseBean bean = new DerivedFromProtectedBaseBean();
+		BeanWrapper bw = new BeanWrapperImpl(bean);
+		bw.setPropertyValue("someProperty", "someValue");
+		assertEquals("someValue", bw.getPropertyValue("someProperty"));
+		assertEquals("someValue", bean.getSomeProperty());
 	}
 	
 	
 	@Test
 	public void testErrorMessageOfNestedProperty() {
-		
+		ITestBean parent = new TestBean();
+		ITestBean child = new DifferentTestBean();
+		child.setName("test");
+		parent.setSpouse(child);
+		BeanWrapper bw = new BeanWrapperImpl(parent);
+		try {
+			bw.getPropertyValue("spouse.bla");
+		} 
+		catch (NotReadablePropertyException ex) {
+			assertTrue(ex.getMessage().indexOf(TestBean.class.getName()) != -1);
+		}
 	}
 	
 	
 	@Test
 	public void testMatchingCollections() {
+		IndexedTestBean tb = new IndexedTestBean();
+		BeanWrapper bw = new BeanWrapperImpl(tb);
 		
+		Collection<String> coll = new HashSet<String>();
+		coll.add("coll1");
+		bw.setPropertyValue("collection", coll);
+		
+		Set<String> set = new HashSet<String>();
+		set.add("set1");
+		bw.setPropertyValue("set", set);
+		
+		SortedSet<String> sortedSet = new TreeSet<String>();
+		sortedSet.add("sortedSet1");
+		bw.setPropertyValue("sortedSet", sortedSet);
+		
+		List<String> list = new LinkedList<String>();
+		list.add("list1");
+		bw.setPropertyValue("list", list);
+		
+		assertSame(coll, tb.getCollection());
+		assertSame(set, tb.getSet());
+		assertSame(sortedSet, tb.getSortedSet());
+		assertSame(list, tb.getList());
 	}
 	
 	
 	@Test
 	public void testNonMatchingCollections() {
+		IndexedTestBean tb = new IndexedTestBean();
+		BeanWrapper bw = new BeanWrapperImpl(tb);
 		
+		Collection<String> coll = new ArrayList<String>();
+		coll.add("coll1");
+		bw.setPropertyValue("collection", coll);
+		
+		List<String> set = new LinkedList<String>();
+		set.add("set1");
+		bw.setPropertyValue("set", set);
+		
+		List<String> sortedSet = new ArrayList<String>();
+		sortedSet.add("sortedSet1");
+		bw.setPropertyValue("sortedSet", sortedSet);
+		
+		Set<String> list = new HashSet<String>();
+		list.add("list1");
+		bw.setPropertyValue("list", list);
+		
+		assertEquals(1, tb.getCollection().size());
+		assertTrue(tb.getCollection().containsAll(coll));
+		assertEquals(1, tb.getSet().size());
+		assertTrue(tb.getSet().containsAll(set));
+		assertEquals(1, tb.getSortedSet().size());
+		assertTrue(tb.getSortedSet().containsAll(sortedSet));
+		assertEquals(1, tb.getList().size());
+		assertTrue(tb.getList().containsAll(list));
 	}
 	
 	
 	@Test
 	public void testCollectionsWithArrayValues() {
+		IndexedTestBean tb = new IndexedTestBean();
+		BeanWrapper bw = new BeanWrapperImpl(tb);
 		
+		Collection<String> coll = new HashSet<String>();
+		coll.add("coll1");
+		bw.setPropertyValue("collection", coll.toArray());
+		
+		List<String> set = new LinkedList<String>();
+		set.add("set1");
+		bw.setPropertyValue("set", set.toArray());
+		
+		List<String> sortedSet = new ArrayList<String>();
+		sortedSet.add("sortedSet1");
+		bw.setPropertyValue("sortedSet", sortedSet.toArray());
+		
+		Set<String> list = new HashSet<String>();
+		list.add("list1");
+		bw.setPropertyValue("list", list.toArray());
+		
+		assertEquals(1, tb.getCollection().size());
+		assertTrue(tb.getCollection().containsAll(coll));
+		assertEquals(1, tb.getSet().size());
+		assertTrue(tb.getSet().containsAll(set));
+		assertEquals(1, tb.getSortedSet().size());
+		assertTrue(tb.getSortedSet().containsAll(sortedSet));
+		assertEquals(1, tb.getList().size());
+		assertTrue(tb.getList().containsAll(list));
 	}
 	
 	
 	@Test
 	public void testCollectionsWithIntArrayValues() {
+		IndexedTestBean tb = new IndexedTestBean();
+		BeanWrapper bw = new BeanWrapperImpl(tb);
 		
+		Collection<Integer> coll = new HashSet<Integer>();
+		coll.add(new Integer(0));
+		bw.setPropertyValue("collection", new int[] {0});
+		
+		List<Integer> set = new LinkedList<Integer>();
+		set.add(new Integer(1));
+		bw.setPropertyValue("set", new int[] {1});
+		
+		List<Integer> sortedSet = new ArrayList<Integer>();
+		sortedSet.add(new Integer(2));
+		bw.setPropertyValue("sortedSet", new int[] {2});
+		
+		Set<Integer> list = new HashSet<Integer>();
+		list.add(new Integer(3));
+		bw.setPropertyValue("list", new int[] {3});
+		
+		assertEquals(1, tb.getCollection().size());
+		assertTrue(tb.getCollection().containsAll(coll));
+		assertEquals(1, tb.getSet().size());
+		assertTrue(tb.getSet().containsAll(set));
+		assertEquals(1, tb.getSortedSet().size());
+		assertTrue(tb.getSortedSet().containsAll(sortedSet));
+		assertEquals(1, tb.getList().size());
+		assertTrue(tb.getList().containsAll(list));
 	}
 	
 	
 	@Test
 	public void testCollectionsWithIntegerValues() {
+		IndexedTestBean tb = new IndexedTestBean();
+		BeanWrapper bw = new BeanWrapperImpl(tb);
 		
+		Collection<Integer> coll = new HashSet<Integer>();
+		coll.add(new Integer(0));
+		bw.setPropertyValue("collection", new Integer(0));
+		
+		List<Integer> set = new LinkedList<Integer>();
+		set.add(new Integer(1));
+		bw.setPropertyValue("set", new Integer(1));
+		
+		List<Integer> sortedSet = new ArrayList<Integer>();
+		sortedSet.add(new Integer(2));
+		bw.setPropertyValue("sortedSet", new Integer(2));
+		
+		Set<Integer> list = new HashSet<Integer>();
+		list.add(new Integer(3));
+		bw.setPropertyValue("list", new Integer(3));
+		
+		assertEquals(1, tb.getCollection().size());
+		assertTrue(tb.getCollection().containsAll(coll));
+		assertEquals(1, tb.getSet().size());
+		assertTrue(tb.getSet().containsAll(set));
+		assertEquals(1, tb.getSortedSet().size());
+		assertTrue(tb.getSortedSet().containsAll(sortedSet));
+		assertEquals(1, tb.getList().size());
+		assertTrue(tb.getList().containsAll(list));
 	}
 	
 	
 	@Test
 	public void testCollectionsWithStringValues() {
+		IndexedTestBean tb = new IndexedTestBean();
+		BeanWrapper bw = new BeanWrapperImpl(tb);
 		
+		List<String> set = new LinkedList<String>();
+		set.add("set1");
+		bw.setPropertyValue("set", "set1");
+		
+		List<String> sortedSet = new ArrayList<String>();
+		sortedSet.add("sortedSet1");
+		bw.setPropertyValue("sortedSet", "sortedSet1");
+		
+		Set<String> list = new HashSet<String>();
+		list.add("list1");
+		bw.setPropertyValue("list", "list1");
+		
+		assertEquals(1, tb.getSet().size());
+		assertTrue(tb.getSet().containsAll(set));
+		assertEquals(1, tb.getSortedSet().size());
+		assertTrue(tb.getSortedSet().containsAll(sortedSet));
+		assertEquals(1, tb.getList().size());
+		assertTrue(tb.getList().containsAll(list));
 	}
 	
 	
 	@Test
 	public void testCollectionsWithStringValuesAndCustomEditor() {
+		IndexedTestBean tb = new IndexedTestBean();
+		BeanWrapper bw = new BeanWrapperImpl(tb);
+		bw.registerCustomEditor(String.class, "set", new StringTrimmerEditor(false));
+		bw.registerCustomEditor(String.class, "list", new StringTrimmerEditor(false));
 		
+		bw.setPropertyValue("set", "set1 ");
+		bw.setPropertyValue("sortedSet", "sortedSet1");
+		bw.setPropertyValue("list", "list1 ");
+		
+		assertEquals(1, tb.getSet().size());
+		assertTrue(tb.getSet().contains("set1"));
+		assertEquals(1, tb.getSortedSet().size());
+		assertTrue(tb.getSortedSet().contains("sortedSet1"));
+		assertEquals(1, tb.getList().size());
+		assertTrue(tb.getList().contains("list1"));
 	}
 	
 	
@@ -1447,13 +1662,26 @@ public final class BeanWrapperTest {
 			return accessed;
 		}
 		
-		
+	}
+	
+	public static class TypedReadOnlyMap extends ReadOnlyMap<String, TestBean> {
+		private static final long serialVersionUID = 1L;
+
+		public TypedReadOnlyMap() {
+		}
+
+		public TypedReadOnlyMap(Map<? extends String, ? extends TestBean> map) {
+			super(map);
+		}
 		
 	}
 	
-	public static class TypedReadOnlyMap extends ReadOnlyMap<String, TestBean> {}
-	
-	public static class TypedReadOnlyMapClient {}
+	public static class TypedReadOnlyMapClient {
+		
+		public void setMap(TypedReadOnlyMap map) {
+			
+		}
+	}
 	
 	public static class EnumConsumer {
 		

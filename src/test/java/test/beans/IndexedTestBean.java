@@ -10,13 +10,14 @@ import java.util.SortedMap;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
+@SuppressWarnings("rawtypes")
 public class IndexedTestBean {
 	private TestBean[] array;
 	private Collection<Object> collection;
 	private List<Object> list;
 	private Set<Object> set;
 	private SortedSet<Object> sortedSet;
-	private Map<Object,Object> map;
+	private Map map;
 	private SortedMap<Object,Object> sortedMap;
 	
 	
@@ -88,10 +89,10 @@ public class IndexedTestBean {
 	public void setSortedSet(SortedSet<Object> sortedSet) {
 		this.sortedSet = sortedSet;
 	}
-	public Map<Object, Object> getMap() {
+	public Map getMap() {
 		return map;
 	}
-	public void setMap(Map<Object, Object> map) {
+	public void setMap(Map map) {
 		this.map = map;
 	}
 	public SortedMap<Object, Object> getSortedMap() {
