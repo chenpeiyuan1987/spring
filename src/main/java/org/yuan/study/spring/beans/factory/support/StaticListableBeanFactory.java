@@ -45,19 +45,19 @@ public class StaticListableBeanFactory implements ListableBeanFactory {
 		
 		if(bean == null) {
 			String definedBeans = StringUtils.collectionToCommaDelimitedString(this.beans.keySet());
-			throw new NoSuchBeanDefinitionException(beanName, String.format("Defined beans are [%s]", definedBeans));
+			throw new NoSuchBeanDefinitionException(
+				beanName, String.format("Defined beans are [%s]", definedBeans));
 		}
-		
 		if(BeanFactoryUtils.isFactoryDereference(name) && !(bean instanceof FactoryBean)) {
 			throw new BeanIsNotAFactoryException(beanName, bean.getClass());
 		}
-		
 		if(bean instanceof FactoryBean && !BeanFactoryUtils.isFactoryDereference(name)) {
 			try {
 				return ((FactoryBean<?>) bean).getObject();
 			}
 			catch(Exception ex) {
-				throw new BeanCreationException(beanName, "FactoryBean threw exception on object creation", ex);
+				throw new BeanCreationException(
+					beanName, "FactoryBean threw exception on object creation", ex);
 			}
 		}
 		
@@ -80,7 +80,8 @@ public class StaticListableBeanFactory implements ListableBeanFactory {
 			return getBean(beanNames[0], requiredType);
 		}
 		
-		throw new NoSuchBeanDefinitionException(requiredType, "expected single bean but found " + beanNames.length);
+		throw new NoSuchBeanDefinitionException(
+			requiredType, "expected single bean but found " + beanNames.length);
 	}
 
 	@Override
@@ -91,7 +92,6 @@ public class StaticListableBeanFactory implements ListableBeanFactory {
 		}
 		return getBean(name);
 	}
-
 
 	@Override
 	public boolean isPrototype(String name) throws NoSuchBeanDefinitionException {
@@ -126,13 +126,12 @@ public class StaticListableBeanFactory implements ListableBeanFactory {
 		
 		if(bean == null) {
 			String definedBeans = StringUtils.collectionToCommaDelimitedString(this.beans.keySet());
-			throw new NoSuchBeanDefinitionException(beanName, String.format("Defined beans are [%s]", definedBeans));
+			throw new NoSuchBeanDefinitionException(
+				beanName, String.format("Defined beans are [%s]", definedBeans));
 		}
-		
 		if(bean instanceof FactoryBean && !BeanFactoryUtils.isFactoryDereference(name)) {
 			return ((FactoryBean<?>) bean).getObjectType();
 		}
-		
 		return bean.getClass();
 	}
 
@@ -143,7 +142,6 @@ public class StaticListableBeanFactory implements ListableBeanFactory {
 		if(bean instanceof FactoryBean) {
 			return ((FactoryBean<?>) bean).isSingleton();
 		}
-		
 		return false;
 	}
 
@@ -201,7 +199,6 @@ public class StaticListableBeanFactory implements ListableBeanFactory {
 				}
 			}
 		}
-		
 		return StringUtils.toStringArray(result);
 	}
 
