@@ -1,7 +1,9 @@
 package org.yuan.study.spring.beans.factory.support;
 
+import java.lang.annotation.Annotation;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -14,6 +16,8 @@ import org.yuan.study.spring.beans.factory.BeanNotOfRequiredTypeException;
 import org.yuan.study.spring.beans.factory.FactoryBean;
 import org.yuan.study.spring.beans.factory.ListableBeanFactory;
 import org.yuan.study.spring.beans.factory.NoSuchBeanDefinitionException;
+import org.yuan.study.spring.beans.factory.SmartFactoryBean;
+import org.yuan.study.spring.core.annotation.AnnotationUtils;
 import org.yuan.study.spring.util.StringUtils;
 
 public class StaticListableBeanFactory implements ListableBeanFactory {
@@ -37,11 +41,11 @@ public class StaticListableBeanFactory implements ListableBeanFactory {
 	@Override
 	public Object getBean(String name) throws BeansException {
 		String beanName = BeanFactoryUtils.transformedBeanName(name);
-		
 		Object bean = this.beans.get(beanName);
+		
 		if(bean == null) {
-			throw new NoSuchBeanDefinitionException(beanName, 
-				String.format("Defined beans are [%s]", StringUtils.collectionToCommaDelimitedString(this.beans.keySet())));
+			String definedBeans = StringUtils.collectionToCommaDelimitedString(this.beans.keySet());
+			throw new NoSuchBeanDefinitionException(beanName, String.format("Defined beans are [%s]", definedBeans));
 		}
 		
 		if(BeanFactoryUtils.isFactoryDereference(name) && !(bean instanceof FactoryBean)) {
@@ -50,39 +54,83 @@ public class StaticListableBeanFactory implements ListableBeanFactory {
 		
 		if(bean instanceof FactoryBean && !BeanFactoryUtils.isFactoryDereference(name)) {
 			try {
-				return ((FactoryBean) bean).getObject();
+				return ((FactoryBean<?>) bean).getObject();
 			}
 			catch(Exception ex) {
 				throw new BeanCreationException(beanName, "FactoryBean threw exception on object creation", ex);
 			}
 		}
 		
-		return this.beans.get(name);
+		return bean;
 	}
 
 	@Override
-	public Object getBean(String name, Class<?> requiredType) throws BeansException {
+	public <T> T getBean(String name, Class<T> requiredType) throws BeansException {
 		Object bean = getBean(name);
-		
-		if(requiredType != null && !requiredType.isAssignableFrom(bean.getClass())) {
+		if (requiredType != null && !requiredType.isAssignableFrom(bean.getClass())) {
 			throw new BeanNotOfRequiredTypeException(name, requiredType, bean.getClass());
 		}
-		
-		return bean;
+		return (T) bean;
 	}
-	
+
+	@Override
+	public <T> T getBean(Class<T> requiredType) throws BeansException {
+		String[] beanNames = getBeanNamesForType(requiredType);
+		if (beanNames.length == 1) {
+			return getBean(beanNames[0], requiredType);
+		}
+		
+		throw new NoSuchBeanDefinitionException(requiredType, "expected single bean but found " + beanNames.length);
+	}
+
+	@Override
+	public Object getBean(String name, Object... args) throws BeansException {
+		if (args != null) {
+			throw new UnsupportedOperationException(
+				"StaticListableBeanFactory does not support explicit bean creation arguments");
+		}
+		return getBean(name);
+	}
+
+
+	@Override
+	public boolean isPrototype(String name) throws NoSuchBeanDefinitionException {
+		Object bean = getBean(name);
+		
+		if (bean instanceof SmartFactoryBean) {
+			return ((SmartFactoryBean<?>) bean).isPrototype();
+		}
+		if (bean instanceof FactoryBean) {
+			return !((FactoryBean<?>) bean).isSingleton();
+		}
+		return false;
+	}
+
+	@Override
+	public boolean isTypeMatch(String name, Class<?> targetType) throws NoSuchBeanDefinitionException {
+		Class<?> type = getType(name);
+		
+		if (targetType == null) {
+			return true;
+		}
+		if (type != null && targetType.isAssignableFrom(type)) {
+			return true;
+		}
+		return false;
+	}
+
 	@Override
 	public Class<?> getType(String name) {
 		String beanName = BeanFactoryUtils.transformedBeanName(name);
-		
 		Object bean = this.beans.get(beanName);
+		
 		if(bean == null) {
-			throw new NoSuchBeanDefinitionException(beanName, 
-				String.format("Defined beans are [%s]", StringUtils.collectionToCommaDelimitedString(this.beans.keySet())));
+			String definedBeans = StringUtils.collectionToCommaDelimitedString(this.beans.keySet());
+			throw new NoSuchBeanDefinitionException(beanName, String.format("Defined beans are [%s]", definedBeans));
 		}
 		
 		if(bean instanceof FactoryBean && !BeanFactoryUtils.isFactoryDereference(name)) {
-			return ((FactoryBean) bean).getObjectType();
+			return ((FactoryBean<?>) bean).getObjectType();
 		}
 		
 		return bean.getClass();
@@ -93,10 +141,10 @@ public class StaticListableBeanFactory implements ListableBeanFactory {
 		Object bean = getBean(name);
 		
 		if(bean instanceof FactoryBean) {
-			return ((FactoryBean) bean).isSingleton();
+			return ((FactoryBean<?>) bean).isSingleton();
 		}
 		
-		return true;
+		return false;
 	}
 
 	@Override
@@ -108,12 +156,10 @@ public class StaticListableBeanFactory implements ListableBeanFactory {
 	public String[] getAliases(String name) {
 		return new String[0];
 	}
-
 	
 	//-------------------------------------------------------------
 	// Implementation of ListableBeanFactory interface
 	//-------------------------------------------------------------
-	
 
 	@Override
 	public boolean containsBeanDefinition(String name) {
@@ -131,42 +177,28 @@ public class StaticListableBeanFactory implements ListableBeanFactory {
 	}
 
 	@Override
-	public String[] getBeanDefinitionNames(Class<?> type) {
-		List<String> result = new ArrayList<String>();
-		
-		for(Entry<String,Object> entry : beans.entrySet()) {
-			if(type.isInstance(entry.getValue())) {
-				result.add(entry.getKey());
-			}
-		}
-		
-		return StringUtils.toStringArray(result);
-	}
-
-	@Override
 	public String[] getBeanNamesForType(Class<?> type) {
 		return getBeanNamesForType(type, true, true);
 	}
 
 	@Override
-	public String[] getBeanNamesForType(Class<?> type,
-		boolean includePrototypes, boolean includeFactoryBeans) {
+	public String[] getBeanNamesForType(Class<?> type, boolean includeNonSingletons, boolean includeFactoryBeans) {
 		boolean isFactoryType = (type != null && FactoryBean.class.isAssignableFrom(type));
 		List<String> result = new ArrayList<String>();
 		
 		for(Entry<String,Object> entry : this.beans.entrySet()) {
 			if(entry.getValue() instanceof FactoryBean && !isFactoryType) {
 				if(includeFactoryBeans) {
-					Class<?> objectType = ((FactoryBean) entry.getValue()).getObjectType();
-					if(objectType != null && type.isAssignableFrom(objectType)) {
+					Class<?> objectType = ((FactoryBean<?>) entry.getValue()).getObjectType();
+					if(objectType != null && (type == null || type.isAssignableFrom(objectType))) {
 						result.add(entry.getKey());
 					}
 				}
-				continue;
 			}
-			
-			if(type.isInstance(entry.getValue())) {
-				result.add(entry.getKey());
+			else {
+				if(type == null || type.isInstance(entry.getValue())) {
+					result.add(entry.getKey());
+				}
 			}
 		}
 		
@@ -174,38 +206,54 @@ public class StaticListableBeanFactory implements ListableBeanFactory {
 	}
 
 	@Override
-	public Map<String, Object> getBeansOfType(Class<?> type) throws BeansException {
+	public <T> Map<String, T> getBeansOfType(Class<T> type) throws BeansException {
 		return getBeansOfType(type, true, true);
 	}
 
 	@Override
-	public Map<String, Object> getBeansOfType(Class<?> type,
-		boolean includePrototypes, boolean includeFactoryBeans) throws BeansException {
+	public <T> Map<String, T> getBeansOfType(Class<T> type, boolean includeNonSingletons, boolean includeFactoryBeans) throws BeansException {
 		boolean isFactoryType = (type != null && FactoryBean.class.isAssignableFrom(type));
-		Map<String,Object> result = new HashMap<String,Object>();
+		Map<String, T> result = new HashMap<String, T>();
 		
 		for(Entry<String, Object> entry : beans.entrySet()) {
 			if(entry.getValue() instanceof FactoryBean && !isFactoryType) {
 				if(includeFactoryBeans) {
-					FactoryBean factory = (FactoryBean)entry.getValue();
+					FactoryBean<?> factory = (FactoryBean<?>)entry.getValue();
 					Class<?> objectType = factory.getObjectType();
-					if(objectType != null && type.isAssignableFrom(objectType)) {
-						result.put(entry.getKey(), factory.getObjectType());
+					if((includeNonSingletons || factory.isSingleton()) 
+						&& objectType != null && (type == null || type.isAssignableFrom(objectType))) {
+						result.put(entry.getKey(), getBean(entry.getKey(), type));
 					}
 				}
-				continue;
 			}
-			
-			if(type.isInstance(entry.getValue())) {
-				String beanName = entry.getKey();
-				if(isFactoryType) {
-					beanName = FACTORY_BEAN_PREFIX + beanName;
+			else {
+				if(type == null || type.isInstance(entry.getValue())) {
+					String beanName = entry.getKey();
+					if(isFactoryType) {
+						beanName = FACTORY_BEAN_PREFIX + beanName;
+					}
+					result.put(beanName, (T)entry.getValue());
 				}
-				result.put(beanName, entry.getValue());
 			}
 		}
 		
 		return result;
 	}
 
+	@Override
+	public Map<String, Object> getBeansWithAnnotation(Class<? extends Annotation> annotationType) throws BeansException {
+		Map<String, Object> results = new LinkedHashMap<String, Object>();
+		for (String beanName : this.beans.keySet()) {
+			if (findAnnotationOnBean(beanName, annotationType) != null) {
+				results.put(beanName, getBean(beanName));
+			}
+		}
+		return results;
+	}
+
+	@Override
+	public <T extends Annotation> T findAnnotationOnBean(String beanName, Class<T> annotationType) {
+		return AnnotationUtils.findAnnotation(getType(beanName), annotationType);
+	}
+	
 }

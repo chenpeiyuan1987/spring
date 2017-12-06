@@ -1,5 +1,6 @@
 package org.yuan.study.spring.beans.factory;
 
+import java.lang.annotation.Annotation;
 import java.util.Map;
 
 import org.yuan.study.spring.beans.BeansException;
@@ -25,41 +26,58 @@ public interface ListableBeanFactory extends BeanFactory {
 	String[] getBeanDefinitionNames();
 	
 	/**
-	 * 
-	 * @param type
-	 * @return
-	 */
-	String[] getBeanDefinitionNames(Class<?> type);
-	
-	/**
-	 * Return the names of beans matching the given type
+	 * Return the names of beans matching the given type (including subclasses),
+	 * judging from either bean definitions or the value of getObjectType in the case
+	 * of FactoryBeans.
 	 * @param Type
 	 * @return
 	 */
 	String[] getBeanNamesForType(Class<?> type);
 	
 	/**
-	 * Return the names of beans matching the given type
+	 * Return the names of beans matching the given type (including subclasses),
+	 * judging from either bean definitions or the value of getObjectType in the case
+	 * of FactoryBeans.
 	 * @param type
 	 * @param includePrototypes
 	 * @param includeFactoryBeans
 	 * @return
 	 */
-	String[] getBeanNamesForType(Class<?> type, boolean includePrototypes, boolean includeFactoryBeans);
+	String[] getBeanNamesForType(Class<?> type, boolean includeNonSingletons, boolean allowEagerInit);
 	
 	/**
-	 * Return the bean instances that match the given object type
+	 * Return the bean instances that match the given object type (including subclasses), 
+	 * judging from either bean definitions or the value of getObjectType in the case of FactoryBeans.
 	 * @param type
 	 * @return
 	 */
-	Map<String,Object> getBeansOfType(Class<?> type) throws BeansException;
+	<T> Map<String, T> getBeansOfType(Class<T> type) throws BeansException;
 	
 	/**
-	 * Return the bean instances that match the given object type
+	 * Return the bean instances that match the given object type (including subclasses), 
+	 * judging from either bean definitions or the value of getObjectType in the case of FactoryBeans.
 	 * @param type
-	 * @param includePrototypes
-	 * @param includeFactoryBeans
+	 * @param includeNonSingletons
+	 * @param allowEagerInit
+	 * @return
+	 * @throws BeansException
+	 */
+	<T> Map<String, T> getBeansOfType(Class<T> type, boolean includeNonSingletons, boolean allowEagerInit) throws BeansException;
+
+	/**
+	 * Find all beans whose Class has the supplied 'java.lang.annotation.Annotation' type.
+	 * @param annotationType
+	 * @return
+	 * @throws BeansException
+	 */
+	Map<String, Object> getBeansWithAnnotation(Class<? extends Annotation> annotationType) throws BeansException;
+	
+	/**
+	 * Find a 'Annotation' of annotationType on the specified bean, traversing its interfaces and 
+	 * super classes if no annotation can be found on the given class itself.
+	 * @param beanName
+	 * @param annotationType
 	 * @return
 	 */
-	Map<String,Object> getBeansOfType(Class<?> type, boolean includePrototypes, boolean includeFactoryBeans) throws BeansException;
+	<T extends Annotation> T findAnnotationOnBean(String beanName, Class<T> annotationType); 
 }

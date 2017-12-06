@@ -1,18 +1,18 @@
 package org.yuan.study.spring.beans.factory;
 
-public interface FactoryBean {
+public interface FactoryBean<T> {
 
 	/**
 	 * Return an instance of the object managed by this factory.
 	 * @return
 	 */
-	Object getObject();
+	T getObject() throws Exception;
 	
 	/**
 	 * Return the type of object that this FactoryBean creates, or null if not known in advance.
 	 * @return
 	 */
-	Class<?> getObjectType();
+	Class<T> getObjectType();
 	
 	/**
 	 * Is the bean managed by this factory a singleton or a prototype?
