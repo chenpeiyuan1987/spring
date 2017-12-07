@@ -3,23 +3,30 @@ package org.yuan.study.spring.beans.factory.config;
 import java.beans.PropertyEditor;
 
 import org.yuan.study.spring.beans.BeansException;
+import org.yuan.study.spring.beans.PropertyEditorRegistry;
+import org.yuan.study.spring.beans.TypeConverter;
 import org.yuan.study.spring.beans.factory.BeanFactory;
 import org.yuan.study.spring.beans.factory.HierarchicalBeanFactory;
+import org.yuan.study.spring.beans.factory.NoSuchBeanDefinitionException;
+import org.yuan.study.spring.core.convert.ConversionService;
 
-public interface ConfigurableBeanFactory extends HierarchicalBeanFactory {
+public interface ConfigurableBeanFactory extends HierarchicalBeanFactory, SingletonBeanRegistry {
 
+	/**
+	 * Scope identifier for the standard singleton scope: "singleton".
+	 */
+	String SCOPE_SINGLETON = "singleton";
+	
+	/**
+	 * Scope identifier for the standard prototype scope: "prototype".
+	 */
+	String SCOPE_PROTOTYPE = "prototype";
+	
 	/**
 	 * Set the parent of this bean factory.
 	 * @param beanPostProcessor
 	 */
 	void addBeanPostProcessor(BeanPostProcessor beanPostProcessor);
-	
-	/**
-	 * Check if this bean factory contains a singleton instance with the given name.
-	 * @param beanName
-	 * @return
-	 */
-	boolean containsSingleton(String beanName);
 	
 	/**
 	 * Destroy all cached singletons in this factory.
@@ -49,16 +56,70 @@ public interface ConfigurableBeanFactory extends HierarchicalBeanFactory {
 	void registerCustomEditor(Class<?> requiredType, PropertyEditor propertyEditor);
 	
 	/**
-	 * Register the given existing object as singleton in the bean factory, 
-	 * under the given bean name.
-	 * @param beanName
-	 * @param singletonObject
-	 */
-	void registerSingleton(String beanName, Object singletonObject) throws BeansException;
-	
-	/**
 	 * Set the parent of this bean factory.
 	 * @param parentBeanFactory
 	 */
-	void setParentBeanFactory(BeanFactory parentBeanFactory);
+	void setParentBeanFactory(BeanFactory parentBeanFactory) throws IllegalStateException;
+	
+	/**
+	 * 
+	 * @param beanClassLoader
+	 */
+	void setBeanClassLoader(ClassLoader beanClassLoader);
+	
+	ClassLoader getBeanClassLoader();
+	
+	void setTempClassLoader(ClassLoader tempClassLoader);
+	
+	ClassLoader getTempClassLoader();
+	
+	void setCacheBeanMetadata(boolean cacheBeanMetadata);
+	
+	boolean isCacheBeanMetadata();
+	
+	void setBeanExpressionResolver(BeanExpressionResolver resolver);
+	
+	BeanExpressionResolver getBeanExpressionResolver();
+	
+	void setConversionService(ConversionService conversionService);
+	
+	ConversionService getConversionService();
+	
+	void addPropertyEditorRegistrar(PropertyEditorRegistrar registrar);
+	
+	void copyRegisteredEditorsTo(PropertyEditorRegistry registry);
+	
+	void setTypeConverter(TypeConverter typeConverter);
+	
+	TypeConverter getTypeConverter();
+	
+	void addEmbeddedValueResolver(StringValueResolver valueResolver);
+	
+	String resolveEmbeddedValue(String value);
+	
+	void registerScope(String scopeName, Scope scope);
+	
+	String[] getRegisteredScopeNames();
+	
+	AccessControlContext getAccessControlContext();
+	
+	void copyConfigurationFrom(ConfigurableBeanFactory otherFactory);
+	
+	void resolveAliases(StringValueResolver valueResolver);
+	
+	BeanDefinition getMergedBeanDefinition(String beanName) throws NoSuchBeanDefinitionExceptions;
+
+	boolean isFactoryBean(String name) throws NoSuchBeanDefinitionException;
+	
+	boolean isCurrentlyInCreation(String beanName);
+	
+	void registerDependentBean(String beanName, String dependentBeanName);
+	
+	String[] getDependentBeans(String beanName);
+	
+	String[] getDependenciesForBean(String beanName);
+	
+	void destroyScopedBean(String beanName);
+	
+	void destroyBean(String beanName, Object beanInstance);
 }
