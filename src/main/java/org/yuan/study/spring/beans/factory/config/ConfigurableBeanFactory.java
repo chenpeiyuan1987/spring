@@ -1,14 +1,17 @@
 package org.yuan.study.spring.beans.factory.config;
 
 import java.beans.PropertyEditor;
+import java.security.AccessControlContext;
 
 import org.yuan.study.spring.beans.BeansException;
+import org.yuan.study.spring.beans.PropertyEditorRegistrar;
 import org.yuan.study.spring.beans.PropertyEditorRegistry;
 import org.yuan.study.spring.beans.TypeConverter;
 import org.yuan.study.spring.beans.factory.BeanFactory;
 import org.yuan.study.spring.beans.factory.HierarchicalBeanFactory;
 import org.yuan.study.spring.beans.factory.NoSuchBeanDefinitionException;
 import org.yuan.study.spring.core.convert.ConversionService;
+import org.yuan.study.spring.util.StringValueResolver;
 
 public interface ConfigurableBeanFactory extends HierarchicalBeanFactory, SingletonBeanRegistry {
 
@@ -107,7 +110,7 @@ public interface ConfigurableBeanFactory extends HierarchicalBeanFactory, Single
 	
 	void resolveAliases(StringValueResolver valueResolver);
 	
-	BeanDefinition getMergedBeanDefinition(String beanName) throws NoSuchBeanDefinitionExceptions;
+	BeanDefinition getMergedBeanDefinition(String beanName) throws NoSuchBeanDefinitionException;
 
 	boolean isFactoryBean(String name) throws NoSuchBeanDefinitionException;
 	
