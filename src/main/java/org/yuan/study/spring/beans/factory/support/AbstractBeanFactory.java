@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -19,6 +20,8 @@ import org.yuan.study.spring.beans.BeanUtils;
 import org.yuan.study.spring.beans.BeanWrapper;
 import org.yuan.study.spring.beans.BeanWrapperImpl;
 import org.yuan.study.spring.beans.BeansException;
+import org.yuan.study.spring.beans.PropertyEditorRegistrar;
+import org.yuan.study.spring.beans.TypeConverter;
 import org.yuan.study.spring.beans.TypeMismatchException;
 import org.yuan.study.spring.beans.factory.BeanCreationException;
 import org.yuan.study.spring.beans.factory.BeanCurrentlyInCreationException;
@@ -33,10 +36,13 @@ import org.yuan.study.spring.beans.factory.FactoryBean;
 import org.yuan.study.spring.beans.factory.FactoryBeanNotInitializedException;
 import org.yuan.study.spring.beans.factory.NoSuchBeanDefinitionException;
 import org.yuan.study.spring.beans.factory.config.BeanDefinition;
+import org.yuan.study.spring.beans.factory.config.BeanExpressionResolver;
 import org.yuan.study.spring.beans.factory.config.BeanPostProcessor;
 import org.yuan.study.spring.beans.factory.config.ConfigurableBeanFactory;
 import org.yuan.study.spring.beans.factory.config.DestructionAwareBeanPostProcessor;
+import org.yuan.study.spring.core.convert.ConversionService;
 import org.yuan.study.spring.util.Assert;
+import org.yuan.study.spring.util.ClassUtils;
 import org.yuan.study.spring.util.StringUtils;
 
 public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport implements ConfigurableBeanFactory {
@@ -45,31 +51,34 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	protected final Log logger = LogFactory.getLog(getClass());
 	
 	/** Parent bean factory, for bean inheritance support */
-	private  BeanFactory parentBeanFactory;
+	private BeanFactory parentBeanFactory;
 	
-	/** Cache of singletons: bean name --> bean instance */
-	private final Map<String,Object> singletonCache = new HashMap<String,Object>();
+	private ClassLoader beanClassLoader = ClassUtils.getDefaultClassLoader();
 	
-	/** Names of beans that are currently in creation */
-	private final Set<String> currentlyInCreation = Collections.synchronizedSet(new HashSet<String>());
+	private ClassLoader tempClassLoader;
+	
+	private boolean cacheBeanMetadata = true;
+	
+	private BeanExpressionResolver beanExpressionResolver;
+	
+	private ConversionService conversionService;
+	
+	private final Set<PropertyEditorRegistrar> propertyEditorRegistrars = new LinkedHashSet<PropertyEditorRegistrar>();
+	
+	private TypeConverter typeConverter;
 	
 	/** BeanPostProcessors to apply in createBean */
 	private final List<BeanPostProcessor> beanPostProcessors = new ArrayList<BeanPostProcessor>();
 	
+	/** Indicates whether any InstantiationAwareBeanPostProcessors have been registered */
+	private boolean hasInstantiationAwareBeanPostProcessors;
+	
 	/** Indicates whether any DestructionAwareBeanPostProcessors have been registered */
 	private boolean hasDestructionAwareBeanPostProcessors;
 	
-	/** Disposable bean instances: bean name --> disposable instance */
-	private final Map<String,Object> disposableBeans = new HashMap<String,Object>();
-	
-	/** Map from alias to canonical bean name */
-	private final Map<String,String> aliasMap = new HashMap<String,String>();
-	
-	/** Map between dependent bean names: bean name --> dependent bean name */
-	private final Map<String,Set<String>> dependentBeanMap = new HashMap<String,Set<String>>();
-	
-	/**  */
-	private final Map<Class<?>,PropertyEditor> customEditors = new HashMap<Class<?>,PropertyEditor>();
+	/** Custom PropertyEditors to apply to the beans of this factory */
+	private final Map<Class<?>, Class<? extends PropertyEditor>> customEditors = 
+		new HashMap<Class<?>, Class<? extends PropertyEditor>>(4);
 	
 	/**
 	 * Create a new AbstractBeanFactory.
