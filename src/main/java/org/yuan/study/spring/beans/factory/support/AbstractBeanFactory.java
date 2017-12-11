@@ -39,7 +39,7 @@ import org.yuan.study.spring.beans.factory.config.DestructionAwareBeanPostProces
 import org.yuan.study.spring.util.Assert;
 import org.yuan.study.spring.util.StringUtils;
 
-public abstract class AbstractBeanFactory implements ConfigurableBeanFactory {
+public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport implements ConfigurableBeanFactory {
 	
 	/** Logger available to subclasses */
 	protected final Log logger = LogFactory.getLog(getClass());

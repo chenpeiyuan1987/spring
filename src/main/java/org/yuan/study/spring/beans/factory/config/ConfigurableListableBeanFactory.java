@@ -31,4 +31,33 @@ public interface ConfigurableListableBeanFactory extends ListableBeanFactory,
 	 * Return that all non-lazy-init singletons are instantiated, also considering FactoryBeans.
 	 */
 	void preInstantiateSingletons() throws BeansException;
+	
+	/**
+	 * Return whether this factory's bean definitions are frozen,
+	 * i.e. are not supposed to be modified or post-processed any further.
+	 * @return
+	 */
+	boolean isConfigurationFrozen();
+	
+	/**
+	 * Freeze all bean definitions, signalling that the registered bean definitions
+	 * will not be modified or post-processed any further.
+	 */
+	void freezeConfiguration();
+	
+	/**
+	 * Determine whether the specified bean qualifies as an autowired value.
+	 * @param beanName
+	 * @param descriptor
+	 * @return
+	 * @throws NoSuchBeanDefinitionException
+	 */
+	boolean isAutowireCandidate(String beanName, DependencyDescriptor descriptor) throws NoSuchBeanDefinitionException;
+	
+	/**
+	 * Register a special dependency type with corresponding autowired value.
+	 * @param dependencyType
+	 * @param autowiredValue
+	 */
+	void registerResolvableDependency(Class<?> dependencyType, Object autowiredValue);
 }
