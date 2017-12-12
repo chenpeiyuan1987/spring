@@ -1,8 +1,23 @@
 package org.yuan.study.spring.beans.factory.config;
 
+import org.yuan.study.spring.beans.BeanMetadataElement;
 import org.yuan.study.spring.beans.MutablePropertyValues;
+import org.yuan.study.spring.core.AttributeAccessor;
 
-public interface BeanDefinition {
+public interface BeanDefinition extends AttributeAccessor, BeanMetadataElement {
+	
+	/**
+	 * Return the name of the current target scope for this bean,
+	 * or null if not known yet.
+	 * @return
+	 */
+	String getScope();
+	
+	/**
+	 * Override the target scope of this bean, specifying a new scope name.
+	 * @param scope
+	 */
+	void setScope(String scope);
 	
 	/**
 	 * Return the constructor argument values for this bean, if any.
@@ -46,4 +61,11 @@ public interface BeanDefinition {
 	 * @return
 	 */
 	boolean isSingleton();
+	
+	/**
+	 * Return whether this a 'Prototype', with an independent instance
+	 * returned for each call.
+	 * @return
+	 */
+	boolean isPrototype();
 }

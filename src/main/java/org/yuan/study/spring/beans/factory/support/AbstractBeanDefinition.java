@@ -70,6 +70,8 @@ public abstract class AbstractBeanDefinition implements BeanDefinition {
 	
 	private boolean enforceDestroyMethod = true;
 	
+	private boolean synthetic = false;
+	
 	private String resourceDescription;
 	
 	/**
@@ -496,6 +498,13 @@ public abstract class AbstractBeanDefinition implements BeanDefinition {
 		return !constructorArgumentValues.isEmpty();
 	}
 	
+	public boolean isSynthetic() {
+		return synthetic;
+	}
+	
+	public void setSynthetic(boolean synthetic) {
+		this.synthetic = synthetic;
+	}
 	
 	//--------------------------------------------------------------
 	// Implementation of BeanDefinition interface

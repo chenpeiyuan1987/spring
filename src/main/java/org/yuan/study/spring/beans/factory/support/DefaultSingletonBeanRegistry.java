@@ -25,26 +25,37 @@ import org.yuan.study.spring.util.StringUtils;
 
 public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements SingletonBeanRegistry {
 
+	/** Internal marker for a null singleton object */
 	protected static final Object NULL_OBJECT = new Object();
 	
+	/** Logger available to subclasses */
 	protected final Log logger = LogFactory.getLog(getClass());
 	
+	/** Cache of singleton objects: bean name --> bean instance */
 	private final Map<String, Object> singletonObjects = new ConcurrentHashMap<String, Object>();
 	
-	private final Map<String, ObjectFactory> singletonFactories = new HashMap<String, ObjectFactory>();
+	/** Cache of singleton factories: bean name --> ObjectFactory */
+	private final Map<String, ObjectFactory<?>> singletonFactories = new HashMap<String, ObjectFactory<?>>();
 	
+	/** Cache of early singleton objects: bean name --> bean instance */
 	private final Map<String, Object> earlysSingletonObjects = new HashMap<String, Object>();
 	
+	/** Set of registered singletons, containing the bean names in registration order */
 	private final Set<String> registeredSingletons = new LinkedHashSet<String>(16);
 	
+	/** Names of beans that are currently in creation */
 	private final Set<String> singletonsCurrentlyInCreation = Collections.synchronizedSet(new HashSet<String>());
 	
+	/** List of suppressed Exceptions, available for associating related causes */
 	private Set<Exception> suppressedExceptions;
 	
+	/** Flag that indicates whether we're currently within destroySingletons */
 	private boolean singletonsCurrentlyInDestruction = false;
 	
+	/** Disposable bean instances: bean name --> disposable instance */
 	private final Map<String, Object> disposableBeans = new LinkedHashMap<String, Object>();
 	
+	/** Map between containing bean names: bean name --> Set of bean names that the bean contains */
 	private final Map<String, Set<String>> containedBeanMap = new ConcurrentHashMap<String, Set<String>>();
 	
 	/** Map between dependent bean names: bean name --> Set of dependent bean names */
@@ -52,6 +63,10 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	
 	/** Map between depending bean names: bean name --> Set of bean names for the bean's dependencies */
 	private final Map<String, Set<String>> dependenciesForBeanMap = new ConcurrentHashMap<String, Set<String>>();
+	
+	//--------------------------------------------------------------------------------------------------
+	// Implementation of SingletonBeanRegistry Methods
+	//--------------------------------------------------------------------------------------------------
 	
 	@Override
 	public void registerSingleton(String beanName, Object singletonObject) throws IllegalStateException {
@@ -92,6 +107,10 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 		}
 	}
 	
+	//-----------------------------------------------------------------------------
+	// Implementation of Methods
+	//-----------------------------------------------------------------------------
+	
 	/**
 	 * Return the singleton object registered under the given name, 
 	 * creating and registering a new one if none registered yet.
@@ -99,7 +118,7 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	 * @param singletonFactory
 	 * @return
 	 */
-	public Object getSingleton(String beanName, ObjectFactory singletonFactory) {
+	public Object getSingleton(String beanName, ObjectFactory<?> singletonFactory) {
 		Assert.notNull(beanName, "BeanName must not be null");
 		
 		synchronized (singletonObjects) {

@@ -107,7 +107,6 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 	public RootBeanDefinition(RootBeanDefinition rootBeanDefinition) {
 		super(rootBeanDefinition);
 	}
-	
 
 	
 	//---------------------------------------------------------
