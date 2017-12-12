@@ -85,6 +85,8 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	
 	private boolean synthetic = false;
 	
+	private boolean synthetic = false;
+	
 	private String resourceDescription;
 	
 	/**
