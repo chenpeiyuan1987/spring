@@ -3,7 +3,8 @@ package org.yuan.study.spring.beans;
 import org.yuan.study.spring.core.AttributeAccessorSupport;
 
 public class BeanMetadataAttributeAccessor extends AttributeAccessorSupport implements BeanMetadataElement {
-
+	private static final long serialVersionUID = 1L;
+	
 	private Object source;
 
 	@Override
@@ -52,6 +53,5 @@ public class BeanMetadataAttributeAccessor extends AttributeAccessorSupport impl
 		BeanMetadataAttribute attribute = (BeanMetadataAttribute) super.removeAttribute(name);
 		return (attribute != null ? attribute.getValue() : null);
 	}
-	
 
 }

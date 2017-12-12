@@ -15,6 +15,10 @@ public class SimpleAliasRegistry implements AliasRegistry {
 	
 	/** Map from alias to canonical name */
 	private final Map<String, String> aliasMap = new ConcurrentHashMap<String, String>();
+	
+	//----------------------------------------------------------------------------------
+	// Implementation of AliasRegistry Methods
+	//----------------------------------------------------------------------------------
 
 	@Override
 	public void registerAlias(String name, String alias) {
@@ -60,6 +64,10 @@ public class SimpleAliasRegistry implements AliasRegistry {
 		return StringUtils.toStringArray(result);
 	}
 
+	//---------------------------------------------------------------------------------
+	// Implementation of Methods
+	//---------------------------------------------------------------------------------
+	
 	/**
 	 * Transitively retrieve all aliases for the given name.
 	 * @param valueResolver

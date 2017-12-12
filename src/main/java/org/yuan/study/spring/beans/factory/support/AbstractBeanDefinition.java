@@ -2,18 +2,25 @@ package org.yuan.study.spring.beans.factory.support;
 
 import java.lang.reflect.Constructor;
 
+import org.yuan.study.spring.beans.BeanMetadataAttributeAccessor;
 import org.yuan.study.spring.beans.MutablePropertyValues;
 import org.yuan.study.spring.beans.factory.config.AutowireCapableBeanFactory;
 import org.yuan.study.spring.beans.factory.config.BeanDefinition;
 import org.yuan.study.spring.beans.factory.config.ConstructorArgumentValues;
 import org.yuan.study.spring.util.ClassUtils;
 
-public abstract class AbstractBeanDefinition implements BeanDefinition {
+public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccessor implements BeanDefinition, Cloneable {
+	
+	/** Constant for the default scope name: "", equivalent to singleton status
+	 *	but to be overridden from a parent bean definition (if applicable).
+	 */
+	public static final String SCOPE_DEFAULT = "";
 	
 	/** Constant that indicates no autowiring at all */
-	public static final int AUTOWIRE_NO = 0;
+	public static final int AUTOWIRE_NO = AutowireCapableBeanFactory.AUTOWIRE_NO;
 	
 	/** Constant that indicates determining an appropriate autowire strategy through introspection of the bean class. */
+	@Deprecated
 	public static final int AUTOWIRE_AUTODETECT = AutowireCapableBeanFactory.AUTOWIRE_AUTODETECT;
 	
 	/** Constant that indicates autowiring bean properties by name. */
@@ -39,6 +46,8 @@ public abstract class AbstractBeanDefinition implements BeanDefinition {
 	
 	
 	private Object beanClass;
+	
+	private String scope = SCOPE_DEFAULT;
 	
 	private boolean abstractFlag = false;
 	
@@ -69,6 +78,12 @@ public abstract class AbstractBeanDefinition implements BeanDefinition {
 	private boolean enforceInitMethod = true;
 	
 	private boolean enforceDestroyMethod = true;
+	
+	private boolean synthetic = false;
+	
+	private boolean synthetic = false;
+	
+	private boolean synthetic = false;
 	
 	private String resourceDescription;
 	
@@ -496,6 +511,13 @@ public abstract class AbstractBeanDefinition implements BeanDefinition {
 		return !constructorArgumentValues.isEmpty();
 	}
 	
+	public boolean isSynthetic() {
+		return synthetic;
+	}
+	
+	public void setSynthetic(boolean synthetic) {
+		this.synthetic = synthetic;
+	}
 	
 	//--------------------------------------------------------------
 	// Implementation of BeanDefinition interface
