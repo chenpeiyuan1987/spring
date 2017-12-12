@@ -1,12 +1,15 @@
 package org.yuan.study.spring.beans.factory.support;
 
 import java.lang.reflect.Constructor;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import org.yuan.study.spring.beans.BeanMetadataAttributeAccessor;
 import org.yuan.study.spring.beans.MutablePropertyValues;
 import org.yuan.study.spring.beans.factory.config.AutowireCapableBeanFactory;
 import org.yuan.study.spring.beans.factory.config.BeanDefinition;
 import org.yuan.study.spring.beans.factory.config.ConstructorArgumentValues;
+import org.yuan.study.spring.core.io.Resource;
 import org.yuan.study.spring.util.ClassUtils;
 
 public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccessor implements BeanDefinition, Cloneable {
@@ -53,6 +56,8 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	
 	private boolean singleton = true;
 	
+	private boolean prototype = false;
+	
 	private boolean lazyInit = false;
 	
 	private int autowireMode = AUTOWIRE_NO;
@@ -60,6 +65,17 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	private int dependencyCheck = DEPENDENCY_CHECK_NONE;
 	
 	private String[] dependsOn;
+	
+	private boolean autowireCandidate = true;
+	
+	private boolean primary = false;
+	
+	private final Map<String, AutowireCandidateQualifier> qualifiers = 
+		new LinkedHashMap<String, AutowireCandidateQualifier>(0);
+	
+	private boolean nonPublicAccessAllowed = true;
+	
+	private boolean lenientConstructorResolution = true;
 	
 	private ConstructorArgumentValues constructorArgumentValues;
 	
@@ -81,13 +97,12 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	
 	private boolean synthetic = false;
 	
-	private boolean synthetic = false;
+	private int role = BeanDefinition.ROLE_APPLICATION;
 	
-	private boolean synthetic = false;
+	private String description;
 	
-	private boolean synthetic = false;
+	private Resource resource;
 	
-	private String resourceDescription;
 	
 	/**
 	 * Create a new AbstractBeanDefinition with default settings.
@@ -108,32 +123,55 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	
 	/**
 	 * Create a new AbstractBeanDefinition as deep copy of the given bean definition.
-	 * @param original
+	 * @param orignial
 	 */
-	protected AbstractBeanDefinition(AbstractBeanDefinition original) {
-		this.beanClass = original.beanClass;
-		
-		setAbstract(original.isAbstract());
-		setSingleton(original.isSingleton());
-		setLazyInit(original.isLazyInit());
-		setAutowireMode(original.getAutowireMode());
-		setDependencyCheck(original.getDependencyCheck());
-		setDependsOn(original.getDependsOn());
-		
-		setConstructorArgumentValues(new ConstructorArgumentValues(original.getConstructorArgumentValues()));
-		setPropertyValues(new MutablePropertyValues(original.getPropertyValues()));
-		setMethodOverrides(new MethodOverrides(original.getMethodOverrides()));
-		
-		setFactoryBeanName(original.getFactoryBeanName());
-		setFactoryMethodName(original.getFactoryMethodName());
-		setInitMethodName(original.getInitMethodName());
-		setEnforceInitMethod(original.isEnforceInitMethod());
-		setDestroyMethodName(original.getDestroyMethodName());
-		setEnforceDestroyMethod(original.isEnforceDestroyMethod());
-		
-		setResourceDescription(original.getResourceDescription());
+	@Deprecated
+	protected AbstractBeanDefinition(AbstractBeanDefinition orignial) {
+		this((BeanDefinition) original);
 	}
 	
+	/**
+	 * Create a new AbstractBeanDefinition as deep copy of the given bean definition.
+	 * @param original
+	 */
+	protected AbstractBeanDefinition(BeanDefinition original) {
+		setParentName(original.getParentName());
+		setBeanClassName(original.getBeanClassName());
+		setFactoryBeanName(original.getFactoryBeanName());
+		setFactoryMethodName(original.getFactoryMethodName());
+		setScope(original.getScope());
+		setAbstract(original.isAbstract());
+		setLazyInit(original.isLazyInit());
+		setRole(original.getRole());
+		setConstructorArgumentValues(new ConstructorArgumentValues(original.getConstructorArgumentValues()));
+		setPropertyValues(new MutablePropertyValues(original.getPropertyValues()));
+		setSource(original.getSource());
+		copyAttributesFrom(original);
+		
+		if (original instanceof AbstractBeanDefinition) {
+			AbstractBeanDefinition originalAbd = (AbstractBeanDefinition) original;
+			if (originalAbd.hasBeanClass()) {
+				setBeanClass(originalAbd.getBeanClass());
+			}
+			setAutowireMode(originalAbd.getAutowireMode());
+			setDependencyCheck(originalAbd.getDependencyCheck());
+			setDependsOn(originalAbd.getDependsOn());
+			setAutowireCandidate(originalAbd.isAutowireCandidate());
+			copyQ
+			setMethodOverrides(new MethodOverrides(originalAbd.getMethodOverrides()));
+			setFactoryBeanName(originalAbd.getFactoryBeanName());
+			setFactoryMethodName(originalAbd.getFactoryMethodName());
+			setInitMethodName(originalAbd.getInitMethodName());
+			setEnforceInitMethod(originalAbd.isEnforceInitMethod());
+			setDestroyMethodName(originalAbd.getDestroyMethodName());
+			setEnforceDestroyMethod(originalAbd.isEnforceDestroyMethod());
+			setResource(originalAbd.getRe);
+		} 
+		else {
+			setResourceDescription(original.getResourceDescription());
+		}
+		
+	}
 	
 	//----------------------------------------------------------------
 	// Implementation methods
@@ -564,17 +602,19 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	public String toString() {
 		StringBuffer sb = new StringBuffer("class [");
 		sb.append(getBeanClassName()).append("]");
+		sb.append("; scope=").append(this.scope);
 		sb.append("; abstract=").append(this.abstractFlag);
-		sb.append("; singleton=").append(this.singleton);
 		sb.append("; lazyInit=").append(this.lazyInit);
-		sb.append("; autowire=").append(this.autowireMode);
+		sb.append("; autowireMode=").append(this.autowireMode);
 		sb.append("; dependencyCheck=").append(this.dependencyCheck);
+		sb.append("; autowireCandidate=").append(this.autowireCandidate);
+		sb.append("; primary=").append(this.primary);
 		sb.append("; factoryBeanName=").append(this.factoryBeanName);
 		sb.append("; factoryMethodName=").append(this.factoryMethodName);
 		sb.append("; initMethodName=").append(this.initMethodName);
 		sb.append("; destroyMethodName=").append(this.destroyMethodName);
-		if (this.resourceDescription != null) {
-			sb.append("; defined in ").append(this.resourceDescription);
+		if (this.resource != null) {
+			sb.append("; defined in ").append(this.resource.getDescription());
 		}
 		return sb.toString();
 	}
