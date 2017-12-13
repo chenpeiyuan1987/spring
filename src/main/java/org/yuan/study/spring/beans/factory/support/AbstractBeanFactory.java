@@ -1,6 +1,9 @@
 package org.yuan.study.spring.beans.factory.support;
 
 import java.beans.PropertyEditor;
+import java.security.AccessController;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -25,6 +28,7 @@ import org.yuan.study.spring.beans.factory.BeanFactoryUtils;
 import org.yuan.study.spring.beans.factory.BeanIsAbstractException;
 import org.yuan.study.spring.beans.factory.BeanIsNotAFactoryException;
 import org.yuan.study.spring.beans.factory.BeanNotOfRequiredTypeException;
+import org.yuan.study.spring.beans.factory.CannotLoadBeanClassException;
 import org.yuan.study.spring.beans.factory.FactoryBean;
 import org.yuan.study.spring.beans.factory.NoSuchBeanDefinitionException;
 import org.yuan.study.spring.beans.factory.ObjectFactory;
@@ -33,9 +37,11 @@ import org.yuan.study.spring.beans.factory.config.BeanExpressionResolver;
 import org.yuan.study.spring.beans.factory.config.BeanPostProcessor;
 import org.yuan.study.spring.beans.factory.config.ConfigurableBeanFactory;
 import org.yuan.study.spring.beans.factory.config.Scope;
+import org.yuan.study.spring.core.DecoratingClassLoader;
 import org.yuan.study.spring.core.NamedThreadLocal;
 import org.yuan.study.spring.core.convert.ConversionService;
 import org.yuan.study.spring.util.ClassUtils;
+import org.yuan.study.spring.util.ObjectUtils;
 import org.yuan.study.spring.util.StringValueResolver;
 
 public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport implements ConfigurableBeanFactory {
@@ -136,8 +142,44 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 
 	@Override
 	public boolean isSingleton(String name) throws NoSuchBeanDefinitionException {
-		// TODO Auto-generated method stub
-		return false;
+		String beanName = transformedBeanName(name);
+		
+		Object beanInstance = getSingleton(beanName, false);
+		if (beanInstance != null) {
+			if (beanInstance instanceof FactoryBean) {
+				return (BeanFactoryUtils.isFactoryDereference(name) || ((FactoryBean<?>) beanInstance).isSingleton());
+			} 
+			else {
+				return !BeanFactoryUtils.isFactoryDereference(name);
+			}
+		} 
+		else if (containsSingleton(beanName)) {
+			return true;
+		}
+		else {
+			BeanFactory parentBeanFactory = getParentBeanFactory();
+			if (parentBeanFactory != null && !containsBeanDefinition(beanName)) {
+				return parentBeanFactory.isSingleton(originalBeanName(name));
+			}
+			
+			RootBeanDefinition mbd = getMergedLocalBeanDefinition(beanName);
+			
+			if (mbd.isSingleton()) {
+				if (isFactoryBean(beanName, mbd)) {
+					if (BeanFactoryUtils.isFactoryDereference(name)) {
+						return true;
+					}
+					FactoryBean<?> factoryBean = (FactoryBean<?>) getBean(FACTORY_BEAN_PREFIX + beanName);
+					return factoryBean.isSingleton();
+				} 
+				else {
+					return !BeanFactoryUtils.isFactoryDereference(name);
+				}
+			}
+			else {
+				return false;
+			}
+		}
 	}
 
 	@Override
@@ -577,6 +619,86 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			throw new BeanDefinitionStoreException(
 				"Can only specify arguments for the getBean method when referring to a prototype bean definition");
 		}
+	}
+	
+	/**
+	 * Resolve the bean class for the specified bean definition,
+	 * resolving a bean class name into a Class reference and storing
+	 * the resolved Class in the bean definition for further use.
+	 * @param mbd
+	 * @param beanName
+	 * @param typesToMatch
+	 * @return
+	 */
+	protected Class<?> resolveBeanClass(final RootBeanDefinition mbd, String beanName, final Class<?>... typesToMatch) throws CannotLoadBeanClassException {
+		try {
+			if (mbd.hasBeanClass()) {
+				return mbd.getBeanClass();
+			}
+			if (System.getSecurityManager() != null) {
+				return AccessController.doPrivileged(new PrivilegedExceptionAction<Class<?>>() {
+					@Override
+					public Class<?> run() throws Exception {
+						return doResolveBeanClass(mbd, typesToMatch);
+					}
+				}, getAccessControlContext());
+			}
+			else {
+				return doResolveBeanClass(mbd, typesToMatch);
+			}
+		} 
+		catch (PrivilegedActionException ex) {
+			throw new CannotLoadBeanClassException(mbd.getResourceDescription(), beanName, mbd.getBeanClassName(), (ClassNotFoundException)ex.getException());
+		}
+		catch (ClassNotFoundException ex) {
+			throw new CannotLoadBeanClassException(mbd.getResourceDescription(), beanName, mbd.getBeanClassName(), ex);
+		}
+		catch (LinkageError ex) {
+			throw new CannotLoadBeanClassException(mbd.getResourceDescription(), beanName, mbd.getBeanClassName(), ex);
+		}
+	}
+	
+	private Class<?> doResolveBeanClass(RootBeanDefinition mbd, Class<?>... typesToMatch) throws ClassNotFoundException {
+		if (!ObjectUtils.isEmpty(typesToMatch)) {
+			ClassLoader tempClassLoader = getTempClassLoader();
+			if (tempClassLoader != null) {
+				if (tempClassLoader instanceof DecoratingClassLoader) {
+					DecoratingClassLoader dcl = (DecoratingClassLoader) tempClassLoader;
+					for (Class<?> typeToMatch : typesToMatch) {
+						dcl.excludeClass(typeToMatch.getName());
+					}
+				}
+				String className = mbd.getBeanClassName();
+				return (className != null ? ClassUtils.forName(className, tempClassLoader) : null);
+			}
+		}
+		return mbd.resolveBeanClass(getBeanClassLoader());
+	}
+	
+	/**
+	 * Predict the eventual bean type (of the processed bean instance) for the 
+	 * specified bean.
+	 * @param beanName
+	 * @param mbd
+	 * @param typesToMatch
+	 * @return
+	 */
+	protected Class<?> predictBeanType(String beanName, RootBeanDefinition mbd, Class<?>... typesToMatch) {
+		if (mbd.getFactoryMethodName() != null) {
+			return null;
+		}
+		return resolveBeanClass(mbd, beanName, typesToMatch);
+	}
+	
+	/**
+	 * Check whether the given bean is defined as a FactoryBean.
+	 * @param beanName
+	 * @param mbd
+	 * @return
+	 */
+	protected boolean isFactoryBean(String beanName, RootBeanDefinition mbd) {
+		Class<?> beanClass = predictBeanType(beanName, mbd, FactoryBean.class);
+		return (beanClass != null && FactoryBean.class.isAssignableFrom(beanClass));
 	}
 	
 	/**
