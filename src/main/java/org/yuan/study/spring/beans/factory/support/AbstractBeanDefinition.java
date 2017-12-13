@@ -9,11 +9,14 @@ import org.yuan.study.spring.beans.MutablePropertyValues;
 import org.yuan.study.spring.beans.factory.config.AutowireCapableBeanFactory;
 import org.yuan.study.spring.beans.factory.config.BeanDefinition;
 import org.yuan.study.spring.beans.factory.config.ConstructorArgumentValues;
+import org.yuan.study.spring.core.io.DescriptiveResource;
 import org.yuan.study.spring.core.io.Resource;
+import org.yuan.study.spring.util.Assert;
 import org.yuan.study.spring.util.ClassUtils;
 
 public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccessor implements BeanDefinition, Cloneable {
-	
+	private static final long serialVersionUID = 1L;
+
 	/** Constant for the default scope name: "", equivalent to singleton status
 	 *	but to be overridden from a parent bean definition (if applicable).
 	 */
@@ -126,7 +129,7 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	 * @param orignial
 	 */
 	@Deprecated
-	protected AbstractBeanDefinition(AbstractBeanDefinition orignial) {
+	protected AbstractBeanDefinition(AbstractBeanDefinition original) {
 		this((BeanDefinition) original);
 	}
 	
@@ -157,20 +160,21 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 			setDependencyCheck(originalAbd.getDependencyCheck());
 			setDependsOn(originalAbd.getDependsOn());
 			setAutowireCandidate(originalAbd.isAutowireCandidate());
-			copyQ
-			setMethodOverrides(new MethodOverrides(originalAbd.getMethodOverrides()));
-			setFactoryBeanName(originalAbd.getFactoryBeanName());
-			setFactoryMethodName(originalAbd.getFactoryMethodName());
+			copyQualifiersFrom(originalAbd);
+			setPrimary(originalAbd.isPrimary());
+			setNonPublicAccessAllowed(originalAbd.isNonPublicAccessAllowed());
+			setLenientConstructorResolution(originalAbd.isLenientConstructorResolution());
 			setInitMethodName(originalAbd.getInitMethodName());
 			setEnforceInitMethod(originalAbd.isEnforceInitMethod());
 			setDestroyMethodName(originalAbd.getDestroyMethodName());
 			setEnforceDestroyMethod(originalAbd.isEnforceDestroyMethod());
-			setResource(originalAbd.getRe);
+			setMethodOverrides(new MethodOverrides(originalAbd.getMethodOverrides()));
+			setSynthetic(originalAbd.isSynthetic());
+			setResource(originalAbd.getResource());
 		} 
 		else {
 			setResourceDescription(original.getResourceDescription());
 		}
-		
 	}
 	
 	//----------------------------------------------------------------
@@ -215,6 +219,214 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 		setResourceDescription(other.getResourceDescription());
 	}
 	
+	/**
+	 * Override settings in this bean definition from the given bean definition.
+	 * @param other
+	 */
+	public void overrideFrom(BeanDefinition other) {
+		
+	}
+	
+	/**
+	 * Apply the provided default values to this bean.
+	 * @param defaults
+	 */
+	public void applyDefaults(BeanDefinitionDefaults defaults) {
+		setLazyInit(defaults.isLazyInit());
+		setAutowireMode(defaults.getAutowireMode());
+		setDependencyCheck(defaults.getDependencyCheck());
+		setInitMethodName(defaults.getInitMethodName());
+		setEnforceInitMethod(false);
+		setDestroyMethodName(defaults.getDestroyMethodName());
+		setEnforceDestroyMethod(false);
+	}
+	
+	/**
+	 * Return whether thsi definition specifies a bean class.
+	 * @return
+	 */
+	public boolean hasBeanClass() {
+		return (this.beanClass instanceof Class);
+	}
+	
+	/**
+	 * Specify the class for this bean.
+	 * @param beanClass
+	 */
+	public void setBeanClass(Class<?> beanClass) {
+		this.beanClass = beanClass;
+	}
+	
+	/**
+	 * Return the class of the wrapped bean.
+	 * @return
+	 * @throws IllegalStateException
+	 */
+	public Class<?> getBeanClass() throws IllegalStateException {
+		if (this.beanClass == null) {
+			throw new IllegalStateException("No bean class specified on bean definition");
+		}
+		if (!(this.beanClass instanceof Class)) {
+			throw new IllegalStateException(
+				String.format("Bean class name [%s] has not been resolved into an actual Class", this.beanClass));
+		}
+		return (Class<?>) this.beanClass;
+	}
+	
+	/**
+	 * Set the role hint for this BeanDefinition.
+	 * @param role
+	 */
+	public void setRole(int role) {
+		this.role = role;
+	}
+	
+	/**
+	 * Return the resource that this bean definition came from.
+	 * @return
+	 */
+	public Resource getResource() {
+		return resource;
+	}
+	
+	/**
+	 * Set the resouce that this bean definition came from.
+	 * @param resource
+	 */
+	public void setResource(Resource resource) {
+		this.resource = resource;
+	}
+	
+	/**
+	 * Specify whether to allow access to non-public constructors and methods,
+	 * for the case of externalized metadata pointing to those.
+	 * @param nonPublicAccessAllowed
+	 */
+	public void setNonPublicAccessAllowed(boolean nonPublicAccessAllowed) {
+		this.nonPublicAccessAllowed = nonPublicAccessAllowed;
+	}
+	
+	/**
+	 * Return whether to allow access to non-public constructors and methods.
+	 * @return
+	 */
+	public boolean isNonPublicAccessAllowed() {
+		return nonPublicAccessAllowed;
+	}
+	
+	/**
+	 * Specify whether to resolve constructors in lenient mode or to switch to strict resolution.
+	 * @param lenientConstructorResolution
+	 */
+	public void setLenientConstructorResolution(boolean lenientConstructorResolution) {
+		this.lenientConstructorResolution = lenientConstructorResolution;
+	}
+	
+	/**
+	 * Return whether to resolve constructors in lenient mode or in strict mode.
+	 * @return
+	 */
+	public boolean isLenientConstructorResolution() {
+		return lenientConstructorResolution;
+	}
+	
+	/**
+	 * Copy the qualifiers from the supplied AbstractBeanDefinition to this bean definition.
+	 * @param source
+	 */
+	public void copyQualifiersFrom(AbstractBeanDefinition source) {
+		Assert.notNull(source, "Source must not be null");
+		
+		qualifiers.putAll(source.qualifiers);
+	}
+	
+	/**
+	 * Determine the class of the wrapped bean, resolving it from a
+	 * specified class name if necessary.
+	 * @param classLoader
+	 * @return
+	 * @throws ClassNotFoundException
+	 */
+	public Class<?> resolveBeanClass(ClassLoader classLoader) throws ClassNotFoundException {
+		String className = getBeanClassName();
+		if (className == null) {
+			return null;
+		}
+		Class<?> resolvedClass = ClassUtils.forName(className, classLoader);
+		beanClass = resolvedClass;
+		return resolvedClass;
+	}
+	
+	//------------------------------------------------------------------
+	// Implementation of BeanDefinition Methods
+	//------------------------------------------------------------------
+
+	@Override
+	public String getScope() {
+		return scope;
+	}
+
+	@Override
+	public void setScope(String scope) {
+		this.scope = scope;
+		this.singleton = SCOPE_SINGLETON.equals(scope) || SCOPE_DEFAULT.equals(scope);
+		this.prototype = SCOPE_PROTOTYPE.equals(scope);
+	}
+
+	@Override
+	public boolean isAutowireCandidate() {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+	@Override
+	public void setAutowireCandidate(boolean autowireCandidate) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public boolean isPrimary() {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+	@Override
+	public void setPrimary(boolean primary) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public boolean isPrototype() {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+	@Override
+	public int getRole() {
+		// TODO Auto-generated method stub
+		return 0;
+	}
+	
+	@Override
+	public String getDescription() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public BeanDefinition getOriginatingBeanDefinition() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	protected Object clone() throws CloneNotSupportedException {
+		// TODO Auto-generated method stub
+		return super.clone();
+	}
+
 	/**
 	 * Set if this bean is "abstract", i.e. not meant to be instantiated itself but 
 	 * rather just serving as parent for concrete child bean definitions.
@@ -393,7 +605,7 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	 * @param resourceDescription
 	 */
 	public void setResourceDescription(String resourceDescription) {
-		this.resourceDescription = resourceDescription;
+		resource = new DescriptiveResource(resourceDescription);
 	}
 
 	/**
@@ -413,30 +625,6 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 				validateMethodOverride(methodOverride);
 			}
 		}
-	}
-	
-	/**
-	 * Return whether thsi definition specifies a bean class.
-	 * @return
-	 */
-	public boolean hasBeanClass() {
-		return (this.beanClass instanceof Class);
-	}
-	
-	/**
-	 * Return the class of the wrapped bean.
-	 * @return
-	 * @throws IllegalStateException
-	 */
-	public Class<?> getBeanClass() throws IllegalStateException {
-		if (this.beanClass == null) {
-			throw new IllegalStateException("No bean class specified on bean definition");
-		}
-		if (!(this.beanClass instanceof Class)) {
-			throw new IllegalStateException(
-				String.format("Bean class name [%s] has not been resolved into an actual Class", this.beanClass));
-		}
-		return (Class<?>) this.beanClass;
 	}
 	
 	/**
@@ -478,7 +666,9 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	 * @param singleton
 	 */
 	public void setSingleton(boolean singleton) {
+		this.scope = (singleton ? SCOPE_SINGLETON : SCOPE_PROTOTYPE);
 		this.singleton = singleton;
+		this.prototype = !singleton;
 	}
 	
 	/**
@@ -499,18 +689,6 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 		return this.autowireMode;
 	}
 	
-	/**
-	 * Specify the class for this bean.
-	 * @param beanClass
-	 */
-	public void setBeanClass(Class<?> beanClass) {
-		this.beanClass = beanClass;
-	}
-	
-	/**
-	 * Return the class name of the wrapped bean.
-	 * @return
-	 */
 	public String getBeanClassName() {
 		if (this.beanClass instanceof Class) {
 			return ((Class<?>)this.beanClass).getName();
@@ -520,10 +698,6 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 		}
 	}
 	
-	/**
-	 * Specify the class name for this bean.
-	 * @param beanClassName
-	 */
 	public void setBeanClassName(String beanClassName) {
 		this.beanClass = beanClassName;
 	}
@@ -559,10 +733,6 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 		this.synthetic = synthetic;
 	}
 	
-	//--------------------------------------------------------------
-	// Implementation of BeanDefinition interface
-	//--------------------------------------------------------------
-	
 	@Override
 	public ConstructorArgumentValues getConstructorArgumentValues() {
 		return constructorArgumentValues;
@@ -575,7 +745,7 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 
 	@Override
 	public String getResourceDescription() {
-		return resourceDescription;
+		return (resource != null ? resource.getDescription() : null);
 	}
 
 	@Override

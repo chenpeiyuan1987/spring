@@ -6,16 +6,24 @@ import org.yuan.study.spring.core.AttributeAccessor;
 
 public interface BeanDefinition extends AttributeAccessor, BeanMetadataElement {
 	
+	/** Scope identifier for the standard singleton scope: "singleton".*/
 	String SCOPE_SINGLETON = ConfigurableBeanFactory.SCOPE_SINGLETON;
 	
+	/** Scope identifier for the standard prototype scope: "prototype"*/
 	String SCOPE_PROTOTYPE = ConfigurableBeanFactory.SCOPE_PROTOTYPE;
 	
+	/** Role hint indicating that a BeanDefinition is a major part of the application. */
 	int ROLE_APPLICATION = 0;
 	
+	/** 
+	 * Role hint indicating that a BeanDefinition is a supporting part of some larger 
+	 * configuration, typically an outer 
+	 */
 	int ROLE_SUPPORT = 1;
 	
 	/**
-	 * Role hint indicating that a 'BeanDefinition' is providing an entire
+	 * Role hint indicating that a 'BeanDefinition' is providing an entirely background
+	 * role and has no relevance to the end-user.
 	 */
 	int ROLE_INFRASTRUCTURE = 2;
 	
