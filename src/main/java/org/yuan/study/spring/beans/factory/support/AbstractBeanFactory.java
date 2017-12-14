@@ -35,6 +35,7 @@ import org.yuan.study.spring.beans.factory.NoSuchBeanDefinitionException;
 import org.yuan.study.spring.beans.factory.ObjectFactory;
 import org.yuan.study.spring.beans.factory.SmartFactoryBean;
 import org.yuan.study.spring.beans.factory.config.BeanDefinition;
+import org.yuan.study.spring.beans.factory.config.BeanDefinitionHolder;
 import org.yuan.study.spring.beans.factory.config.BeanExpressionResolver;
 import org.yuan.study.spring.beans.factory.config.BeanPostProcessor;
 import org.yuan.study.spring.beans.factory.config.ConfigurableBeanFactory;
@@ -138,8 +139,51 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 
 	@Override
 	public Class<?> getType(String name) throws NoSuchBeanDefinitionException {
-		// TODO Auto-generated method stub
-		return null;
+		String beanName = transformedBeanName(name);
+		
+		Object beanInstance = getSingleton(beanName, false);
+		if (beanInstance != null) {
+			if (beanInstance instanceof FactoryBean && !BeanFactoryUtils.isFactoryDereference(name)) {
+				return getTypeForFactoryBean((FactoryBean<?>) beanInstance);
+			} 
+			else {
+				return beanInstance.getClass();
+			}
+		}
+		else if (containsSingleton(beanName) && !containsBeanDefinition(beanName)) {
+			return null;
+		}
+		else {
+			BeanFactory parentBeanFactory = getParentBeanFactory();
+			if (parentBeanFactory != null && !containsBeanDefinition(beanName)) {
+				return parentBeanFactory.getType(originalBeanName(name));
+			}
+			
+			RootBeanDefinition mbd = getMergedLocalBeanDefinition(beanName);
+			
+			BeanDefinitionHolder dbd = mbd.getDecoratedDefinition();
+			if (dbd != null && !BeanFactoryUtils.isFactoryDereference(name)) {
+				RootBeanDefinition tbd = getMergedBeanDefinition(dbd.getBeanName(), dbd.getBeanDefinition(), mbd);
+				Class<?> targetClass = predictBeanType(dbd.getBeanName(), tbd);
+				if (targetClass != null && !FactoryBean.class.isAssignableFrom(targetClass)) {
+					return targetClass;
+				}
+			}
+			
+			Class<?> beanClass = predictBeanType(beanName, mbd);
+			
+			if (beanClass != null && FactoryBean.class.isAssignableFrom(beanClass)) {
+				if (!BeanFactoryUtils.isFactoryDereference(name)) {
+					return getTypeForFactoryBean(beanName, mbd);
+				} 
+				else {
+					return beanClass;
+				}
+			} 
+			else {
+				return (!BeanFactoryUtils.isFactoryDereference(name) ? beanClass : null);
+			}
+		}
 	}
 
 	@Override
@@ -751,6 +795,27 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	protected boolean isFactoryBean(String beanName, RootBeanDefinition mbd) {
 		Class<?> beanClass = predictBeanType(beanName, mbd, FactoryBean.class);
 		return (beanClass != null && FactoryBean.class.isAssignableFrom(beanClass));
+	}
+	
+	/**
+	 * Determine the bean type for the given FactoryBean definition, as far as possible.
+	 * @return
+	 */
+	protected Class<?> getTypeForFactoryBean(String beanName, RootBeanDefinition mbd) {
+		if (!mbd.isSingleton()) {
+			return null;
+		}
+		try {
+			FactoryBean<?> factoryBean = doGetBean(FACTORY_BEAN_PREFIX + beanName, FactoryBean.class, null, true);
+			return getTypeForFactoryBean(factoryBean);
+		} 
+		catch (BeanCreationException ex) {
+			if (logger.isDebugEnabled()) {
+				logger.debug("Ignoring bean creation exception on FactoryBean type check: " + ex);
+			}
+			onSuppressedException(ex);
+			return null;
+		}
 	}
 	
 	/**

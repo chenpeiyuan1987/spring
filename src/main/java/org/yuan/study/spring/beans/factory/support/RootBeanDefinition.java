@@ -1,11 +1,24 @@
 package org.yuan.study.spring.beans.factory.support;
 
+import java.lang.reflect.Member;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
+
 import org.yuan.study.spring.beans.MutablePropertyValues;
-import org.yuan.study.spring.beans.factory.FactoryBean;
+import org.yuan.study.spring.beans.factory.config.BeanDefinitionHolder;
 import org.yuan.study.spring.beans.factory.config.ConstructorArgumentValues;
 
 
 public class RootBeanDefinition extends AbstractBeanDefinition {
+	
+	private final Set<Member> externallyManagedConfigMembers = Collections.synchronizedSet(new HashSet<Member>(0));
+	
+	private final Set<String> externallyManagedInitMethods = Collections.synchronizedSet(new HashSet<String>(0));
+	
+	private final Set<String> externallyManagedDestroyMethods = Collections.synchronizedSet(new HashSet<String>(0));
+	
+	private BeanDefinitionHolder decoratedDefinition;
 	
 	/**
 	 * Create a new RootBeanDefinition, 
@@ -113,20 +126,41 @@ public class RootBeanDefinition extends AbstractBeanDefinition {
 	// Implementation of AbstractBeanDefinition class
 	//---------------------------------------------------------
 	
-	@Override
-	public void validate() throws BeanDefinitionValidationException {
-		super.validate();
-		
-		if (hasBeanClass()) {
-			if (FactoryBean.class.isAssignableFrom(getBeanClass()) && !isSingleton()) {
-				throw new BeanDefinitionValidationException(
-					"FactoryBean must be defined as singleton - FactoryBeans themselves are not allowed to be prototypes");
-			}
-		}
+	public void registerExternallyManagedConfigMember(Member configMember) {
+		externallyManagedConfigMembers.add(configMember);
+	}
+	
+	public boolean isExternallyManagedConfigMember(Member configMember) {
+		return externallyManagedConfigMembers.contains(configMember);
+	}
+	
+	public void registerExternallyManagedInitMethod(String initMethod) {
+		externallyManagedInitMethods.add(initMethod);
+	}
+	
+	public boolean isExternallyManagedInitMethod(String initMethod) {
+		return externallyManagedInitMethods.contains(initMethod);
+	}
+	
+	public void registerExternallyManagedDestroyMethod(String destroyMethod) {
+		externallyManagedDestroyMethods.add(destroyMethod);
+	}
+	
+	public boolean isExternallyManagedDestroyMethod(String destroyMethod) {
+		return externallyManagedDestroyMethods.contains(destroyMethod);
+	}
+	
+	public BeanDefinitionHolder getDecoratedDefinition() {
+		return decoratedDefinition;
 	}
 
+	public void setDecoratedDefinition(BeanDefinitionHolder decoratedDefinition) {
+		this.decoratedDefinition = decoratedDefinition;
+	}
+	
 	@Override
 	public String toString() {
 		return "Root bean: " + super.toString();
 	}
+
 }
