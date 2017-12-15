@@ -1,13 +1,9 @@
 package org.yuan.study.spring.core;
 
-import java.io.PrintStream;
-import java.io.PrintWriter;
 
 public abstract class NestedRuntimeException extends RuntimeException {
 	private static final long serialVersionUID = 1L;
 	
-	private Throwable cause;
-
 	/**
 	 * Create a new NestedRuntimeException.
 	 * @param message
@@ -22,17 +18,9 @@ public abstract class NestedRuntimeException extends RuntimeException {
 	 * @param cause
 	 */
 	public NestedRuntimeException(String message, Throwable cause) {
-		super(message);
-		this.cause = cause;
+		super(message, cause);
 	}
 
-	/**
-	 * Return the nested cause, or null if none.
-	 */
-	public Throwable getCause() {
-		return (this.cause == this ? null : this.cause);
-	}
-	
 	/**
 	 * Return the detail message, 
 	 * including the message from the nested exception if ther is one.
@@ -40,10 +28,18 @@ public abstract class NestedRuntimeException extends RuntimeException {
 	public String getMessage() {
 		String message = super.getMessage();
 		Throwable cause = getCause();
+		
 		if (cause != null) {
-			return message + "; nested exception is " + cause;
+			StringBuilder sb = new StringBuilder();
+			if (message != null) {
+				sb.append(message).append("; ");
+			}
+			sb.append("nested exception is ").append(cause);
+			return sb.toString();
+		} 
+		else {
+			return message;
 		}
-		return message;
 	}
 	
 	/**
@@ -56,43 +52,50 @@ public abstract class NestedRuntimeException extends RuntimeException {
 		if (exClass == null) {
 			return false;
 		}
-		
-		Throwable ex = this;
-		while (ex != null) {
-			if (exClass.isInstance(ex)) {
-				return true;
-			}
-			if (ex instanceof NestedRuntimeException) {
-				ex = ((NestedRuntimeException) ex).getCause();
-			}
-			else {
-				ex = null;
-			}
+		if (exClass.isInstance(this)) {
+			return true;
 		}
-		
-		return false;
-	}
-
-	@Override
-	public void printStackTrace(PrintStream ps) {
-		if (getCause() == null) {
-			super.printStackTrace(ps);
-		} 
+		Throwable cause = getCause();
+		if (cause == this) {
+			return false;
+		}
+		if (cause instanceof NestedRuntimeException) {
+			return ((NestedRuntimeException) cause).contains(exClass);
+		}
 		else {
-			ps.println(this);
-			getCause().printStackTrace(ps);
+			while (cause != null) {
+				if (exClass.isInstance(cause)) {
+					return true;
+				}
+				if (cause.getCause() == cause) {
+					break;
+				}
+				cause = cause.getCause();
+			}
+			return false;
 		}
 	}
 
-	@Override
-	public void printStackTrace(PrintWriter pw) {
-		if (getCause() == null) {
-			super.printStackTrace(pw);
-		} 
-		else {
-			pw.println(this);
-			getCause().printStackTrace(pw);
+	/**
+	 * Retrieve the innermost cause of this exception, if any.
+	 * @return
+	 */
+	public Throwable getRootCause() {
+		Throwable rootCause = null;
+		Throwable cause = getCause();
+		while (cause != null && cause != rootCause) {
+			rootCause = cause;
+			cause = cause.getCause();
 		}
+		return rootCause;
 	}
 	
+	/**
+	 * Retrieve the most specific cause of this exception, if any.
+	 * @return
+	 */
+	public Throwable getMostSpecificCause() {
+		Throwable rootCause = getRootCause();
+		return (rootCause != null ? rootCause : this);
+	}
 }

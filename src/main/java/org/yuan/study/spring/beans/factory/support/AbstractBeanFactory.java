@@ -1,6 +1,7 @@
 package org.yuan.study.spring.beans.factory.support;
 
 import java.beans.PropertyEditor;
+import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
@@ -13,12 +14,16 @@ import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.yuan.study.spring.beans.BeanUtils;
 import org.yuan.study.spring.beans.BeansException;
 import org.yuan.study.spring.beans.PropertyEditorRegistrar;
 import org.yuan.study.spring.beans.PropertyEditorRegistry;
+import org.yuan.study.spring.beans.PropertyEditorRegistrySupport;
+import org.yuan.study.spring.beans.SimpleTypeConverter;
 import org.yuan.study.spring.beans.TypeConverter;
 import org.yuan.study.spring.beans.TypeMismatchException;
 import org.yuan.study.spring.beans.factory.BeanCreationException;
@@ -39,12 +44,16 @@ import org.yuan.study.spring.beans.factory.config.BeanDefinitionHolder;
 import org.yuan.study.spring.beans.factory.config.BeanExpressionResolver;
 import org.yuan.study.spring.beans.factory.config.BeanPostProcessor;
 import org.yuan.study.spring.beans.factory.config.ConfigurableBeanFactory;
+import org.yuan.study.spring.beans.factory.config.DestructionAwareBeanPostProcessor;
+import org.yuan.study.spring.beans.factory.config.InstantiationAwareBeanPostProcessor;
 import org.yuan.study.spring.beans.factory.config.Scope;
 import org.yuan.study.spring.core.DecoratingClassLoader;
 import org.yuan.study.spring.core.NamedThreadLocal;
 import org.yuan.study.spring.core.convert.ConversionService;
+import org.yuan.study.spring.util.Assert;
 import org.yuan.study.spring.util.ClassUtils;
 import org.yuan.study.spring.util.ObjectUtils;
+import org.yuan.study.spring.util.StringUtils;
 import org.yuan.study.spring.util.StringValueResolver;
 
 public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport implements ConfigurableBeanFactory {
@@ -269,6 +278,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 							if (!factoryBean.isSingleton()) {
 								return true;
 							}
+							return false;
 						}
 					}, getAccessControlContext());
 				} 
@@ -281,6 +291,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 					if (!factoryBean.isSingleton()) {
 						return true;
 					}
+					return false;
 				}
 			}
 			else {
@@ -289,11 +300,66 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		}
 	}
 
-
 	@Override
 	public boolean isTypeMatch(String name, Class<?> targetType) throws NoSuchBeanDefinitionException {
-		// TODO Auto-generated method stub
-		return false;
+		String beanName = transformedBeanName(name);
+		Class<?> typeToMatch = (targetType != null ? targetType : Object.class);
+		
+		Object beanInstance = getSingleton(beanName, false);
+		if (beanInstance != null) {
+			if (beanInstance instanceof FactoryBean) {
+				if (!BeanFactoryUtils.isFactoryDereference(name)) {
+					Class<?> type = getTypeForFactoryBean((FactoryBean<?>) beanInstance);
+					return (type != null && typeToMatch.isAssignableFrom(type));
+				} 
+				else {
+					return typeToMatch.isAssignableFrom(beanInstance.getClass());
+				}
+			} 
+			else {
+				return !BeanFactoryUtils.isFactoryDereference(name) 
+					&& typeToMatch.isAssignableFrom(beanInstance.getClass());
+			}
+		} 
+		else if (containsSingleton(beanName) && !containsBeanDefinition(beanName)) {
+			return false;
+		}
+		else {
+			BeanFactory parentBeanFactory = getParentBeanFactory();
+			if (parentBeanFactory != null && !containsBeanDefinition(beanName)) {
+				return parentBeanFactory.isTypeMatch(originalBeanName(name), targetType);
+			}
+			
+			RootBeanDefinition mbd = getMergedLocalBeanDefinition(beanName);
+			
+			BeanDefinitionHolder dbd = mbd.getDecoratedDefinition();
+			if (dbd != null && !BeanFactoryUtils.isFactoryDereference(name)) {
+				RootBeanDefinition tbd = getMergedBeanDefinition(dbd.getBeanName(), dbd.getBeanDefinition(), mbd);
+				Class<?> targetClass = predictBeanType(dbd.getBeanName(), tbd, FactoryBean.class, typeToMatch);
+				if (targetClass != null && !FactoryBean.class.isAssignableFrom(targetClass)) {
+					return typeToMatch.isAssignableFrom(targetClass);
+				}
+			}
+			
+			Class<?> beanClass = predictBeanType(beanName, mbd, FactoryBean.class, typeToMatch);
+			if (beanClass == null) {
+				return false;
+			}
+			
+			if (FactoryBean.class.isAssignableFrom(beanClass)) {
+				if (!BeanFactoryUtils.isFactoryDereference(name)) {
+					Class<?> type = getTypeForFactoryBean(beanName, mbd);
+					return (type != null && typeToMatch.isAssignableFrom(type));
+				} 
+				else {
+					return typeToMatch.isAssignableFrom(beanClass);
+				}
+			} 
+			else {
+				return !BeanFactoryUtils.isFactoryDereference(name) 
+					&& typeToMatch.isAssignableFrom(beanClass);
+			}
+		}
 	}
 	
 	/**
@@ -438,6 +504,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		return (T) bean;
 	}
 	
+	
 	//-----------------------------------------------------------
 	// Implementation of HierarchicalBeanFactory interface
 	//-----------------------------------------------------------
@@ -461,174 +528,285 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	
 	@Override
 	public void addBeanPostProcessor(BeanPostProcessor beanPostProcessor) {
-		// TODO Auto-generated method stub
+		Assert.notNull(beanPostProcessor, "BeanPostProcessor must not be null");
 		
+		beanPostProcessors.remove(beanPostProcessor);
+		beanPostProcessors.add(beanPostProcessor);
+		if (beanPostProcessor instanceof InstantiationAwareBeanPostProcessor) {
+			hasInstantiationAwareBeanPostProcessors = true;
+		}
+		if (beanPostProcessor instanceof DestructionAwareBeanPostProcessor) {
+			hasDestructionAwareBeanPostProcessors = true;
+		}
 	}
 
 	@Override
 	public int getBeanPostProcessorCount() {
-		// TODO Auto-generated method stub
-		return 0;
+		return beanPostProcessors.size();
+	}
+	
+	/**
+	 * Return the list of BeanPostProcessors that will get applied
+	 * to beans created with this factory.
+	 * @return
+	 */
+	public List<BeanPostProcessor> getBeanPostProcessors() {
+		return beanPostProcessors;
+	}
+	
+	/**
+	 * Return whether this factory holds a InstantiationAwareBeanPostProcessor
+	 * that will get applied to singleton beans on shutdown.
+	 * @return
+	 */
+	public boolean hasInstantiationAwareBeanPostProcessors() {
+		return hasInstantiationAwareBeanPostProcessors;
+	}
+
+	/**
+	 * Return whether this factory holds a DestructionAwareBeanPostProcessor
+	 * that will get applied to singleton beans on shutdown.
+	 * @return
+	 */
+	public boolean hasDestructionAwareBeanPostProcessors() {
+		return hasDestructionAwareBeanPostProcessors;
 	}
 
 	@Override
-	public void registerCustomEditor(Class<?> requiredType,
-			PropertyEditor propertyEditor) {
-		// TODO Auto-generated method stub
+	public void registerCustomEditor(Class<?> requiredType, PropertyEditor propertyEditor) {
 		
 	}
 
 	@Override
-	public void setParentBeanFactory(BeanFactory parentBeanFactory)
-			throws IllegalStateException {
-		// TODO Auto-generated method stub
-		
+	public void setParentBeanFactory(BeanFactory parentBeanFactory) throws IllegalStateException {
+		if (this.parentBeanFactory != null && this.parentBeanFactory != parentBeanFactory) {
+			throw new IllegalStateException("Already associated with parent BeanFactory: " + this.parentBeanFactory);
+		}
+		this.parentBeanFactory = parentBeanFactory;
 	}
 
 	@Override
 	public void setBeanClassLoader(ClassLoader beanClassLoader) {
-		// TODO Auto-generated method stub
-		
+		this.beanClassLoader = (beanClassLoader != null ? beanClassLoader : ClassUtils.getDefaultClassLoader());
 	}
 
 	@Override
 	public ClassLoader getBeanClassLoader() {
-		// TODO Auto-generated method stub
-		return null;
+		return beanClassLoader;
 	}
 
 	@Override
 	public void setTempClassLoader(ClassLoader tempClassLoader) {
-		// TODO Auto-generated method stub
-		
+		this.tempClassLoader = tempClassLoader;
 	}
 
 	@Override
 	public ClassLoader getTempClassLoader() {
-		// TODO Auto-generated method stub
-		return null;
+		return tempClassLoader;
 	}
 
 	@Override
 	public void setCacheBeanMetadata(boolean cacheBeanMetadata) {
-		// TODO Auto-generated method stub
-		
+		this.cacheBeanMetadata = cacheBeanMetadata;
 	}
 
 	@Override
 	public boolean isCacheBeanMetadata() {
-		// TODO Auto-generated method stub
-		return false;
+		return cacheBeanMetadata;
 	}
 
 	@Override
 	public void setBeanExpressionResolver(BeanExpressionResolver resolver) {
-		// TODO Auto-generated method stub
-		
+		this.beanExpressionResolver = resolver;
 	}
 
 	@Override
 	public BeanExpressionResolver getBeanExpressionResolver() {
-		// TODO Auto-generated method stub
-		return null;
+		return beanExpressionResolver;
 	}
 
 	@Override
 	public void setConversionService(ConversionService conversionService) {
-		// TODO Auto-generated method stub
-		
+		this.conversionService = conversionService;
 	}
 
 	@Override
 	public ConversionService getConversionService() {
-		// TODO Auto-generated method stub
-		return null;
+		return conversionService;
 	}
 
 	@Override
 	public void addPropertyEditorRegistrar(PropertyEditorRegistrar registrar) {
-		// TODO Auto-generated method stub
-		
+		Assert.notNull(registrar, "PropertyEditorRegistrar must not be null");
+		propertyEditorRegistrars.add(registrar);
 	}
 
 	@Override
 	public void copyRegisteredEditorsTo(PropertyEditorRegistry registry) {
-		// TODO Auto-generated method stub
-		
+		registerCustomEditors(registry);
 	}
 
 	@Override
 	public void setTypeConverter(TypeConverter typeConverter) {
-		// TODO Auto-generated method stub
-		
+		this.typeConverter = typeConverter;
 	}
 
 	@Override
 	public TypeConverter getTypeConverter() {
-		// TODO Auto-generated method stub
-		return null;
+		TypeConverter customConverter = getCustomTypeConverter();
+		if (customConverter != null) {
+			return customConverter;
+		} 
+		else {
+			SimpleTypeConverter typeConverter = new SimpleTypeConverter();
+			typeConverter.setConversionService(getConversionService());
+			registerCustomEditors(typeConverter);
+			return typeConverter;
+		}
 	}
 
 	@Override
 	public void addEmbeddedValueResolver(StringValueResolver valueResolver) {
-		// TODO Auto-generated method stub
+		Assert.notNull(valueResolver, "StringValueResolver must not be null");
 		
+		embeddedValueResolvers.add(valueResolver);
 	}
 
 	@Override
 	public String resolveEmbeddedValue(String value) {
-		// TODO Auto-generated method stub
-		return null;
+		String result = value;
+		for (StringValueResolver resolver : embeddedValueResolvers) {
+			result = resolver.resolveStringValue(result);
+		}
+		return result;
 	}
 
 	@Override
 	public void registerScope(String scopeName, Scope scope) {
-		// TODO Auto-generated method stub
+		Assert.notNull(scopeName, "Scope name must not be null");
+		Assert.notNull(scope, "Scope must not be null");
 		
+		if (SCOPE_SINGLETON.equals(scopeName) || SCOPE_PROTOTYPE.equals(scopeName)) {
+			throw new IllegalArgumentException("Cannot replace existing scopes 'singleton' and 'prototype'");
+		}
+		scopes.put(scopeName, scope);
 	}
 
 	@Override
 	public String[] getRegisteredScopeNames() {
-		// TODO Auto-generated method stub
-		return null;
+		return StringUtils.toStringArray(scopes.keySet());
+	}
+	
+	/**
+	 * 
+	 * @param scopeName
+	 * @return
+	 */
+	public Scope getRegisteredScope(String scopeName) {
+		Assert.notNull(scopeName, "Scope name must not be null");
+		return scopes.get(scopeName);
+	}
+
+	@Override
+	public AccessControlContext getAccessControlContext() {
+		return securityContextProvider != null 
+			? securityContextProvider.getAccessControlContext() 
+			: AccessController.getContext();
+	}
+
+	/**
+	 * Set the security context provider for this bean factory.
+	 * @param securityContextProvider
+	 */
+	public void setSecurityContextProvider(SecurityContextProvider securityContextProvider) {
+		this.securityContextProvider = securityContextProvider;
 	}
 
 	@Override
 	public void copyConfigurationFrom(ConfigurableBeanFactory otherFactory) {
-		// TODO Auto-generated method stub
+		Assert.notNull(otherFactory, "BeanFactory must not be null");
+		
+		setBeanClassLoader(otherFactory.getBeanClassLoader());
+		setCacheBeanMetadata(otherFactory.isCacheBeanMetadata());
+		setBeanExpressionResolver(otherFactory.getBeanExpressionResolver());
+		if (otherFactory instanceof AbstractBeanFactory) {
+			AbstractBeanFactory otherAbstractFactory = (AbstractBeanFactory) otherFactory;
+			customEditors.putAll(otherAbstractFactory.customEditors);
+			propertyEditorRegistrars.addAll(otherAbstractFactory.propertyEditorRegistrars);
+			beanPostProcessors.addAll(otherAbstractFactory.beanPostProcessors);
+			hasInstantiationAwareBeanPostProcessors = hasInstantiationAwareBeanPostProcessors 
+				|| otherAbstractFactory.hasInstantiationAwareBeanPostProcessors;
+			hasDestructionAwareBeanPostProcessors = hasDestructionAwareBeanPostProcessors
+				|| otherAbstractFactory.hasDestructionAwareBeanPostProcessors;
+			scopes.putAll(otherAbstractFactory.scopes);
+			securityContextProvider = otherAbstractFactory.securityContextProvider;
+		} 
+		else {
+			setTypeConverter(otherFactory.getTypeConverter());
+		}
 		
 	}
 
 	@Override
-	public BeanDefinition getMergedBeanDefinition(String beanName)
-			throws NoSuchBeanDefinitionException {
-		// TODO Auto-generated method stub
-		return null;
+	public BeanDefinition getMergedBeanDefinition(String name) throws BeansException {
+		String beanName = transformedBeanName(name);
+		
+		if (!containsBeanDefinition(beanName) && getParentBeanFactory() instanceof ConfigurableBeanFactory) {
+			return ((ConfigurableBeanFactory) getParentBeanFactory()).getMergedBeanDefinition(beanName);
+		}
+		
+		return getMergedLocalBeanDefinition(beanName);
 	}
 
 	@Override
-	public boolean isFactoryBean(String name)
-			throws NoSuchBeanDefinitionException {
-		// TODO Auto-generated method stub
-		return false;
+	public boolean isFactoryBean(String name) throws NoSuchBeanDefinitionException {
+		String beanName = transformedBeanName(name);
+		
+		Object beanInstance = getSingleton(beanName, false);
+		if (beanInstance != null) {
+			return (beanInstance instanceof FactoryBean);
+		}
+		else if (containsSingleton(beanName)) {
+			return false;
+		}
+		
+		if (!containsBeanDefinition(beanName) && getParentBeanFactory() instanceof ConfigurableBeanFactory) {
+			return ((ConfigurableBeanFactory) getParentBeanFactory()).isFactoryBean(name);
+		}
+		
+		return isFactoryBean(beanName, getMergedLocalBeanDefinition(beanName));
 	}
 
 	@Override
 	public boolean isCurrentlyInCreation(String beanName) {
-		// TODO Auto-generated method stub
-		return false;
+		Assert.notNull(beanName, "Bean name must not be null");
+		
+		return isSingletonCurrentlyInCreation(beanName) 
+			|| isPrototypeCurrentlyInCreation(beanName);
 	}
 
 	@Override
 	public void destroyScopedBean(String beanName) {
-		// TODO Auto-generated method stub
+		RootBeanDefinition mbd = getMergedLocalBeanDefinition(beanName);
+		if (mbd.isSingleton() || mbd.isPrototype()) {
+			throw new IllegalArgumentException(String.format(
+				"Bean name '%s' does not correspond to an object in a mutable scope", beanName));
+		}
 		
+		String scopeName = mbd.getScope();
+		Scope scope = scopes.get(scopeName);
+		if (scope == null) {
+			throw new IllegalStateException(String.format("No scope SPI registered for scope '%s'", scopeName));
+		}
+		Object bean = scope.remove(beanName);
+		if (bean != null) {
+			destroyBean(beanName, bean, mbd);
+		}
 	}
 
 	@Override
 	public void destroyBean(String beanName, Object beanInstance) {
-		// TODO Auto-generated method stub
-		
+		destroyBean(beanName, beanInstance, getMergedLocalBeanDefinition(beanName));
 	}
 	
 	//-------------------------------------------------------------------
@@ -656,6 +834,49 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			beanName = FACTORY_BEAN_PREFIX + beanName;
 		}
 		return beanName;
+	}
+	
+	/**
+	 * Initialize the given PropertyEditorRegistry with the custom editors
+	 * that have been registered with this BeanFactory.
+	 * @param registry
+	 */
+	protected void registerCustomEditors(PropertyEditorRegistry registry) {
+		PropertyEditorRegistrySupport registrySupport = registry instanceof PropertyEditorRegistrySupport 
+			? (PropertyEditorRegistrySupport) registry : null;
+		if (registrySupport != null) {
+			registrySupport.useConfigValueEditors();
+		}
+		if (!this.propertyEditorRegistrars.isEmpty()) {
+			for (PropertyEditorRegistrar registrar : propertyEditorRegistrars) {
+				try {
+					registrar.registerCustomEditors(registry);
+				} 
+				catch (BeanCreationException ex) {
+					Throwable rootCause = ex.getMostSpecificCause();
+					if (rootCause instanceof BeanCurrentlyInCreationException) {
+						BeanCreationException bce = (BeanCreationException) rootCause;
+						if (isCurrentlyInCreation(bce.getBeanName())) {
+							if (logger.isDebugEnabled()) {
+								logger.debug(String.format(
+									"PropertyEditorRegistrar [%s] failed because it tried to obtain currently created bean '%s': %s", 
+										registrar.getClass().getName(), ex.getBeanName(), ex.getMessage()));
+							}
+							onSuppressedException(ex);
+							continue;
+						}
+					}
+					throw ex;
+				}
+			}
+		}
+		if (!this.customEditors.isEmpty()) {
+			for (Entry<Class<?>, Class<? extends PropertyEditor>> entry : customEditors.entrySet()) {
+				Class<?> requiredType = entry.getKey();
+				Class<? extends PropertyEditor> editorClass = entry.getValue();
+				registry.registerCustomEditor(requiredType, BeanUtils.instantiateClass(editorClass));
+			}
+		}
 	}
 	
 	/**
@@ -912,11 +1133,29 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			if (object.equals(beanName)) {
 				return true;
 			}
-			if (object instanceof Set && ((Set) object).contains(beanName)) {
+			if (object instanceof Set && ((Set<?>) object).contains(beanName)) {
 				return true;
 			}
 		}
 		return false;
+	}
+	
+	/**
+	 * Destroy the given bean instance occording to the given bean definition.
+	 * @param beanName
+	 * @param beanInstance
+	 * @param mbd
+	 */
+	protected void destroyBean(String beanName, Object beanInstance, RootBeanDefinition mbd) {
+		new DisposableBeanAdapter(beanInstance, beanName, mbd, getBeanPostProcessors(), getAccessControlContext()).destroy();
+	}
+	
+	/**
+	 * Return the custom TypeConverter to use, if any.
+	 * @return
+	 */
+	protected TypeConverter getCustomTypeConverter() {
+		return typeConverter;
 	}
 	
 	//-----------------------------------------------------------
