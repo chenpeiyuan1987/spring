@@ -1,8 +1,10 @@
 package org.yuan.study.spring.beans.factory.support;
 
+import org.yuan.study.spring.beans.factory.NoSuchBeanDefinitionException;
 import org.yuan.study.spring.beans.factory.config.BeanDefinition;
+import org.yuan.study.spring.core.AliasRegistry;
 
-public interface BeanDefinitionRegistry {
+public interface BeanDefinitionRegistry extends AliasRegistry {
 
 	/**
 	 * Check if this registry contains a bean definition with the given name.
@@ -10,13 +12,6 @@ public interface BeanDefinitionRegistry {
 	 * @return
 	 */
 	boolean containsBeanDefinition(String beanName);
-	
-	/**
-	 * Return the aliases for the given bean name, if definied.
-	 * @param beanName
-	 * @return
-	 */
-	String[] getAliases(String beanName);
 	
 	/**
 	 * Return the BeanDefinition for the give bean name.
@@ -38,16 +33,24 @@ public interface BeanDefinitionRegistry {
 	String[] getBeanDefinitionNames();
 	
 	/**
-	 * Given a bean name, create an alias.
-	 * @param beanName
-	 * @param alias
-	 */
-	void registerAlias(String beanName, String alias);
-	
-	/**
 	 * Register a new bean definition with this registry.
 	 * @param beanName
 	 * @param beanDefinition
 	 */
 	void registerBeanDefinition(String beanName, BeanDefinition beanDefinition);
+	
+	/**
+	 * Remove the BeanDefinition for the given name.
+	 * @param beanName
+	 * @throws NoSuchBeanDefinitionException
+	 */
+	void removeBeanDefinition(String beanName) throws NoSuchBeanDefinitionException;
+	
+	/**
+	 * Determine whether the given bean name is already in use within this registry,
+	 * i.e. whether there is a local bean or alias registered under this name.
+	 * @param beanName
+	 * @return
+	 */
+	boolean isBeanNameInUse(String beanName);
 }
