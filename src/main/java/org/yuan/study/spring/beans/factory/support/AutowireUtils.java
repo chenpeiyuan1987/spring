@@ -1,14 +1,18 @@
 package org.yuan.study.spring.beans.factory.support;
 
 import java.beans.PropertyDescriptor;
+import java.io.Serializable;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.Proxy;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Set;
 
-import org.yuan.study.spring.beans.BeanUtils;
+import org.yuan.study.spring.beans.factory.ObjectFactory;
 import org.yuan.study.spring.util.ClassUtils;
 
 public abstract class AutowireUtils {
@@ -21,11 +25,9 @@ public abstract class AutowireUtils {
 	 * @param constructors
 	 */
 	public static void sortConstructors(Constructor<?>[] constructors) {
-		Arrays.sort(constructors, new Comparator<Object>() {
+		Arrays.sort(constructors, new Comparator<Constructor<?>>() {
 			@Override
-			public int compare(Object o1, Object o2) {
-				Constructor<?> c1 = (Constructor<?>) o1;
-				Constructor<?> c2 = (Constructor<?>) o2;
+			public int compare(Constructor<?> c1, Constructor<?> c2) {
 				boolean p1 = Modifier.isPublic(c1.getModifiers());
 				boolean p2 = Modifier.isPublic(c2.getModifiers());
 				if (p1 != p2) {
@@ -39,32 +41,26 @@ public abstract class AutowireUtils {
 	}
 	
 	/**
-	 * Determine a weight that represents the class hierarchy difference between types and 
-	 * arguments.
-	 * @param argTypes
-	 * @param args
-	 * @return
+	 * Sort the given factory methods, preferring public methods and "greedy" ones 
+	 * with a maximum of arguments. The result will contain public methods first,
+	 * with decreasing number of arguments, then non-public methods, again with 
+	 * decreasing number of arguments.
+	 * @param constructors
 	 */
-	public static int getTypeDifferenceWeight(Class<?>[] argTypes, Object[] args) {
-		int result = 0;
-		for (int i = 0; i < argTypes.length; i++) {
-			if (!BeanUtils.isAssignable(argTypes[i], args[i])) {
-				return Integer.MAX_VALUE;
-			}
-			if (args[i] != null) {
-				Class<?> superClass = args[i].getClass().getSuperclass();
-				while (superClass != null) {
-					if (BeanUtils.isAssignable(argTypes[i], superClass)) {
-						result++;
-						superClass = superClass.getSuperclass();
-					}
-					else {
-						superClass = null;
-					}
+	public static void sortFactoryMethods(Method[] methods) {
+		Arrays.sort(methods, new Comparator<Method>() {
+			@Override
+			public int compare(Method m1, Method m2) {
+				boolean p1 = Modifier.isPublic(m1.getModifiers());
+				boolean p2 = Modifier.isPublic(m2.getModifiers());
+				if (p1 != p2) {
+					return (p1 ? -1 : 1);
 				}
+				int c1p1 = m1.getParameterTypes().length;
+				int c2p1 = m2.getParameterTypes().length;
+				return (new Integer(c1p1)).compareTo(new Integer(c2p1)) * -1;
 			}
-		}
-		return result;
+		});
 	}
 	
 	/**
@@ -74,7 +70,10 @@ public abstract class AutowireUtils {
 	 */
 	public static boolean isExcludedFromDependencyCheck(PropertyDescriptor propertyDescriptor) {
 		Method writeMethod = propertyDescriptor.getWriteMethod();
-		if (writeMethod.getDeclaringClass().getName().indexOf("$$") == -1) {
+		if (writeMethod == null) {
+			return false;
+		}
+		if (!writeMethod.getDeclaringClass().getName().contains("$$")) {
 			return false;
 		}
 		
@@ -102,5 +101,58 @@ public abstract class AutowireUtils {
 		}
 		
 		return false;
+	}
+	
+	/**
+	 * Resolve the given autowiring value against the given required type,
+	 * e.g. an ObjectFactory value to its actual object result.
+	 * @return
+	 */
+	public static Object resolveAutowiringValue(Object autowiringValue, Class<?> requiredType) {
+		if (autowiringValue instanceof ObjectFactory && !requiredType.isInstance(autowiringValue)) {
+			ObjectFactory<?> factory = (ObjectFactory<?>) autowiringValue;
+			if (autowiringValue instanceof Serializable && requiredType.isInterface()) {
+				autowiringValue = Proxy.newProxyInstance(requiredType.getClassLoader(), 
+					new Class[]{requiredType}, new ObjectFactoryDelegatingInvocationHandler(factory));
+			} 
+			else {
+				return factory.getObject();
+			}
+		}
+		
+		return autowiringValue;
+	}
+	
+	/**
+	 * Reflective InvocationHandler for lazy access to the current target object.
+	 */
+	private static class ObjectFactoryDelegatingInvocationHandler implements InvocationHandler, Serializable {
+		private static final long serialVersionUID = 1L;
+		
+		private final ObjectFactory<?> objectFactory;
+		
+		public ObjectFactoryDelegatingInvocationHandler(ObjectFactory<?> objectFactory) {
+			this.objectFactory = objectFactory;
+		}
+
+		@Override
+		public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+			String methodName = method.getName();
+			if (methodName.equals("equals")) {
+				return (proxy == args[0]);
+			} 
+			else if (methodName.equals("hashCode")) {
+				return System.identityHashCode(proxy);
+			}
+			else if (methodName.equals("toString")) {
+				return this.objectFactory.toString();
+			}
+			try {
+				return method.invoke(objectFactory.getObject(), args);
+			} 
+			catch (InvocationTargetException ex) {
+				throw ex.getTargetException();
+			}
+		}
 	}
 }

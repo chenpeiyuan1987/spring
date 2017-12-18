@@ -1,6 +1,7 @@
 package org.yuan.study.spring.beans.factory.support;
 
 import java.lang.reflect.Constructor;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -13,6 +14,8 @@ import org.yuan.study.spring.core.io.DescriptiveResource;
 import org.yuan.study.spring.core.io.Resource;
 import org.yuan.study.spring.util.Assert;
 import org.yuan.study.spring.util.ClassUtils;
+import org.yuan.study.spring.util.ObjectUtils;
+import org.yuan.study.spring.util.StringUtils;
 
 public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccessor implements BeanDefinition, Cloneable {
 	private static final long serialVersionUID = 1L;
@@ -186,37 +189,7 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	 * @param other
 	 */
 	public void overrideFrom(AbstractBeanDefinition other) {
-		if (other.beanClass != null) {
-			this.beanClass = other.beanClass;
-		}
-		
-		setAbstract(other.isAbstract());
-		setSingleton(other.isSingleton());
-		setLazyInit(other.isLazyInit());
-		setAutowireMode(other.getAutowireMode());
-		setDependencyCheck(other.getDependencyCheck());
-		setDependsOn(other.getDependsOn());
-		
-		getConstructorArgumentValues().addArgumentValues(other.getConstructorArgumentValues());;
-		getPropertyValues().addPropertyValues(other.getPropertyValues());
-		getMethodOverrides().addOverrides(other.getMethodOverrides());
-		
-		if (other.getFactoryBeanName() != null) {
-			setFactoryBeanName(other.getFactoryBeanName());
-		}
-		if (other.getFactoryMethodName() != null) {
-			setFactoryMethodName(other.getFactoryMethodName());
-		}
-		if (other.getInitMethodName() != null) {
-			setInitMethodName(other.getInitMethodName());
-			setEnforceInitMethod(other.isEnforceInitMethod());
-		}
-		if (other.getDestroyMethodName() != null) {
-			setDestroyMethodName(other.getDestroyMethodName());
-			setEnforceDestroyMethod(other.isEnforceDestroyMethod());
-		}
-		
-		setResourceDescription(other.getResourceDescription());
+		overrideFrom((BeanDefinition) other);
 	}
 	
 	/**
@@ -224,7 +197,56 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	 * @param other
 	 */
 	public void overrideFrom(BeanDefinition other) {
+		if (StringUtils.hasLength(other.getBeanClassName())) {
+			setBeanClassName(other.getBeanClassName());
+		}
+		if (StringUtils.hasLength(other.getFactoryBeanName())) {
+			setFactoryBeanName(other.getFactoryBeanName());
+		}
+		if (StringUtils.hasLength(other.getFactoryMethodName())) {
+			setFactoryMethodName(other.getFactoryMethodName());
+		}
+		if (StringUtils.hasLength(other.getScope())) {
+			setScope(other.getScope());
+		}
 		
+		setAbstract(other.isAbstract());
+		setLazyInit(other.isLazyInit());
+		setRole(other.getRole());
+		getConstructorArgumentValues().addArgumentValues(other.getConstructorArgumentValues());;
+		getPropertyValues().addPropertyValues(other.getPropertyValues());
+		setSource(other.getSource());
+		copyAttributesFrom(other);
+
+		if (other instanceof AbstractBeanDefinition) {
+			AbstractBeanDefinition otherAbd = (AbstractBeanDefinition) other;
+			if (otherAbd.hasBeanClass()) {
+				setBeanClass(otherAbd.getBeanClass());
+			}
+			if (StringUtils.hasLength(otherAbd.getInitMethodName())) {
+				setInitMethodName(otherAbd.getInitMethodName());
+				setEnforceInitMethod(otherAbd.isEnforceInitMethod());
+			}
+			if (StringUtils.hasLength(otherAbd.getDestroyMethodName())) {
+				setDestroyMethodName(otherAbd.getDestroyMethodName());
+				setEnforceDestroyMethod(otherAbd.isEnforceDestroyMethod());
+			}
+			
+			setAutowireMode(otherAbd.getAutowireMode());
+			setAutowireCandidate(otherAbd.isAutowireCandidate());
+			copyQualifiersFrom(otherAbd);
+			setPrimary(otherAbd.isPrimary());
+			setDependencyCheck(otherAbd.getDependencyCheck());
+			setDependsOn(otherAbd.getDependsOn());
+			setNonPublicAccessAllowed(otherAbd.isNonPublicAccessAllowed());
+			setLenientConstructorResolution(otherAbd.isLenientConstructorResolution());
+			setMethodOverrides(new MethodOverrides(otherAbd.getMethodOverrides()));
+			setSynthetic(otherAbd.isSynthetic());
+			setResource(otherAbd.getResource());
+		}
+		else {
+			setResourceDescription(other.getResourceDescription());
+		}
 	}
 	
 	/**
@@ -375,56 +397,50 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 
 	@Override
 	public boolean isAutowireCandidate() {
-		// TODO Auto-generated method stub
-		return false;
+		return autowireCandidate;
 	}
 
 	@Override
 	public void setAutowireCandidate(boolean autowireCandidate) {
-		// TODO Auto-generated method stub
-		
+		this.autowireCandidate = autowireCandidate;
 	}
 
 	@Override
 	public boolean isPrimary() {
-		// TODO Auto-generated method stub
-		return false;
+		return primary;
 	}
 
 	@Override
 	public void setPrimary(boolean primary) {
-		// TODO Auto-generated method stub
-		
+		this.primary = primary;
 	}
 
 	@Override
 	public boolean isPrototype() {
-		// TODO Auto-generated method stub
-		return false;
+		return prototype;
 	}
 
 	@Override
 	public int getRole() {
-		// TODO Auto-generated method stub
-		return 0;
+		return role;
 	}
 	
 	@Override
 	public String getDescription() {
-		// TODO Auto-generated method stub
-		return null;
+		return description;
 	}
 
 	@Override
 	public BeanDefinition getOriginatingBeanDefinition() {
-		// TODO Auto-generated method stub
+		if (resource instanceof BeanDefinitionResource) {
+			return ((BeanDefinitionResource) resource).getBeanDefinition();
+		}
 		return null;
 	}
 
 	@Override
-	protected Object clone() throws CloneNotSupportedException {
-		// TODO Auto-generated method stub
-		return super.clone();
+	protected Object clone() {
+		return cloneBeanDefinition();
 	}
 
 	/**
@@ -601,32 +617,14 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 	}
 
 	/**
-	 * Set a description of the resource that this bean definition came from (for the purpose of showing context in case of errors).
+	 * Set a description of the resource that this bean definition came from 
+	 * (for the purpose of showing context in case of errors).
 	 * @param resourceDescription
 	 */
 	public void setResourceDescription(String resourceDescription) {
 		resource = new DescriptiveResource(resourceDescription);
 	}
 
-	/**
-	 * Validate this bean definition.
-	 * @throws BeanDefinitionValidationException
-	 */
-	public void validate() throws BeanDefinitionValidationException {
-		if (this.lazyInit && !this.singleton) {
-			throw new BeanDefinitionValidationException("Lazy initialization is only applicable to singleton beans");
-		}
-		if (!getMethodOverrides().isEmpty() && getFactoryMethodName() != null) {
-			throw new BeanDefinitionValidationException(
-				"Cannot combine static factory method with method overrides: the static factory method must create the instance.");
-		}
-		if (hasBeanClass()) {
-			for (MethodOverride methodOverride : getMethodOverrides().getOverrides()) {
-				validateMethodOverride(methodOverride);
-			}
-		}
-	}
-	
 	/**
 	 * Return a factory method, if any.
 	 * @return
@@ -710,7 +708,8 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 		int count = ClassUtils.getMethodCountForName(getBeanClass(), mo.getMethodName());
 		if (count == 0) {
 			throw new BeanDefinitionValidationException(String.format(
-				"Invalid method override: no method with name '%s' on class [%s]", mo.getMethodName(), getBeanClassName()));
+				"Invalid method override: no method with name '%s' on class [%s]", 
+					mo.getMethodName(), getBeanClassName()));
 		}
 		else if (count == 1) {
 			mo.setOverloaded(false);
@@ -725,10 +724,20 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 		return !constructorArgumentValues.isEmpty();
 	}
 	
+	/**
+	 * Return whether this bean definition is 'synthetic', that is,
+	 * not defined by the application itself.
+	 * @return
+	 */
 	public boolean isSynthetic() {
 		return synthetic;
 	}
 	
+	/**
+	 * Set whether this bean definition is 'synthetic', that is, not defined
+	 * by the application itself.
+	 * @param synthetic
+	 */
 	public void setSynthetic(boolean synthetic) {
 		this.synthetic = synthetic;
 	}
@@ -763,11 +772,83 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 		return singleton;
 	}
 
+	//--------------------------------------------------------------
+	// Implementation of methods
+	//--------------------------------------------------------------
+	
+	/**
+	 * Specify the class for this bean.
+	 * @param beanClass
+	 */
+	public void setBeanClass(Object beanClass) {
+		this.beanClass = beanClass;
+	}
+
+	/**
+	 * Set a human-readable description of this bean definition.
+	 * @param description
+	 */
+	public void setDescription(String description) {
+		this.description = description;
+	}
+	
+	/**
+	 * Validate this bean definition.
+	 * @throws BeanDefinitionValidationException
+	 */
+	public void validate() throws BeanDefinitionValidationException {
+		if (!getMethodOverrides().isEmpty() && getFactoryMethodName() != null) {
+			throw new BeanDefinitionValidationException(
+				"Cannot combine static factory method with method overrides: "
+				+ "the static factory method must create the instance");
+		}
+		
+		if (hasBeanClass()) {
+			prepareMethodOverrides();
+		}
+	}
+	
+	/**
+	 * Validate and prepare the method overrides defined for this bean.
+	 * @throws BeanDefinitionValidationException
+	 */
+	public void prepareMethodOverrides() throws BeanDefinitionValidationException {
+		MethodOverrides methodOverrides = getMethodOverrides();
+		if (!methodOverrides.isEmpty()) {
+			for (MethodOverride mo : methodOverrides.getOverrides()) {
+				prepareMethodOverride(mo);
+			}
+		}
+	}
+	
+	/**
+	 * Validate and prepare the given method overrides.
+	 * @param mo
+	 * @throws BeanDefinitionValidationException
+	 */
+	protected void prepareMethodOverride(MethodOverride mo) throws BeanDefinitionValidationException {
+		int count = ClassUtils.getMethodCountForName(getBeanClass(), mo.getMethodName());
+		if (count == 0) {
+			throw new BeanDefinitionValidationException(String.format(
+				"Invalid method override: no method with name '%s' on class [%s]", 
+					mo.getMethodName(), getBeanClassName()));
+		} 
+		else if (count == 1) {
+			mo.setOverloaded(false);
+		}
+	}
+	
+	/**
+	 * Clone this bean definition.
+	 * @return
+	 */
+	public abstract AbstractBeanDefinition cloneBeanDefinition();
 	
 	//--------------------------------------------------------------
 	// Implementation of Object methods
 	//--------------------------------------------------------------
 	
+
 	@Override
 	public String toString() {
 		StringBuffer sb = new StringBuffer("class [");
@@ -788,4 +869,100 @@ public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccess
 		}
 		return sb.toString();
 	}
+
+	@Override
+	public int hashCode() {
+		int result = ObjectUtils.nullSafeHashCode(getBeanClassName());
+		result = 29 * result + ObjectUtils.nullSafeHashCode(scope);
+		result = 29 * result + ObjectUtils.nullSafeHashCode(constructorArgumentValues);
+		result = 29 * result + ObjectUtils.nullSafeHashCode(propertyValues);
+		result = 29 * result + ObjectUtils.nullSafeHashCode(factoryBeanName);
+		result = 29 * result + ObjectUtils.nullSafeHashCode(factoryMethodName);
+		result = 29 * result + super.hashCode();
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj) {
+			return true;
+		}
+		if (!(obj instanceof AbstractBeanDefinition)) {
+			return false;
+		}
+		
+		AbstractBeanDefinition other = (AbstractBeanDefinition) obj;
+		if (!ObjectUtils.nullSafeEquals(getBeanClassName(), other.getBeanClassName())) {
+			return false;
+		}
+		if (!ObjectUtils.nullSafeEquals(scope, other.scope)) {
+			return false;
+		}
+		if (!ObjectUtils.nullSafeEquals(qualifiers, other.qualifiers)) {
+			return false;
+		}
+		if (!ObjectUtils.nullSafeEquals(constructorArgumentValues, other.constructorArgumentValues)) {
+			return false;
+		}
+		if (!ObjectUtils.nullSafeEquals(propertyValues, other.propertyValues)) {
+			return false;
+		}
+		if (!ObjectUtils.nullSafeEquals(methodOverrides, other.methodOverrides)) {
+			return false;
+		}
+		if (!ObjectUtils.nullSafeEquals(factoryBeanName, other.factoryBeanName)) {
+			return false;
+		}
+		if (!ObjectUtils.nullSafeEquals(factoryMethodName, other.factoryMethodName)) {
+			return false;
+		}
+		if (!ObjectUtils.nullSafeEquals(initMethodName, other.initMethodName)) {
+			return false;
+		}
+		if (!ObjectUtils.nullSafeEquals(destroyMethodName, other.destroyMethodName)) {
+			return false;
+		}
+		if (abstractFlag != other.abstractFlag) {
+			return false;
+		}
+		if (lazyInit != other.lazyInit) {
+			return false;
+		}
+		if (autowireMode != other.autowireMode) {
+			return false;
+		}
+		if (dependencyCheck != other.dependencyCheck) {
+			return false;
+		}
+		if (autowireCandidate != other.autowireCandidate) {
+			return false;
+		}
+		if (primary != other.primary) {
+			return false;
+		}
+		if (nonPublicAccessAllowed != other.nonPublicAccessAllowed) {
+			return false;
+		}
+		if (lenientConstructorResolution != other.lenientConstructorResolution) {
+			return false;
+		}
+		if (enforceInitMethod != other.enforceInitMethod) {
+			return false;
+		}
+		if (enforceDestroyMethod != other.enforceDestroyMethod) {
+			return false;
+		}
+		if (synthetic != other.synthetic) {
+			return false;
+		}
+		if (role != other.role) {
+			return false;
+		}
+		if (!Arrays.equals(dependsOn, other.dependsOn)) {
+			return false;
+		}
+		
+		return super.equals(obj);
+	}
+	
 }

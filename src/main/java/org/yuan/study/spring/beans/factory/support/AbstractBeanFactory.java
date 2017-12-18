@@ -36,6 +36,7 @@ import org.yuan.study.spring.beans.factory.BeanIsAbstractException;
 import org.yuan.study.spring.beans.factory.BeanIsNotAFactoryException;
 import org.yuan.study.spring.beans.factory.BeanNotOfRequiredTypeException;
 import org.yuan.study.spring.beans.factory.CannotLoadBeanClassException;
+import org.yuan.study.spring.beans.factory.DisposableBean;
 import org.yuan.study.spring.beans.factory.FactoryBean;
 import org.yuan.study.spring.beans.factory.NoSuchBeanDefinitionException;
 import org.yuan.study.spring.beans.factory.ObjectFactory;
@@ -436,7 +437,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			}
 			
 			if (mbd.isSingleton()) {
-				sharedInstance = getSingleton(beanName, new ObjectFactory() {
+				sharedInstance = getSingleton(beanName, new ObjectFactory<Object>() {
 					@Override
 					public Object getObject() throws BeansException {
 						try {
@@ -468,7 +469,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 					throw new IllegalStateException(String.format("No Scope registered for scope '%s'", scopeName));
 				}
 				try {
-					Object scopedInstance = scope.get(beanName, new ObjectFactory() {
+					Object scopedInstance = scope.get(beanName, new ObjectFactory<Object>() {
 						@Override
 						public Object getObject() throws BeansException {
 							beforePrototypeCreation(beanName);
@@ -575,8 +576,10 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	}
 
 	@Override
-	public void registerCustomEditor(Class<?> requiredType, PropertyEditor propertyEditor) {
-		
+	public void registerCustomEditor(Class<?> requiredType, Class<? extends PropertyEditor> propertyEditorClass) {
+		Assert.notNull(requiredType, "Required type must not be null");
+		Assert.isAssignable(PropertyEditor.class, propertyEditorClass);
+		customEditors.put(requiredType, propertyEditorClass);
 	}
 
 	@Override
@@ -699,11 +702,6 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		return StringUtils.toStringArray(scopes.keySet());
 	}
 	
-	/**
-	 * 
-	 * @param scopeName
-	 * @return
-	 */
 	public Scope getRegisteredScope(String scopeName) {
 		Assert.notNull(scopeName, "Scope name must not be null");
 		return scopes.get(scopeName);
@@ -746,7 +744,6 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		else {
 			setTypeConverter(otherFactory.getTypeConverter());
 		}
-		
 	}
 
 	@Override
@@ -1007,6 +1004,15 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	}
 	
 	/**
+	 * Remove the merged bean definition for the specified bean,
+	 * recreating it on next access.
+	 * @param beanName
+	 */
+	protected void clearMergedBeanDefinition(String beanName) {
+		mergedBeanDefinitions.remove(beanName);
+	}
+	
+	/**
 	 * Resolve the bean class for the specified bean definition,
 	 * resolving a bean class name into a Class reference and storing
 	 * the resolved Class in the bean definition for further use.
@@ -1131,6 +1137,32 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	}
 	
 	/**
+	 * Determine whether the specified bean is eligible for having
+	 * its bean definition metadata cached.
+	 * @param beanName
+	 * @return
+	 */
+	protected boolean isBeanEligibleForMetadataCaching(String beanName) {
+		return alreadyCreated.contains(beanName);
+	}
+	
+	/**
+	 * Remove the singleton instance for the given bean name,
+	 * but only if it hasn't been used for other purposes than type checking.
+	 * @param beanName
+	 * @return
+	 */
+	protected boolean removeSingletonIfCreatedForTypeCheckOnly(String beanName) {
+		if (!alreadyCreated.contains(beanName)) {
+			removeSingleton(beanName);
+			return true;
+		} 
+		else {
+			return false;
+		}
+	}
+	
+	/**
 	 * Get the object for the given bean instancee, either the bean
 	 * instance itself or its created object in case of a FactoryBean.
 	 * @param beanInstance
@@ -1140,7 +1172,6 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	 * @return
 	 */
 	protected Object getObjectForBeanInstance(Object beanInstance, String name, String beanName, RootBeanDefinition mbd) {
-		
 		if (BeanFactoryUtils.isFactoryDereference(name) && !(beanInstance instanceof FactoryBean)) {
 			throw new BeanIsNotAFactoryException(transformedBeanName(name), beanInstance.getClass());
 		}
@@ -1162,6 +1193,62 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			object = getObjectFromFactoryBean(factory, beanName, !synthetic);
 		}
 		return object;
+	}
+
+	/**
+	 * Determine whether the given bean name is already in use within this factory,
+	 * i.e. whether there is a local bean or alias registered under this name or
+	 * an inner bean created with this name.
+	 * @param beanName
+	 * @return
+	 */
+	public boolean isBeanNameInUse(String beanName) {
+		return isAlias(beanName) || containsLocalBean(beanName) || hasDependentBean(beanName);
+	}
+	
+	/**
+	 * Determine whether the given bean requires destruction on shutdown.
+	 * @param bean
+	 * @param mbd
+	 * @return
+	 */
+	protected boolean requiresDestruction(Object bean, RootBeanDefinition mbd) {
+		if (bean != null) {
+			if (bean instanceof DisposableBean) {
+				return true;
+			}
+			if (mbd.getDestroyMethodName() != null) {
+				return true;
+			}
+			return hasDestructionAwareBeanPostProcessors();
+		}
+		return false;
+	}
+	
+	/**
+	 * Add the given bean to the list of disposable beans in this factory,
+	 * registering its DisposableBean interface and/or the given destroy method
+	 * to be called on factory shutdown.
+	 * @param beanName
+	 * @param bean
+	 * @param mbd
+	 */
+	protected void registerDisposableBeanIfNecessary(String beanName, Object bean, RootBeanDefinition mbd) {
+		AccessControlContext acc = System.getSecurityManager() != null ? getAccessControlContext() : null;
+		if (!mbd.isPrototype() && requiresDestruction(bean, mbd)) {
+			if (mbd.isSingleton()) {
+				registerDisposableBean(beanName, 
+					new DisposableBeanAdapter(bean, beanName, mbd, getBeanPostProcessors(), acc));
+			} 
+			else {
+				Scope scope = scopes.get(mbd.getScope());
+				if (scope == null) {
+					throw new IllegalStateException(String.format("No Scope registered for scope '%s'", mbd.getScope()));
+				}
+				scope.registerDestructionCallback(beanName, 
+					new DisposableBeanAdapter(bean, beanName, mbd, getBeanPostProcessors(), acc));
+			}
+		}
 	}
 	
 	/**
@@ -1241,26 +1328,27 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		return typeConverter;
 	}
 	
+	
 	//-----------------------------------------------------------
 	// Abstract methods to be implemented by subclasses
 	//-----------------------------------------------------------
 
 	/**
-	 * 
+	 * Check if this bean factory contains a bean definition with the given name.
 	 * @param beanName
 	 * @return
 	 */
 	protected abstract boolean containsBeanDefinition(String beanName);
 
 	/**
-	 * 
+	 * Return the bean definition for the given bean name.
 	 * @param beanName
 	 * @return
 	 */
 	protected abstract BeanDefinition getBeanDefinition(String beanName) throws BeansException;
 	
 	/**
-	 * 
+	 * Create a bean instance for the given bean definition.
 	 * @param beanName
 	 * @param mergedBeanDefinition
 	 * @param args

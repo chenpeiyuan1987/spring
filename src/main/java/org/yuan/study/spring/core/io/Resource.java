@@ -2,6 +2,7 @@ package org.yuan.study.spring.core.io;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.net.URL;
 
 public interface Resource extends InputStreamSource {
@@ -50,4 +51,33 @@ public interface Resource extends InputStreamSource {
 	 * @return
 	 */
 	boolean isOpen();
+	
+	/**
+	 * Return whether the contents of this resource can be read,
+	 * e.g. via 'getInputStream()' or 'getFile()'.
+	 * @return
+	 */
+	boolean isReadable();
+	
+	/**
+	 * Return a URI handle for this resource.
+	 * @return
+	 * @throws IOException
+	 */
+	URI getURI() throws IOException;
+	
+	/**
+	 * Determine the content length for this resource.
+	 * @return
+	 * @throws IOException
+	 */
+	long contentLength() throws IOException;
+	
+	/**
+	 * Determine the last-modified timestamp for this resource.
+	 * @return
+	 * @throws IOException
+	 */
+	long lastModified() throws IOException;
+	
 }

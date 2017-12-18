@@ -4,7 +4,12 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
+
+import org.yuan.study.spring.core.NestedIOException;
+import org.yuan.study.spring.util.ResourceUtils;
 
 public abstract class AbstractResource implements Resource {
 
@@ -54,6 +59,37 @@ public abstract class AbstractResource implements Resource {
 		return false;
 	}
 	
+	@Override
+	public boolean isReadable() {
+		return true;
+	}
+
+	@Override
+	public URI getURI() throws IOException {
+		URL url = getURL();
+		try {
+			return ResourceUtils.toURI(url);
+		} 
+		catch (URISyntaxException ex) {
+			throw new NestedIOException(String.format("Invalid URI [%s]", url), ex);
+		}
+	}
+
+	@Override
+	public long contentLength() throws IOException {
+		return getFile().length();
+	}
+
+	@Override
+	public long lastModified() throws IOException {
+		long lastModified = getFileForLastModifiedCheck().lastModified();
+		if (lastModified == 0L) {
+			throw new FileNotFoundException(getDescription() 
+				+ " cannot be resolved in the file system for resolving its last-modified timestamp");
+		}
+		return lastModified;
+	}
+	
 	//--------------------------------------------------
 	// Implementation of Object class
 	//--------------------------------------------------
@@ -74,4 +110,12 @@ public abstract class AbstractResource implements Resource {
 			(obj instanceof Resource && ((Resource) obj).getDescription().equals(getDescription())));
 	}
 
+	/**
+	 * Determine the File to use for timestamp checking.
+	 * @return
+	 * @throws IOException
+	 */
+	protected File getFileForLastModifiedCheck() throws IOException {
+		return getFile();
+	}
 }
