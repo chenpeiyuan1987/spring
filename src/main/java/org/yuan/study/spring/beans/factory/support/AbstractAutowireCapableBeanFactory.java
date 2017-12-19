@@ -5,11 +5,19 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.ConcurrentHashMap;
+
+import javax.validation.metadata.ParameterDescriptor;
 
 import org.yuan.study.spring.beans.BeanUtils;
 import org.yuan.study.spring.beans.BeanWrapper;
@@ -18,27 +26,47 @@ import org.yuan.study.spring.beans.BeansException;
 import org.yuan.study.spring.beans.MutablePropertyValues;
 import org.yuan.study.spring.beans.PropertyValue;
 import org.yuan.study.spring.beans.PropertyValues;
+import org.yuan.study.spring.beans.TypeConverter;
 import org.yuan.study.spring.beans.TypeMismatchException;
 import org.yuan.study.spring.beans.factory.BeanCreationException;
+import org.yuan.study.spring.beans.factory.BeanCurrentlyInCreationException;
+import org.yuan.study.spring.beans.factory.BeanDefinitionStoreException;
 import org.yuan.study.spring.beans.factory.BeanFactory;
 import org.yuan.study.spring.beans.factory.BeanFactoryAware;
 import org.yuan.study.spring.beans.factory.BeanNameAware;
 import org.yuan.study.spring.beans.factory.InitializingBean;
+import org.yuan.study.spring.beans.factory.ObjectFactory;
 import org.yuan.study.spring.beans.factory.UnsatisfiedDependencyException;
 import org.yuan.study.spring.beans.factory.config.AutowireCapableBeanFactory;
+import org.yuan.study.spring.beans.factory.config.BeanDefinition;
 import org.yuan.study.spring.beans.factory.config.BeanPostProcessor;
+import org.yuan.study.spring.beans.factory.config.ConfigurableBeanFactory;
 import org.yuan.study.spring.beans.factory.config.ConstructorArgumentValues;
 import org.yuan.study.spring.beans.factory.config.ConstructorArgumentValues.ValueHolder;
+import org.yuan.study.spring.beans.factory.config.DependencyDescriptor;
 import org.yuan.study.spring.beans.factory.config.InstantiationAwareBeanPostProcessor;
+import org.yuan.study.spring.core.ParameterNameDiscoverer;
+import org.yuan.study.spring.util.ClassUtils;
+import org.yuan.study.spring.util.ReflectionUtils;
 import org.yuan.study.spring.util.StringUtils;
 
 public abstract class AbstractAutowireCapableBeanFactory 
 	extends AbstractBeanFactory implements AutowireCapableBeanFactory {
 	
+	/** Strategy for creating bean instances */
 	private InstantiationStrategy instantiationStrategy = new CglibSubclassingInstantiationStrategy();
+	
+	/** Resolver strategy for method parameter names */
+	private ParameterNameDiscoverer parameterNameDiscoverer;
 	
 	/** Whether to automatically try to resolve circular references between beans */
 	private boolean allowCircularReferences = true;
+	
+	/** 
+	 * Whether to resort to injecting a raw bean instance in case of circular reference, 
+	 * even if the injected bean eventually got wrapped.
+	 */
+	private boolean allowRawInjectionDespiteWrapping = false;
 	
 	/** 
 	 * Dependency types to ignore on dependency check and autowire, 
@@ -52,6 +80,14 @@ public abstract class AbstractAutowireCapableBeanFactory
 	 */
 	private final Set<Class<?>> ignoredDependencyInterfaces = new HashSet<Class<?>>();
 	
+	/** Cache of unfinished FactoryBean instances: FactoryBean name --> BeanWrapper */
+	private final Map<String, BeanWrapper> factoryBeanInstanceCache = 
+		new ConcurrentHashMap<String, BeanWrapper>();
+	
+	/** Cache of filtered PropertyDescriptors: bean Class -> PropertyDescriptor array */
+	private final Map<Class<?>, ParameterDescriptor[]> filteredPropertyDescriptorsCache = 
+		new ConcurrentHashMap<Class<?>, ParameterDescriptor[]>();
+	
 	
 	/**
 	 * Create a new AbstractAutowireCapableBeanFactory.
@@ -60,6 +96,7 @@ public abstract class AbstractAutowireCapableBeanFactory
 		super();
 		ignoreDependencyInterface(BeanNameAware.class);
 		ignoreDependencyInterface(BeanFactoryAware.class);
+		ignoreDependencyInterface(BeanClassLoaderAware.class);
 	}
 
 	/**
@@ -94,11 +131,32 @@ public abstract class AbstractAutowireCapableBeanFactory
 	}
 	
 	/**
-	 * Return whether to allow circular references between beans - and automatically try to resolve them.
+	 * Return the ParameterNameDiscoverer to use for resolving method parameter
+	 * names if needed.
 	 * @return
 	 */
-	public boolean isAllowCircularReferences() {
-		return allowCircularReferences;
+	public ParameterNameDiscoverer getParameterNameDiscoverer() {
+		return parameterNameDiscoverer;
+	}
+
+	/**
+	 * Set the ParameterNameDiscoverer to use for resolving method parameter
+	 * names if needed.
+	 * @param parameterNameDiscoverer
+	 */
+	public void setParameterNameDiscoverer(
+			ParameterNameDiscoverer parameterNameDiscoverer) {
+		this.parameterNameDiscoverer = parameterNameDiscoverer;
+	}
+
+	/**
+	 * Set whether to allow the raw injection of a bean instance into some other
+	 * bean's property, despite the injected bean eventually getting wrapped.
+	 * @param allowRawInjectionDespiteWrapping
+	 */
+	public void setAllowRawInjectionDespiteWrapping(
+			boolean allowRawInjectionDespiteWrapping) {
+		this.allowRawInjectionDespiteWrapping = allowRawInjectionDespiteWrapping;
 	}
 
 	/**
@@ -107,22 +165,6 @@ public abstract class AbstractAutowireCapableBeanFactory
 	 */
 	public void setAllowCircularReferences(boolean allowCircularReferences) {
 		this.allowCircularReferences = allowCircularReferences;
-	}
-
-	/**
-	 * Return the set of dependency types that will get ignored for autowiring.
-	 * @return
-	 */
-	public Set<Class<?>> getIgnoredDependencyTypes() {
-		return ignoredDependencyTypes;
-	}
-
-	/**
-	 * Return the set of dependency interfaces that will get ignored for autowiring.
-	 * @return
-	 */
-	public Set<Class<?>> getIgnoredDependencyInterfaces() {
-		return ignoredDependencyInterfaces;
 	}
 	
 	/**
@@ -140,6 +182,19 @@ public abstract class AbstractAutowireCapableBeanFactory
 	 */
 	public void ignoreDependencyInterface(Class<?> ifc) {
 		this.ignoredDependencyInterfaces.add(ifc);
+	}
+	
+	@Override
+	public void copyConfigurationFrom(ConfigurableBeanFactory otherFactory) {
+		super.copyConfigurationFrom(otherFactory);
+		if (otherFactory instanceof AbstractAutowireCapableBeanFactory) {
+			AbstractAutowireCapableBeanFactory otherAutowireFactory = 
+				(AbstractAutowireCapableBeanFactory) otherFactory;
+			instantiationStrategy = otherAutowireFactory.instantiationStrategy;
+			allowCircularReferences = otherAutowireFactory.allowCircularReferences;
+			ignoredDependencyTypes.addAll(otherAutowireFactory.ignoredDependencyInterfaces);
+			ignoredDependencyInterfaces.addAll(otherAutowireFactory.ignoredDependencyInterfaces);
+		}
 	}
 	
 	/**
@@ -282,16 +337,103 @@ public abstract class AbstractAutowireCapableBeanFactory
 	 * @param mergedBeanDefinition
 	 * @throws Throwable
 	 */
-	protected void invokeInitMethods(String beanName, Object bean, RootBeanDefinition mergedBeanDefinition) throws Throwable {
-		if (bean instanceof InitializingBean) {
+	protected void invokeInitMethods(String beanName, final Object bean, RootBeanDefinition mergedBeanDefinition) throws Throwable {
+		boolean isInitializingBean = (bean instanceof InitializingBean);
+		if (isInitializingBean 
+			&& (mergedBeanDefinition == null || !mergedBeanDefinition.isExternallyManagedInitMethod("afterPropertiesSet"))) {
 			if (logger.isDebugEnabled()) {
-				logger.debug(String.format("Invoking afterPropertiesSet() on bean with name '%s'", beanName) );
+				logger.debug(String.format("Invoking afterPropertiesSet() on bean with name '%s'", beanName));
 			}
-			((InitializingBean) bean).afterPropertiesSet();
+			if (System.getSecurityManager() != null) {
+				try {
+					AccessController.doPrivileged(new PrivilegedExceptionAction<Object>() {
+						@Override
+						public Object run() throws Exception {
+							((InitializingBean) bean).afterPropertiesSet();
+							return null;
+						}
+					}, getAccessControlContext());
+				} 
+				catch (PrivilegedActionException ex) {
+					throw ex.getException();
+				}
+			} 
+			else {
+				((InitializingBean) bean).afterPropertiesSet();
+			}
 		}
 		
-		if (mergedBeanDefinition != null && mergedBeanDefinition.getInitMethodName() != null) {
-			invokeCustomInitMethod(beanName, bean, mergedBeanDefinition.getInitMethodName(), mergedBeanDefinition.isEnforceDestroyMethod());
+		if (mergedBeanDefinition != null) {
+			String initMethodName = mergedBeanDefinition.getInitMethodName();
+			if (initMethodName != null 
+				&& !(isInitializingBean && "afterPropertiesSet".equals(initMethodName)) 
+				&& !mergedBeanDefinition.isExternallyManagedInitMethod(initMethodName)) {
+				invokeCustomInitMethod(beanName, bean, mergedBeanDefinition);
+			}
+		}
+	}
+	
+	/**
+	 * Invoke the specified custom init method on the given bean.
+	 * @param beanName
+	 * @param bean
+	 * @param mbd
+	 * @throws Throwable
+	 */
+	protected void invokeCustomInitMethod(String beanName, final Object bean, RootBeanDefinition mergedBeanDefinition) throws Throwable {
+		String initMethodName = mergedBeanDefinition.getInitMethodName();
+		final Method initMethod = (mergedBeanDefinition.isNonPublicAccessAllowed() 
+			? BeanUtils.findMethod(bean.getClass(), initMethodName) 
+			: ClassUtils.getMethodIfAvailable(bean.getClass(), initMethodName));
+		
+		if (initMethod == null) {
+			if (mergedBeanDefinition.isEnforceInitMethod()) {
+				throw new BeanDefinitionValidationException(String.format(
+					"Couldn't find an init method named '%s' on bean with name '%s'", initMethodName, beanName));
+			}
+			else {
+				if (logger.isDebugEnabled()) {
+					logger.debug(String.format(
+						"No default init method named '%s' found on bean with name '%s'", initMethodName, beanName));
+				}
+				return;
+			}
+		}
+		
+		if (logger.isDebugEnabled()) {
+			logger.debug(String.format("Invoking init method '%s' on bean with name '%s'", initMethodName, beanName));
+		}
+		
+		if (System.getSecurityManager() != null) {
+			AccessController.doPrivileged(new PrivilegedExceptionAction<Object>() {
+				@Override
+				public Object run() throws Exception {
+					ReflectionUtils.makeAccessible(initMethod);
+					return null;
+				}
+			});
+			try {
+				AccessController.doPrivileged(new PrivilegedExceptionAction<Object>() {
+					@Override
+					public Object run() throws Exception {
+						initMethod.invoke(bean);
+						return null;
+					}
+				}, getAccessControlContext());
+			} 
+			catch (PrivilegedActionException ex) {
+				InvocationTargetException ite = (InvocationTargetException) ex.getException();
+				throw ite.getTargetException();
+			}
+		}
+		else {
+			try {
+				ReflectionUtils.makeAccessible(initMethod);
+				initMethod.invoke(bean);
+			} 
+			catch (InvocationTargetException ex) {
+				throw ex.getTargetException();
+			}
 		}
 	}
 	
@@ -863,6 +1005,38 @@ public abstract class AbstractAutowireCapableBeanFactory
 	@Override
 	protected Object createBean(String beanName, RootBeanDefinition mergedBeanDefinition, Object[] args)
 		throws BeanCreationException {
+		
+		if (logger.isDebugEnabled()) {
+			logger.debug(String.format("Creating instance of bean '%s'", beanName));
+		}
+		
+		resolveBeanClass(mergedBeanDefinition, beanName);
+		
+		try {
+			mergedBeanDefinition.prepareMethodOverrides();
+		} 
+		catch (BeanDefinitionValidationException ex) {
+			throw new BeanDefinitionStoreException(mergedBeanDefinition.getResourceDescription(), 
+				beanName, "Validation of method overrides failed", ex);
+		}
+		
+		try {
+			Object bean = resolveBeforeInstantiation(beanName, mergedBeanDefinition);
+			if (bean != null) {
+				return bean;
+			}
+		} 
+		catch (Throwable ex) {
+			throw new BeanCreationException(mergedBeanDefinition.getResourceDescription(), 
+				beanName, "BeanPostProcessor before instantiation of bean failed", ex);
+		}
+		
+		Object beanInstance = doCreateBean(beanName, mergedBeanDefinition, args);
+		if (logger.isDebugEnabled()) {
+			logger.debug(String.format("Finished creating instance of bean '%s'", beanName));
+		}
+		return beanInstance;
+		/*
 		if (mergedBeanDefinition.getDependsOn() != null) {
 			for (String dependOn : mergedBeanDefinition.getDependsOn()) {
 				getBean(dependOn);
@@ -940,8 +1114,177 @@ public abstract class AbstractAutowireCapableBeanFactory
 		registerDisposableBeanIfNecessary(beanName, originalBean, mergedBeanDefinition);
 		
 		return bean;
+		*/
+	}
+	
+	/**
+	 * Actually create the specified bean. Pre-creation processing has already happened
+	 * at this point, e.g. checking 'postProcessBeforeInstantiation' callbacks.
+	 * @param beanName
+	 * @param mergedBeanDefinition
+	 * @param args
+	 * @return
+	 */
+	protected Object doCreateBean(final String beanName, final RootBeanDefinition mergedBeanDefinition, final Object[] args) {
+		BeanWrapper instanceWrapper = null;
+		if (mergedBeanDefinition.isSingleton()) {
+			instanceWrapper = factoryBeanInstanceCache.remove(beanName);
+		}
+		if (instanceWrapper == null) {
+			instanceWrapper = createBeanInstance(beanName, mergedBeanDefinition, args);
+		}
+		final Object bean = instanceWrapper != null ? instanceWrapper.getWrappedInstance() : null;
+		Class<?> beanType = instanceWrapper != null ? instanceWrapper.getWrappedClass() : null;
+		
+		synchronized (mergedBeanDefinition.postProcessingLock) {
+			if (!mergedBeanDefinition.postProcessed) {
+				applyMergedBeanDefinitionPostProcessors(mergedBeanDefinition, beanType, beanName);
+				mergedBeanDefinition.postProcessed = true;
+			}
+		}
+		
+		boolean earlySingletonExposure = mergedBeanDefinition.isSingleton() 
+			&& allowCircularReferences && isSingletonCurrentlyInCreation(beanName);
+		if (earlySingletonExposure) {
+			if (logger.isDebugEnabled()) {
+				logger.debug(String.format("Eagerly caching bean '%s' to allow for resolving "
+					+ "potential circular references", beanName));
+			}
+			addSingletonFactory(beanName, new ObjectFactory<Object>() {
+				@Override
+				public Object getObject() throws BeansException {
+					return getEarlyBeanReference(beanName, mergedBeanDefinition, bean);
+				}
+			});
+		}
+		
+		Object exposedObject = bean;
+		try {
+			populateBean(beanName, mergedBeanDefinition, instanceWrapper);
+			if (exposedObject != null) {
+				exposedObject = initializeBean(beanName, exposedObject, mergedBeanDefinition);
+			}
+		} 
+		catch (Throwable ex) {
+			if (ex instanceof BeanCreationException && beanName.equals(((BeanCreationException) ex).getBeanName())) {
+				throw (BeanCreationException) ex;
+			}
+			else {
+				throw new BeanCreationException(mergedBeanDefinition.getResourceDescription(), beanName, "Initialization of bean failed", ex);
+			}
+		}
+		
+		if (earlySingletonExposure) {
+			Object earlySingletonReference = getSingleton(beanName, false);
+			if (earlySingletonReference != null) {
+				if (exposedObject == bean) {
+					exposedObject = earlySingletonReference;
+				}
+				else if (allowRawInjectionDespiteWrapping && hasDependentBean(beanName)) {
+					String[] dependentBeans = getDependentBeans(beanName);
+					Set<String> actualDependentBeans = new LinkedHashSet<String>(dependentBeans.length);
+					for (String dependentBean : dependentBeans) {
+						if (!removeSingletonIfCreatedForTypeCheckOnly(dependentBean)) {
+							actualDependentBeans.add(dependentBean);
+						}
+					}
+					if (!actualDependentBeans.isEmpty()) {
+						throw new BeanCurrentlyInCreationException(beanName, String.format(
+							"Bean with name '%s' has been injected into other beans [%s] in its raw version as part of "
+							+ "a circular reference, but has eventually been wrapped. This means that said other beans "
+							+ "do not use the final version of the bean. This is often the result of over-eager type matching - "
+							+ "consider using 'getBeanNamesOfType' with the 'allowEagerInit' flag turned off, for example.", 
+							beanName, StringUtils.collectionToCommaDelimitedString(actualDependentBeans)));
+					}
+				}
+			}
+		}
+		
+		try {
+			registerDisposableBeanIfNecessary(beanName, bean, mergedBeanDefinition);
+		} 
+		catch (BeanDefinitionValidationException ex) {
+			throw new BeanCreationException(mergedBeanDefinition.getResourceDescription(), beanName, "Invalid destruction signature", ex);
+		}
+		
+		return exposedObject;
+	}
+	
+	/**
+	 * Initialize the given bean instance, applying factory callbacks
+	 * as well as init methods and bean post processors.
+	 * @param beanName
+	 * @param bean
+	 * @param mergedBeanDefinition
+	 * @return
+	 */
+	protected Object initializeBean(final String beanName, final Object bean, RootBeanDefinition mergedBeanDefinition) {
+		if (System.getSecurityManager() != null) {
+			AccessController.doPrivileged(new PrivilegedAction<Object>() {
+				@Override
+				public Object run() {
+					invokeAwareMethods(beanName, bean);
+					return null;
+				}
+			}, getAccessControlContext());
+		} 
+		else {
+			invokeAwareMethods(beanName, bean);
+		}
+		
+		Object wrappedBean = bean;
+		if (mergedBeanDefinition == null || !mergedBeanDefinition.isSynthetic()) {
+			wrappedBean = applyBeanPostProcessorsBeforeInitialization(wrappedBean, beanName);
+		}
+		
+		try {
+			invokeInitMethods(beanName, wrappedBean, mergedBeanDefinition);
+		} 
+		catch (Throwable ex) {
+			throw new BeanCreationException(
+				(mergedBeanDefinition != null ? mergedBeanDefinition.getResourceDescription() : null), 
+				beanName, "Invocation of init method failed", ex);
+		}
+		
+		if (mergedBeanDefinition == null || !mergedBeanDefinition.isSynthetic()) {
+			wrappedBean = applyBeanPostProcessorsAfterInitialization(wrappedBean, beanName);
+		}
+		return wrappedBean;
+	}
+	
+	private void invokeAwareMethods(final String beanName, final Object bean) {
+		if (bean instanceof BeanNameAware) {
+			((BeanNameAware) bean).setBeanName(beanName);
+		}
+		if (bean instanceof BeanClassLoaderAware) {
+			();
+		}
+		if (bean instanceof BeanFactoryAware) {
+			((BeanFactoryAware) bean).setBeanFactory(AbstractAutowireCapableBeanFactory.this);
+		}
 	}
 
+	/**
+	 * Apply before-instantiation post-processors, resolving whether there is a
+	 * before-instantiation shortcut for the specified bean.
+	 * @param beanName
+	 * @param mergedBeanDefinition
+	 * @return
+	 */
+	protected Object resolveBeforeInstantiation(String beanName, RootBeanDefinition mergedBeanDefinition) {
+		Object bean = null;
+		if (!Boolean.FALSE.equals(mergedBeanDefinition.beforeInstantiationResolved)) {
+			if (mergedBeanDefinition.hasBeanClass() && !mergedBeanDefinition.isSynthetic() && hasInstantiationAwareBeanPostProcessors()) {
+				bean = applyBeanPostProcessorsBeforeInstantiation(mergedBeanDefinition.getBeanClass(), beanName);
+				if (bean != null) {
+					bean = applyBeanPostProcessorsAfterInitialization(bean, beanName);
+				}
+			}
+			mergedBeanDefinition.beforeInstantiationResolved = (bean != null);
+		}
+		return bean;
+	}
+	
 	//---------------------------------------------------------------------------------
 	// Abstract method to be implemented by subclasses
 	//---------------------------------------------------------------------------------
@@ -982,4 +1325,69 @@ public abstract class AbstractAutowireCapableBeanFactory
 			return (rawTypeDiffWeight < typeDiffWeight ? rawTypeDiffWeight : typeDiffWeight);
 		}
 	}
+
+	@Override
+	public <T> T createBean(Class<T> beanClass) throws BeansException {
+		RootBeanDefinition bd = new RootBeanDefinition(beanClass);
+		bd.setScope(SCOPE_PROTOTYPE);
+		return (T) createBean(beanClass.getName(), bd, null);
+	}
+
+	@Override
+	public void autowireBean(Object existingBean) throws BeansException {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public Object configureBean(Object existingBean, String beanName)
+			throws BeansException {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public Object resolveDependency(DependencyDescriptor descriptor,
+			String beanName) throws BeansException {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public Object createBean(Class<?> beanClass, int autowireMode,
+			boolean dependencyCheck) throws BeansException {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public Object initializeBean(Object existingBean, String beanName)
+			throws BeansException {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public Object resolveDependency(DependencyDescriptor descriptor,
+			String beanName, Set<String> autowiredBeanNames,
+			TypeConverter typeConverter) throws BeansException {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	protected boolean containsBeanDefinition(String beanName) {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+	@Override
+	protected BeanDefinition getBeanDefinition(String beanName)
+			throws BeansException {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+
+	
 }
