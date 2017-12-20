@@ -1,5 +1,6 @@
 package org.yuan.study.spring.beans.factory.support;
 
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -12,7 +13,9 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.yuan.study.spring.beans.BeanWrapper;
 import org.yuan.study.spring.beans.BeansException;
+import org.yuan.study.spring.beans.TypeConverter;
 import org.yuan.study.spring.beans.factory.BeanCreationException;
+import org.yuan.study.spring.beans.factory.BeanFactoryUtils;
 import org.yuan.study.spring.beans.factory.config.BeanDefinition;
 import org.yuan.study.spring.beans.factory.config.BeanDefinitionHolder;
 import org.yuan.study.spring.beans.factory.config.RuntimeBeanReference;
@@ -28,16 +31,19 @@ public class BeanDefinitionValueResolver {
 	
 	private final BeanDefinition beanDefinition;
 	
+	private final TypeConverter typeConverter;
+	
 	/**
 	 * Create a new BeanDefinitionValueResolver for the given BeanFactory and BeanDefinition.
 	 * @param beanFactory
 	 * @param beanName
 	 * @param beanDefinition
 	 */
-	public BeanDefinitionValueResolver(AbstractBeanFactory beanFactory, String beanName, BeanDefinition beanDefinition) {
+	public BeanDefinitionValueResolver(AbstractBeanFactory beanFactory, String beanName, BeanDefinition beanDefinition, TypeConverter typeConverter) {
 		this.beanName = beanName;
 		this.beanFactory = beanFactory;
 		this.beanDefinition = beanDefinition;
+		this.typeConverter = typeConverter;
 	}
 	
 	/**
@@ -46,7 +52,7 @@ public class BeanDefinitionValueResolver {
 	 * @param value
 	 * @return
 	 */
-	public Object resolveValueIfNecessary(String argName, Object value) throws BeansException {
+	public Object resolveValueIfNecessary(Object argName, Object value) {
 		if (value instanceof BeanDefinitionHolder) {
 			BeanDefinitionHolder beanDefinitionHolder = (BeanDefinitionHolder) value;
 			return resolveInnerBeanDefinition(argName, beanDefinitionHolder.getBeanName(), beanDefinitionHolder.getBeanDefinition());
@@ -108,29 +114,43 @@ public class BeanDefinitionValueResolver {
 	}
 	
 	/**
+	 * Checks the given bean name whether it is unique. If not already unique,
+	 * a counter is added, increasing the counter until the name is unique.
+	 * @param innerBeanName
+	 * @return
+	 */
+	private String adaptInnerBeanName(String innerBeanName) {
+		String actualInnerBeanName = innerBeanName;
+		int counter = 0;
+		while (beanFactory.isBeanNameInUse(actualInnerBeanName)) {
+			counter++;
+			actualInnerBeanName = innerBeanName + BeanFactoryUtils.GENERATED_BEAN_NAME_SEPARATOR + counter;
+		}
+		return actualInnerBeanName;
+	}
+	
+	/**
 	 * Resolve a reference to another bean in the factory.
 	 * @param argName
 	 * @param runtimeBeanReference
 	 * @return
 	 * @throws BeansException
 	 */
-	private Object resolveReference(String argName, RuntimeBeanReference runtimeBeanReference) throws BeansException {
-		if (logger.isDebugEnabled()) {
-			
-		}
+	private Object resolveReference(Object argName, RuntimeBeanReference runtimeBeanReference) {
 		try {
+			String refName = runtimeBeanReference.getBeanName();
+			refName = String.valueOf(evaluate(refName));
 			if (runtimeBeanReference.isToParent()) {
 				if (this.beanFactory.getParentBeanFactory() == null) {
 					throw new BeanCreationException(this.beanDefinition.getResourceDescription(), this.beanName, 
-						String.format("Can't resolve reference to bean '%s' in parent factory: no parent factory available", runtimeBeanReference.getBeanName()));
+						String.format("Can't resolve reference to bean '%s' in parent factory: no parent factory available", 
+							runtimeBeanReference.getBeanName()));
 				}
 				return this.beanFactory.getParentBeanFactory().getBean(runtimeBeanReference.getBeanName());
 			}
 			else {
-				Object bean = this.beanFactory.getBean(runtimeBeanReference.getBeanName());
-				if (this.beanDefinition.isSingleton()) {
-					this.beanFactory.registerDependentBean(runtimeBeanReference.getBeanName(), this.beanName);
-				}
+				Object bean = this.beanFactory.getBean(refName);
+				this.beanFactory.registerDependentBean(refName, this.beanName);
 				return bean;
 			}
 		}
@@ -141,58 +161,129 @@ public class BeanDefinitionValueResolver {
 	}
 	
 	/**
-	 * For each element in the managedList, resolve reference if necessary.
+	 * For each element in the managed array, resolve reference if necessary.
 	 * @param argName
 	 * @param list
+	 * @param elementType
 	 * @return
 	 * @throws BeansException
 	 */
-	private List<?> resolveManagedList(String argName, List<?> list) throws BeansException {
-		List<Object> resolved = new ArrayList<Object>(list.size());
+	private Object resolveManagedArray(Object argName, List<?> list, Class<?> elementType) throws BeansException {
+		Object resolved = Array.newInstance(elementType, list.size());
 		for (int i=0; i<list.size(); i++) {
-			resolved.add(
-				resolveValueIfNecessary(
-					String.format("%s with key %s", argName, BeanWrapper.PROPERTY_KEY_PREFIX + i + BeanWrapper.PROPERTY_KEY_SUFFIX), list.get(i)));
+			Array.set(resolved, i, resolveValueIfNecessary(new KeyedArgName(argName, i), list.get(i)));
 		}
 		return resolved;
 	}
 	
 	/**
-	 * For each element in the managedList, resolve reference if necessary.
+	 * For each element in the managed list, resolve reference if necessary.
+	 * @param argName
+	 * @param list
+	 * @return
+	 * @throws BeansException
+	 */
+	private List<?> resolveManagedList(Object argName, List<?> list) throws BeansException {
+		List<Object> resolved = new ArrayList<Object>(list.size());
+		for (int i=0; i<list.size(); i++) {
+			resolved.add(resolveValueIfNecessary(new KeyedArgName(argName, i), list.get(i)));
+		}
+		return resolved;
+	}
+	
+	/**
+	 * For each element in the managed set, resolve reference if necessary.
 	 * @param argName
 	 * @param set
 	 * @return
 	 * @throws BeansException
 	 */
-	private Set<?> resolveManagedSet(String argName, Set<?> set) throws BeansException {
+	private Set<?> resolveManagedSet(Object argName, Set<?> set) throws BeansException {
 		Set<Object> resolved = new LinkedHashSet<Object>(set.size());
 		int i = 0;
 		for (Object object : set) {
-			resolved.add(resolveValueIfNecessary(
-				String.format("%s with key %s", argName, BeanWrapper.PROPERTY_KEY_PREFIX + i + BeanWrapper.PROPERTY_KEY_SUFFIX), object));
+			resolved.add(resolveValueIfNecessary(new KeyedArgName(argName, i), object));
 			i++;
 		}
 		return resolved;
 	}
 	
 	/**
-	 * For each element in the managedMap, resolve reference if necessary.
+	 * For each element in the managed map, resolve reference if necessary.
 	 * @param argName
 	 * @param map
 	 * @return
 	 * @throws BeansException
 	 */
-	private Map<?,?> resolveManagedMap(String argName, Map<?,?> map) throws BeansException {
+	private Map<?,?> resolveManagedMap(Object argName, Map<?,?> map) throws BeansException {
 		Map<Object,Object> resolved = new LinkedHashMap<Object,Object>();
-		
 		for (Entry<?,?> entry : map.entrySet()) {
 			Object resolvedKey = resolveValueIfNecessary(argName, entry.getKey());
 			Object resolvedVal = resolveValueIfNecessary(
-				String.format("%s with key %s", argName, BeanWrapper.PROPERTY_KEY_PREFIX + entry.getKey() + BeanWrapper.PROPERTY_KEY_SUFFIX), entry.getValue());
+					new KeyedArgName(argName, entry.getKey()), entry.getValue());
 			resolved.put(resolvedKey, resolvedVal);
 		}
-		
 		return resolved;
 	}
 
+	/**
+	 * Evaluate the given value as an expression, if necessary.
+	 * @param value
+	 * @return
+	 */
+	protected Object evaluate(Object value) {
+		if (value instanceof String) {
+			return beanFactory.evaluateBeanDefinitionString((String) value, beanDefinition);
+		} 
+		else {
+			return value;
+		}
+	}
+	
+	/**
+	 * Evaluate the given value as an expression, if necessary.
+	 * @param value
+	 * @return
+	 */
+	protected Object evaluate(TypedStringValue value) {
+		Object result = beanFactory.evaluateBeanDefinitionString(value.getValue(), beanDefinition);
+		if (result != value.getValue()) {
+			value.setDynamic();
+		}
+		return result;
+	}
+	
+	/**
+	 * 
+	 * @param value
+	 * @return
+	 * @throws ClassNotFoundException
+	 */
+	protected Class<?> resolveTargetType(TypedStringValue value) throws ClassNotFoundException {
+		if (value.hasTargetType()) {
+			return value.getTargetType();
+		}
+		return value.resolveTargetType(beanFactory.getBeanClassLoader());
+	}
+	
+	/**
+	 * Holder class used for delayed toString building.
+	 */
+	private static class KeyedArgName {
+		
+		private final Object argName;
+		
+		private final Object key;
+		
+		public KeyedArgName(Object argName, Object key) {
+			this.argName = argName;
+			this.key = key;
+		}
+
+		@Override
+		public String toString() {
+			return argName + " with key " + BeanWrapper.PROPERTY_KEY_PREFIX + key + BeanWrapper.PROPERTY_KEY_PREFIX;
+		}
+		
+	}
 }

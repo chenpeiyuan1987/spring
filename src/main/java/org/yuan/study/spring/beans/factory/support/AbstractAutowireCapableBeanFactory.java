@@ -9,8 +9,12 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -24,6 +28,7 @@ import org.yuan.study.spring.beans.BeanWrapper;
 import org.yuan.study.spring.beans.BeanWrapperImpl;
 import org.yuan.study.spring.beans.BeansException;
 import org.yuan.study.spring.beans.MutablePropertyValues;
+import org.yuan.study.spring.beans.PropertyAccessorUtils;
 import org.yuan.study.spring.beans.PropertyValue;
 import org.yuan.study.spring.beans.PropertyValues;
 import org.yuan.study.spring.beans.TypeConverter;
@@ -45,8 +50,11 @@ import org.yuan.study.spring.beans.factory.config.ConstructorArgumentValues;
 import org.yuan.study.spring.beans.factory.config.ConstructorArgumentValues.ValueHolder;
 import org.yuan.study.spring.beans.factory.config.DependencyDescriptor;
 import org.yuan.study.spring.beans.factory.config.InstantiationAwareBeanPostProcessor;
+import org.yuan.study.spring.beans.factory.config.TypedStringValue;
+import org.yuan.study.spring.core.MethodParameter;
 import org.yuan.study.spring.core.ParameterNameDiscoverer;
 import org.yuan.study.spring.util.ClassUtils;
+import org.yuan.study.spring.util.ObjectUtils;
 import org.yuan.study.spring.util.ReflectionUtils;
 import org.yuan.study.spring.util.StringUtils;
 
@@ -571,12 +579,91 @@ public abstract class AbstractAutowireCapableBeanFactory
 	 * @param pvs
 	 * @throws BeansException
 	 */
-	protected void applyPropertyValues(String beanName, RootBeanDefinition mergedBeanDefinition, 
-		BeanWrapper bw, PropertyValues pvs) throws BeansException {
-		if (pvs == null) {
+	protected void applyPropertyValues(String beanName, BeanDefinition mergedBeanDefinition, BeanWrapper bw, PropertyValues pvs) {
+		if (pvs == null || pvs.isEmpty()) {
 			return;
 		}
 		
+		MutablePropertyValues mpvs = null;
+		List<PropertyValue> original;
+		
+		if (System.getSecurityManager() != null) {
+			if (bw instanceof BeanWrapperImpl) {
+				((BeanWrapperImpl) bw).setSecurityContext(getAccessControlContext());
+			}
+		}
+		
+		if (pvs instanceof MutablePropertyValues) {
+			mpvs = (MutablePropertyValues) pvs;
+			if (mpvs.isConverted()) {
+				try {
+					bw.setPropertyValues(mpvs);
+					return;
+				} 
+				catch (BeansException ex) {
+					throw new BeanCreationException(mergedBeanDefinition.getResourceDescription(), 
+						beanName, "Error setting property values", ex);
+				}
+			}
+			original = mpvs.getPropertyValueList();
+		} 
+		else {
+			original = Arrays.asList(pvs.getPropertyValues());
+		}
+		
+		TypeConverter converter = getCustomTypeConverter();
+		if (converter == null) {
+			converter = bw;
+		}
+		BeanDefinitionValueResolver valueResolver = new BeanDefinitionValueResolver(this, beanName, mergedBeanDefinition, converter);
+		
+		List<PropertyValue> deepCopy = new ArrayList<PropertyValue>(original.size());
+		boolean resolveNecessary = false;
+		for (PropertyValue pv : original) {
+			if (pv.isConverted()) {
+				deepCopy.add(pv);
+			} 
+			else {
+				String propertyName = pv.getName();
+				Object originalValue = pv.getValue();
+				Object resolvedValue = valueResolver.resolveValueIfNecessary(pv, originalValue);
+				Object convertedValue = resolvedValue;
+				boolean convertible = bw.isWritableProperty(propertyName) && 
+					!PropertyAccessorUtils.isNestedOrIndexedProperty(propertyName);
+				if (convertible) {
+					convertedValue = convertForProperty(resolvedValue, propertyName, bw, converter);
+				}
+				
+				if (resolvedValue == originalValue) {
+					if (convertible) {
+						pv.setConvertedValue(convertedValue);
+					}
+					deepCopy.add(pv);
+				}
+				else if (convertible && originalValue instanceof TypedStringValue 
+					&& !((TypedStringValue) originalValue).isDynamic() 
+					&& !(convertedValue instanceof Collection || ObjectUtils.isArray(convertedValue))) {
+					pv.setConvertedValue(convertedValue);
+					deepCopy.add(pv);
+				}
+				else {
+					resolveNecessary = true;
+					deepCopy.add(new PropertyValue(pv, convertedValue));
+				}
+			}
+		}
+		if (mpvs != null && !resolveNecessary) {
+			mpvs.setConverted();
+		}
+		
+		try {
+			bw.setPropertyValues(new MutablePropertyValues(deepCopy));
+		} 
+		catch (BeansException ex) {
+			throw new BeanCreationException(mergedBeanDefinition.getResourceDescription(), 
+				beanName, "Error setting property values", ex);
+		}
+		/*
 		BeanDefinitionValueResolver valueResolver = new BeanDefinitionValueResolver(this, beanName, mergedBeanDefinition);
 		
 		MutablePropertyValues deepCopy = new MutablePropertyValues();
@@ -598,6 +685,26 @@ public abstract class AbstractAutowireCapableBeanFactory
 		}
 		catch (BeansException ex) {
 			throw new BeanCreationException(mergedBeanDefinition.getResourceDescription(), beanName, "Error setting property values", ex);
+		}
+		*/
+	}
+	
+	/**
+	 * Convert the given value for the specified target property.
+	 * @param value
+	 * @param propertyName
+	 * @param bw
+	 * @param converter
+	 * @return
+	 */
+	private Object convertForProperty(Object value, String propertyName, BeanWrapper bw, TypeConverter converter) {
+		if (converter instanceof BeanWrapperImpl) {
+			return ((BeanWrapperImpl) converter).convertForProperty(value, propertyName);
+		}
+		else {
+			PropertyDescriptor pd = bw.getPropertyDescriptor(propertyName);
+			MethodParameter methodParam = BeanUtils.getWriteMethodParameter(pd);
+			return converter.convertIfNecessary(value, pd.getPropertyType(), methodParam);
 		}
 	}
 	
@@ -632,8 +739,8 @@ public abstract class AbstractAutowireCapableBeanFactory
 	 */
 	protected boolean isExcludedFromDependencyCheck(PropertyDescriptor pd) {
 		return (AutowireUtils.isExcludedFromDependencyCheck(pd) 
-			|| getIgnoredDependencyTypes().contains(pd.getPropertyType()) 
-			|| AutowireUtils.isSetterDefinedInInterface(pd, getIgnoredDependencyInterfaces()));
+			|| ignoredDependencyTypes.contains(pd.getPropertyType()) 
+			|| AutowireUtils.isSetterDefinedInInterface(pd, ignoredDependencyTypes));
 	}
 	
 	/**
@@ -966,7 +1073,8 @@ public abstract class AbstractAutowireCapableBeanFactory
 
 	@Override
 	public void applyBeanPropertyValues(Object existingBean, String beanName) throws BeansException {
-		RootBeanDefinition bd = getMergedBeanDefinition(beanName, true);
+		markBeanAsCreated(beanName);
+		BeanDefinition bd = getMergedBeanDefinition(beanName);
 		BeanWrapper bw = new BeanWrapperImpl(existingBean);
 		initBeanWrapper(bw);
 		applyPropertyValues(beanName, bd, bw, bd.getPropertyValues());
