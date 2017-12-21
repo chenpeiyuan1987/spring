@@ -33,6 +33,7 @@ import org.yuan.study.spring.beans.PropertyValue;
 import org.yuan.study.spring.beans.PropertyValues;
 import org.yuan.study.spring.beans.TypeConverter;
 import org.yuan.study.spring.beans.TypeMismatchException;
+import org.yuan.study.spring.beans.factory.BeanClassLoaderAware;
 import org.yuan.study.spring.beans.factory.BeanCreationException;
 import org.yuan.study.spring.beans.factory.BeanCurrentlyInCreationException;
 import org.yuan.study.spring.beans.factory.BeanDefinitionStoreException;
@@ -240,7 +241,10 @@ public abstract class AbstractAutowireCapableBeanFactory
 	 * @return
 	 * @throws BeansException
 	 */
-	protected BeanWrapper autowireConstructor(String beanName, RootBeanDefinition mergedBeanDefinition) throws BeansException {
+	protected BeanWrapper autowireConstructor(String beanName, RootBeanDefinition mergedBeanDefinition, Constructor<?>[] ctors, Object[] explicitArgs) throws BeansException {
+		return new ConstructorResolver(this).
+		
+		/*
 		ConstructorArgumentValues cargs = mergedBeanDefinition.getConstructorArgumentValues();
 		ConstructorArgumentValues resolvedValues = new ConstructorArgumentValues();
 		
@@ -310,6 +314,7 @@ public abstract class AbstractAutowireCapableBeanFactory
 		}
 		
 		return bw;
+		*/
 	}
 	
 	/**
@@ -321,9 +326,6 @@ public abstract class AbstractAutowireCapableBeanFactory
 	 * @throws BeanException
 	 */
 	protected Object applyBeanPostProcessorsBeforeInstantiation(Class<?> beanClass, String beanName) throws BeansException {
-		if (logger.isDebugEnabled()) {
-			logger.debug(String.format("Invoking BeanPostProcessors before instantiation of bean '%s'", beanName));
-		}
 		for (BeanPostProcessor beanProcessor : getBeanPostProcessors()) {
 			if (beanProcessor instanceof InstantiationAwareBeanPostProcessor) {
 				Object result = ((InstantiationAwareBeanPostProcessor) beanProcessor).postProcessBeforeInstantiation(beanClass, beanName);
@@ -333,6 +335,55 @@ public abstract class AbstractAutowireCapableBeanFactory
 			}
 		}
 		return null;
+	}
+	
+	/**
+	 * Create a new instance for the specified bean, using an appropriate instantiation strategy:
+	 * factory method, constructor autowiring, orr simple instantiation.
+	 * @param beanName
+	 * @param mbd
+	 * @param args
+	 * @return
+	 */
+	protected BeanWrapper createBeanInstance(String beanName, RootBeanDefinition mbd, Object[] args) {
+		Class<?> beanClass = resolveBeanClass(mbd, beanName);
+		
+		if (beanClass != null && !Modifier.isPublic(beanClass.getModifiers()) && !mbd.isNonPublicAccessAllowed()) {
+			throw new BeanCreationException(mbd.getResourceDescription(), beanName, 
+				"Bean class isn't public, and non-public access not allowed: " + beanClass.getName());
+		}
+		
+		if (mbd.getFactoryMethodName() != null) {
+			return instantiateUsingFactoryMethod(beanName, mbd, args);
+		}
+		
+		boolean resolved = false;
+		boolean autowireNecessary = false;
+		if (args == null) {
+			synchronized (mbd.constructorArgumentLock) {
+				if (mbd.resolvedConstructorOrFactoryMethod != null) {
+					resolved = true;
+					autowireNecessary = mbd.constructorArgumentsResolved;
+				}
+			}
+		}
+		if (resolved) {
+			if (autowireNecessary) {
+				return autowireConstructor(beanName, mbd, null, null);
+			} 
+			else {
+				return instantiateBean(beanName, mbd);
+			}
+		}
+		
+		Constructor<?>[] ctors = determineConstructorsFromBeanPostProcessors(beanClass, beanName);
+		if (ctors != null 
+			|| mbd.getResolvedAutowireMode() == RootBeanDefinition.AUTOWIRE_CONSTRUCTOR 
+			|| mbd.hasConstructorArgumentValues() || !ObjectUtils.isEmpty(args)) {
+			return autowireConstructor(beanName, mbd, ctors, args);
+		}
+		
+		return instantiateBean(beanName, mbd);
 	}
 	
 	/**
@@ -1365,7 +1416,7 @@ public abstract class AbstractAutowireCapableBeanFactory
 			((BeanNameAware) bean).setBeanName(beanName);
 		}
 		if (bean instanceof BeanClassLoaderAware) {
-			();
+			((BeanClassLoaderAware) bean).setBeanClassLoader(getBeanClassLoader());;
 		}
 		if (bean instanceof BeanFactoryAware) {
 			((BeanFactoryAware) bean).setBeanFactory(AbstractAutowireCapableBeanFactory.this);

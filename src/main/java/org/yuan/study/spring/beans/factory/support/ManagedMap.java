@@ -1,107 +1,104 @@
 package org.yuan.study.spring.beans.factory.support;
 
-import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Set;
 
-public class ManagedMap<K, V> implements Map<K, V> {
+import org.yuan.study.spring.beans.BeanMetadataElement;
+import org.yuan.study.spring.beans.Mergeable;
 
-	private final Map<K,V> map;
+public class ManagedMap<K, V> extends LinkedHashMap<K, V> implements Mergeable, BeanMetadataElement {
+	private static final long serialVersionUID = 1L;
+
+	private Object source;
+	
+	private String keyTypeName;
+	
+	private String valueTypeName;
+	
+	private boolean mergeEnabled;
 	
 	public ManagedMap() {
-		this(16);
 	}
 	
 	public ManagedMap(int initialCapacity) {
-		this.map = new LinkedHashMap<K,V>(initialCapacity);
+		super(initialCapacity);
 	}
 
-	public ManagedMap(Map<K, V> map) {
-		this.map = map;
+	@Override
+	public Object getSource() {
+		return source;
 	}
 
-	//----------------------------------------------
-	// Implementation of Map interface
-	//----------------------------------------------
+	@Override
+	public boolean isMergeEnabled() {
+		return mergeEnabled;
+	}
+
+	@Override
+	@SuppressWarnings("unchecked")
+	public Object merge(Object parent) {
+		if (!mergeEnabled) {
+			throw new IllegalStateException("Not allowed to merge when the 'mergeEnabled' property is set to 'false'");
+		}
+		if (parent == null) {
+			return this;
+		}
+		if (!(parent instanceof Map)) {
+			throw new IllegalArgumentException(String.format("Cannot merge with object of type [%s]", parent.getClass()));
+		}
+		Map<K, V> merged = new ManagedMap<K, V>();
+		merged.putAll((Map<K, V>) parent);
+		merged.putAll(this);
+		return merged;
+	}
+
+	/**
+	 * Return the default key type name to be used for this map.
+	 * @return
+	 */
+	public String getKeyTypeName() {
+		return keyTypeName;
+	}
+
+	/**
+	 * Set the default key type name to be used for this map.
+	 * @param keyTypeName
+	 */
+	public void setKeyTypeName(String keyTypeName) {
+		this.keyTypeName = keyTypeName;
+	}
+
+	/**
+	 * Return the default value type name to be used for this map.
+	 * @return
+	 */
+	public String getValueTypeName() {
+		return valueTypeName;
+	}
+
+	/**
+	 * Set the default value type name to be used for this map.
+	 * @param valueTypeName
+	 */
+	public void setValueTypeName(String valueTypeName) {
+		this.valueTypeName = valueTypeName;
+	}
+
+	/**
+	 * Set the configuration source Object for this metadata element.
+	 * @param source
+	 */
+	public void setSource(Object source) {
+		this.source = source;
+	}
+
+	/**
+	 * Set whether merging should be enabled for this collection,
+	 * in case of a 'parent' collection value being present.
+	 * @param mergeEnabled
+	 */
+	public void setMergeEnabled(boolean mergeEnabled) {
+		this.mergeEnabled = mergeEnabled;
+	}
 	
-	@Override
-	public int size() {
-		return map.size();
-	}
-
-	@Override
-	public boolean isEmpty() {
-		return map.isEmpty();
-	}
-
-	@Override
-	public boolean containsKey(Object key) {
-		return map.containsKey(key);
-	}
-
-	@Override
-	public boolean containsValue(Object value) {
-		return map.containsValue(value);
-	}
-
-	@Override
-	public V get(Object key) {
-		return map.get(key);
-	}
-
-	@Override
-	public V put(K key, V value) {
-		return map.put(key, value);
-	}
-
-	@Override
-	public V remove(Object key) {
-		return map.remove(key);
-	}
-
-	@Override
-	public void putAll(Map<? extends K, ? extends V> m) {
-		map.putAll(m);
-	}
-
-	@Override
-	public void clear() {
-		map.clear();
-	}
-
-	@Override
-	public Set<K> keySet() {
-		return map.keySet();
-	}
-
-	@Override
-	public Collection<V> values() {
-		return map.values();
-	}
-
-	@Override
-	public Set<java.util.Map.Entry<K, V>> entrySet() {
-		return map.entrySet();
-	}
-
-	
-	//----------------------------------------------------------
-	// Implementation of other methods
-	//----------------------------------------------------------
-	
-	@Override
-	public int hashCode() {
-		return map.hashCode();
-	}
-
-	@Override
-	public boolean equals(Object obj) {
-		return map.equals(obj);
-	}
-
-	@Override
-	public String toString() {
-		return map.toString();
-	}
 }

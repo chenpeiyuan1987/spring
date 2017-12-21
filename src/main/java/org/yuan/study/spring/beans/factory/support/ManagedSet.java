@@ -1,112 +1,86 @@
 package org.yuan.study.spring.beans.factory.support;
 
-import java.util.Collection;
-import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
+import org.yuan.study.spring.beans.BeanMetadataElement;
+import org.yuan.study.spring.beans.Mergeable;
 
-public class ManagedSet<E> implements Set<E> {
+
+public class ManagedSet<E> extends LinkedHashSet<E> implements Mergeable, BeanMetadataElement {
+	private static final long serialVersionUID = 1L;
+
+	private Object source;
 	
-	private final Set<E> set;
+	private String elementTypeName;
+	
+	private boolean mergeEnabled;
 	
 	public ManagedSet() {
-		this(16);
 	}
 	
 	public ManagedSet(int initialCapacity) {
-		this.set = new LinkedHashSet<E>();
-	}
-
-	public ManagedSet(Set<E> set) {
-		this.set = set;
-	}
-	
-	//---------------------------------------------------
-	// Implementation of Set interface
-	//---------------------------------------------------
-	
-	@Override
-	public int size() {
-		return set.size();
+		super(initialCapacity);
 	}
 
 	@Override
-	public boolean isEmpty() {
-		return set.isEmpty();
+	public Object getSource() {
+		return source;
 	}
 
 	@Override
-	public boolean contains(Object o) {
-		return set.contains(o);
+	public boolean isMergeEnabled() {
+		return mergeEnabled;
 	}
 
 	@Override
-	public Iterator<E> iterator() {
-		return set.iterator();
+	@SuppressWarnings("unchecked")
+	public Set<E> merge(Object parent) {
+		if (!mergeEnabled) {
+			throw new IllegalStateException("Not allowed to merge when the 'mergeEnabled' property is set to 'false'");
+		}
+		if (parent == null) {
+			return this;
+		}
+		if (!(parent instanceof Set)) {
+			throw new IllegalArgumentException(String.format("Cannot merge with object of type [%s]", parent.getClass()));
+		}
+		Set<E> merged = new ManagedSet<E>();
+		merged.addAll((Set<E>) parent);
+		merged.addAll(this);
+		return merged;
 	}
 
-	@Override
-	public Object[] toArray() {
-		return set.toArray();
+	/**
+	 * Set the default element type name to be used for this set.
+	 * @return
+	 */
+	public String getElementTypeName() {
+		return elementTypeName;
 	}
 
-	@Override
-	public <T> T[] toArray(T[] a) {
-		return set.toArray(a);
+	/**
+	 * Return the default element type name to be used for this set.
+	 * @param elementTypeName
+	 */
+	public void setElementTypeName(String elementTypeName) {
+		this.elementTypeName = elementTypeName;
 	}
 
-	@Override
-	public boolean add(E e) {
-		return set.add(e);
+	/**
+	 * Set the configuration source Object for this metadata element.
+	 * @param source
+	 */
+	public void setSource(Object source) {
+		this.source = source;
 	}
 
-	@Override
-	public boolean remove(Object o) {
-		return set.remove(o);
+	/**
+	 * Set whether merging should be enabled for this collection.
+	 * @param mergeEnabled
+	 */
+	public void setMergeEnabled(boolean mergeEnabled) {
+		this.mergeEnabled = mergeEnabled;
 	}
 
-	@Override
-	public boolean containsAll(Collection<?> c) {
-		return set.containsAll(c);
-	}
-
-	@Override
-	public boolean addAll(Collection<? extends E> c) {
-		return set.addAll(c);
-	}
-
-	@Override
-	public boolean retainAll(Collection<?> c) {
-		return set.retainAll(c);
-	}
-
-	@Override
-	public boolean removeAll(Collection<?> c) {
-		return set.removeAll(c);
-	}
-
-	@Override
-	public void clear() {
-		set.clear();
-	}
-
-	//--------------------------------------------------------------
-	// Implementation of other methods
-	//--------------------------------------------------------------
-	
-	@Override
-	public int hashCode() {
-		return set.hashCode();
-	}
-
-	@Override
-	public boolean equals(Object obj) {
-		return set.equals(obj);
-	}
-
-	@Override
-	public String toString() {
-		return set.toString();
-	}
 }

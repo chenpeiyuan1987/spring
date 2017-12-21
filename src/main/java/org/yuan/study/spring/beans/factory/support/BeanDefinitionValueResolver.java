@@ -7,6 +7,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Properties;
 import java.util.Set;
 
 import org.apache.commons.logging.Log;
@@ -15,11 +16,16 @@ import org.yuan.study.spring.beans.BeanWrapper;
 import org.yuan.study.spring.beans.BeansException;
 import org.yuan.study.spring.beans.TypeConverter;
 import org.yuan.study.spring.beans.factory.BeanCreationException;
+import org.yuan.study.spring.beans.factory.BeanDefinitionStoreException;
 import org.yuan.study.spring.beans.factory.BeanFactoryUtils;
+import org.yuan.study.spring.beans.factory.FactoryBean;
 import org.yuan.study.spring.beans.factory.config.BeanDefinition;
 import org.yuan.study.spring.beans.factory.config.BeanDefinitionHolder;
+import org.yuan.study.spring.beans.factory.config.RuntimeBeanNameReference;
 import org.yuan.study.spring.beans.factory.config.RuntimeBeanReference;
 import org.yuan.study.spring.beans.factory.config.TypedStringValue;
+import org.yuan.study.spring.util.ClassUtils;
+import org.yuan.study.spring.util.StringUtils;
 
 public class BeanDefinitionValueResolver {
 	
@@ -53,17 +59,47 @@ public class BeanDefinitionValueResolver {
 	 * @return
 	 */
 	public Object resolveValueIfNecessary(Object argName, Object value) {
-		if (value instanceof BeanDefinitionHolder) {
-			BeanDefinitionHolder beanDefinitionHolder = (BeanDefinitionHolder) value;
-			return resolveInnerBeanDefinition(argName, beanDefinitionHolder.getBeanName(), beanDefinitionHolder.getBeanDefinition());
-		}
-		if (value instanceof BeanDefinition) {
-			BeanDefinition beanDefinition = (BeanDefinition) value;
-			return resolveInnerBeanDefinition(argName, "(inner bean)", beanDefinition);
-		}
 		if (value instanceof RuntimeBeanReference) {
 			RuntimeBeanReference runtimeBeanReference = (RuntimeBeanReference) value;
 			return resolveReference(argName, runtimeBeanReference);
+		}
+		if (value instanceof RuntimeBeanNameReference) {
+			String beanNameReference = ((RuntimeBeanNameReference) value).getBeanName();
+			beanNameReference = String.valueOf(evaluate(beanNameReference));
+			if (!beanFactory.containsBean(beanNameReference)) {
+				throw new BeanDefinitionStoreException(String.format(
+					"Invalid bean name '%s' in bean reference for %s", beanNameReference, argName));
+			}
+			return beanNameReference;
+		}
+		if (value instanceof BeanDefinitionHolder) {
+			BeanDefinitionHolder beanDefinitionHolder = (BeanDefinitionHolder) value;
+			return resolveInnerBean(argName, beanDefinitionHolder.getBeanName(), beanDefinitionHolder.getBeanDefinition());
+		}
+		if (value instanceof BeanDefinition) {
+			BeanDefinition beanDefinition = (BeanDefinition) value;
+			return resolveInnerBean(argName, "(inner bean)", beanDefinition);
+		}
+		if (value instanceof ManagedArray) {
+			ManagedArray array = (ManagedArray) value;
+			Class<?> elementType = array.resolvedElementType;
+			if (elementType == null) {
+				String elementTypeName = array.getElementTypeName();
+				if (StringUtils.hasText(elementTypeName)) {
+					try {
+						elementType = ClassUtils.forName(elementTypeName, beanFactory.getBeanClassLoader());
+						array.resolvedElementType = elementType;
+					} 
+					catch (Throwable ex) {
+						throw new BeanCreationException(
+							beanDefinition.getResourceDescription(), beanName, "" + argName, ex);
+					}
+				} 
+				else {
+					elementType = Object.class;
+				}
+			}
+			return resolveManagedArray(argName, (List<?>) value, elementType);
 		}
 		if (value instanceof ManagedList) {
 			return resolveManagedList(argName, (List<?>)value);
@@ -74,43 +110,42 @@ public class BeanDefinitionValueResolver {
 		if (value instanceof ManagedMap) {
 			return resolveManagedMap(argName, (Map<?,?>)value);
 		}
+		if (value instanceof ManagedProperties) {
+			Properties original = (Properties) value;
+			Properties copy = new Properties();
+			for (Entry<Object, Object> entry : original.entrySet()) {
+				Object key = entry.getKey();
+				Object val = entry.getValue();
+				if (key instanceof TypedStringValue) {
+					key = evaluate((TypedStringValue) key);
+				}
+				if (val instanceof TypedStringValue) {
+					val = evaluate((TypedStringValue) val);
+				}
+				copy.put(key, val);
+			}
+			return copy;
+		}
 		if (value instanceof TypedStringValue) {
 			TypedStringValue typedStringValue = (TypedStringValue) value;
+			Object valueObject = evaluate(typedStringValue);
 			try {
-				return beanFactory.doTypeConversionIfNecessary(typedStringValue.getValue(), typedStringValue.getTargetType());
+				Class<?> resolvedTargetType = resolveTargetType(typedStringValue);
+				if (resolvedTargetType != null) {
+					return typeConverter.convertIfNecessary(valueObject, resolvedTargetType);
+				}
+				else {
+					return valueObject;
+				}
 			}
 			catch (Throwable ex) {
-				throw new BeanCreationException(beanDefinition.getResourceDescription(), this.beanName, 
+				throw new BeanCreationException(
+					beanDefinition.getResourceDescription(), this.beanName, 
 					"Error converting typed String value for" + argName, ex);
 			}
 		}
 		
-		return value;
-	}
-	
-	/**
-	 * Resolve an inner bean definition
-	 * @param argName
-	 * @param innerBeanName
-	 * @param innerBd
-	 * @return
-	 * @throws BeansException
-	 */
-	private Object resolveInnerBeanDefinition(String argName, String innerBeanName, BeanDefinition innerBd) throws BeansException {
-		if (logger.isDebugEnabled()) {
-			logger.debug(String.format("Resolving inner bean definition '%s' of bean '%s'", innerBeanName, this.beanName));
-		}
-		try {
-			RootBeanDefinition mergedBeanDefinition = this.beanFactory.getMergedBeanDefinition(innerBeanName, innerBd);
-			Object innerBean = this.beanFactory.createBean(innerBeanName, mergedBeanDefinition, null);
-			if (mergedBeanDefinition.isSingleton()) {
-				this.beanFactory.registerDependentBean(innerBeanName, this.beanName);
-			}
-			return this.beanFactory.getObjectForSharedInstance(innerBeanName, innerBean);
-		}
-		catch (BeansException ex) {
-			throw new BeanCreationException(this.beanDefinition.getResourceDescription(), this.beanName, String.format("Cannot create inner bean '%s' while setting %s", innerBeanName, argName), ex);
-		}
+		return evaluate(value);
 	}
 	
 	/**
@@ -264,6 +299,45 @@ public class BeanDefinitionValueResolver {
 			return value.getTargetType();
 		}
 		return value.resolveTargetType(beanFactory.getBeanClassLoader());
+	}
+	
+	/**
+	 * Resolve an inner bean definition.
+	 * @param argName
+	 * @param innerBeanName
+	 * @param innerBeanDefinition
+	 * @return
+	 */
+	private Object resolveInnerBean(Object argName, String innerBeanName, BeanDefinition innerBeanDefinition) {
+		RootBeanDefinition mbd = null;
+		try {
+			mbd = beanFactory.getMergedBeanDefinition(innerBeanName, innerBeanDefinition, beanDefinition);
+			String actualInnerBeanName = innerBeanName;
+			if (mbd.isSingleton()) {
+				actualInnerBeanName = adaptInnerBeanName(innerBeanName);
+			}
+			String[] dependsOn = mbd.getDependsOn();
+			if (dependsOn != null) {
+				for (String bean : dependsOn) {
+					beanFactory.getBean(bean);
+					beanFactory.registerDependentBean(bean, actualInnerBeanName);
+				}
+			}
+			Object innerBean = beanFactory.createBean(actualInnerBeanName, mbd, null);
+			beanFactory.registerContainedBean(actualInnerBeanName, beanName);
+			if (innerBean instanceof FactoryBean) {
+				boolean synthetic = (mbd != null && mbd.isSynthetic());
+				return beanFactory.getObjectFromFactoryBean((FactoryBean<?>) innerBean, actualInnerBeanName, !synthetic);
+			}
+			else {
+				return innerBean;
+			}
+		} 
+		catch (BeansException ex) {
+			throw new BeanCreationException(beanDefinition.getResourceDescription(), 
+				beanName, String.format("Cannot create inner bean '%s' %swhile setting %s", 
+					innerBeanName, (mbd != null && mbd.getBeanClassName() != null ? "of type [" + mbd.getBeanClassName() + "] " : ""), argName), ex);
+		}
 	}
 	
 	/**
