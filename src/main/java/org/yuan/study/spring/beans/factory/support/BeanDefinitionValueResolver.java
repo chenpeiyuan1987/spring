@@ -146,6 +146,34 @@ public class BeanDefinitionValueResolver {
 		}
 		
 		return evaluate(value);
+<<<<<<< HEAD
+=======
+	}
+	
+	/**
+	 * Resolve an inner bean definition
+	 * @param argName
+	 * @param innerBeanName
+	 * @param innerBd
+	 * @return
+	 * @throws BeansException
+	 */
+	private Object resolveInnerBeanDefinition(String argName, String innerBeanName, BeanDefinition innerBd) throws BeansException {
+		if (logger.isDebugEnabled()) {
+			logger.debug(String.format("Resolving inner bean definition '%s' of bean '%s'", innerBeanName, this.beanName));
+		}
+		try {
+			RootBeanDefinition mergedBeanDefinition = this.beanFactory.getMergedBeanDefinition(innerBeanName, innerBd);
+			Object innerBean = this.beanFactory.createBean(innerBeanName, mergedBeanDefinition, null);
+			if (mergedBeanDefinition.isSingleton()) {
+				this.beanFactory.registerDependentBean(innerBeanName, this.beanName);
+			}
+			return this.beanFactory.getObjectForSharedInstance(innerBeanName, innerBean);
+		}
+		catch (BeansException ex) {
+			throw new BeanCreationException(this.beanDefinition.getResourceDescription(), this.beanName, String.format("Cannot create inner bean '%s' while setting %s", innerBeanName, argName), ex);
+		}
+>>>>>>> branch 'master' of git@github.com:chenpeiyuan1987/spring.git
 	}
 	
 	/**
