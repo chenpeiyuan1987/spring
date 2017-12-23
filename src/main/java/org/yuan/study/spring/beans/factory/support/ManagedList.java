@@ -21,19 +21,16 @@ public class ManagedList<E> extends ArrayList<E> implements Mergeable, BeanMetad
 	public ManagedList(int initialCapacity) {
 		super(initialCapacity);
 	}
-
 	
 	@Override
 	public Object getSource() {
 		return source;
 	}
-
 	
 	@Override
 	public boolean isMergeEnabled() {
 		return mergeEnabled;
 	}
-
 	
 	@Override
 	public Object merge(Object parent) {
@@ -53,7 +50,7 @@ public class ManagedList<E> extends ArrayList<E> implements Mergeable, BeanMetad
 	}
 
 	/**
-	 * 
+	 * Return the default element type name to be used for this list.
 	 * @return
 	 */
 	public String getElementTypeName() {
@@ -61,7 +58,7 @@ public class ManagedList<E> extends ArrayList<E> implements Mergeable, BeanMetad
 	}
 
 	/**
-	 * 
+	 * Set the default element type name to be used for this list.
 	 * @param elementTypeName
 	 */
 	public void setElementTypeName(String elementTypeName) {
@@ -69,7 +66,8 @@ public class ManagedList<E> extends ArrayList<E> implements Mergeable, BeanMetad
 	}
 
 	/**
-	 * 
+	 * Set whether merging should be enabled for this collection,
+	 * in case of a 'parent' collection value being present.
 	 * @param mergedEnabled
 	 */
 	public void setMergeEnabled(boolean mergeEnabled) {
@@ -77,7 +75,7 @@ public class ManagedList<E> extends ArrayList<E> implements Mergeable, BeanMetad
 	}
 
 	/**
-	 * 
+	 * Set the configuration source Object for this metadata element.
 	 * @param source
 	 */
 	public void setSource(Object source) {

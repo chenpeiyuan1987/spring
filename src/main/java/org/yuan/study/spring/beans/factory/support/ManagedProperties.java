@@ -17,7 +17,7 @@ public class ManagedProperties extends Properties implements Mergeable, BeanMeta
 	}
 
 	/**
-	 * 
+	 * Set the configuration source Object for this metadata element.
 	 * @param source
 	 */
 	public void setSource(Object source) {
@@ -30,7 +30,8 @@ public class ManagedProperties extends Properties implements Mergeable, BeanMeta
 	}
 
 	/**
-	 * 
+	 * Set whether merging should be enabbled for this collection,
+	 * in case of a ''parent' collection value being present.
 	 * @param mergeEnabled
 	 */
 	public void setMergeEnabled(boolean mergeEnabled) {
