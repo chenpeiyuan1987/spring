@@ -2,9 +2,23 @@ package org.yuan.study.spring.beans.factory.support;
 
 import java.beans.ConstructorProperties;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Member;
+import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.Set;
 
+import org.yuan.study.spring.beans.BeanMetadataElement;
 import org.yuan.study.spring.beans.BeanWrapper;
+import org.yuan.study.spring.beans.TypeConverter;
+import org.yuan.study.spring.beans.TypeMismatchException;
+import org.yuan.study.spring.beans.factory.UnsatisfiedDependencyException;
+import org.yuan.study.spring.beans.factory.config.ConstructorArgumentValues;
+import org.yuan.study.spring.beans.factory.config.DependencyDescriptor;
+import org.yuan.study.spring.core.GenericTypeResolver;
+import org.yuan.study.spring.core.MethodParameter;
 import org.yuan.study.spring.util.ClassUtils;
+import org.yuan.study.spring.util.ObjectUtils;
+import org.yuan.study.spring.util.ReflectionUtils;
 
 public class ConstructorResolver {
 	
@@ -35,28 +49,110 @@ public class ConstructorResolver {
 		
 	}
 	
+	/**
+	 * Resolve the factory method in the specified bean definition, if possible.
+	 * @param mbd
+	 */
 	public void resolveFactoryMethodIfPossible(RootBeanDefinition mbd) {
+		Class<?> factoryClass;
+		if (mbd.getFactoryBeanName() != null) {
+			factoryClass = beanFactory.getType(mbd.getFactoryBeanName());
+		}
+		else {
+			factoryClass = mbd.getBeanClass();
+		}
 		
+		factoryClass = ClassUtils.getUserClass(factoryClass);
+		Method[] candidates = ReflectionUtils.getAllDeclaredMethods(factoryClass);
+		Method uniqueCandidate = null;
+		for (Method candidate : candidates) {
+			if (mbd.isFactoryMethod(candidate)) {
+				if (uniqueCandidate == null) {
+					uniqueCandidate = candidate;
+				} 
+				else if (!Arrays.equals(uniqueCandidate.getParameterTypes(), candidate.getParameterTypes())) {
+					uniqueCandidate = null;
+					break;
+				}
+			}
+		}
+		synchronized (mbd.constructorArgumentLock) {
+			mbd.resolvedConstructorOrFactoryMethod = uniqueCandidate;
+		}
 	}
 	
 	public BeanWrapper instantiateUsingFactoryMethod(final String beanName, final RootBeanDefinition mbd, final Object[] explicitArgs) {
 		
 	}
 	
-	private int resolveConstructorArguments() {
+	/**
+	 * Resolve the constructor arguments for this bean into the resolvedValues object.
+	 * @param beanName
+	 * @param mbd
+	 * @param bw
+	 * @param cargs
+	 * @param resolvedValues
+	 * @return
+	 */
+	private int resolveConstructorArguments(String beanName, RootBeanDefinition mbd, BeanWrapper bw, ConstructorArgumentValues cargs, 
+		ConstructorArgumentValues resolvedValues) {
 		
 	}
 	
-	private ArgumentsHolder createArgumentArray() {
+	/**
+	 * Create an array of arguments to invoke a constructor or factory method,
+	 * given the resolved constructor argument values.
+	 * @return
+	 */
+	private ArgumentsHolder createArgumentArray(String beanName, RootBeanDefinition mbd, ConstructorArgumentValues resolvedValues,
+		BeanWrapper bw, Class<?>[] paramTypes, String[] paramNames, Object methodOrCtor, boolean autowiring) throws UnsatisfiedDependencyException {
 		
 	}
 	
-	private Object[] resolvePreparedArguments() {
-		
+	/**
+	 * Resolve the prepared arguments stored in the given bean definition.
+	 * @return
+	 */
+	private Object[] resolvePreparedArguments(String beanName, RootBeanDefinition mbd, BeanWrapper bw, Member methodOrCtor, Object[] argsToResolve) {
+		Class<?>[] paramTypes = (methodOrCtor instanceof Method 
+			? ((Method) methodOrCtor).getParameterTypes() : ((Constructor<?>) methodOrCtor).getParameterTypes());
+		TypeConverter converter = (beanFactory.getCustomTypeConverter() != null ? beanFactory.getCustomTypeConverter() : bw);
+		BeanDefinitionValueResolver valueResolver = new BeanDefinitionValueResolver(beanFactory, beanName, mbd, converter);
+		Object[] resolvedArgs = new Object[argsToResolve.length];
+		for (int argIndex = 0; argIndex < argsToResolve.length; argIndex++) {
+			Object argValue = argsToResolve[argIndex];
+			MethodParameter methodParam = MethodParameter.forMethodOrConstructor(methodOrCtor, argIndex);
+			GenericTypeResolver.resolveParameterType(methodParam, methodOrCtor.getDeclaringClass());
+			if (argValue instanceof AutowiredArgumentMarker) {
+				argValue = resolveAutowiredArgument(methodParam, beanName, null, converter);
+			}
+			else if (argValue instanceof BeanMetadataElement) {
+				argValue = valueResolver.resolveValueIfNecessary("constructor argument", argValue);
+			}
+			else if (argValue instanceof String) {
+				argValue = beanFactory.evaluateBeanDefinitionString((String) argValue, mbd);
+			}
+			
+			Class<?> paramType = paramTypes[argIndex];
+			try {
+				resolvedArgs[argIndex] = converter.convertIfNecessary(argValue, paramType, methodParam);
+			} 
+			catch (TypeMismatchException ex) {
+				String methodType = (methodOrCtor instanceof Constructor ? "constructor" : "factory method");
+				throw new UnsatisfiedDependencyException(mbd.getResourceDescription(), beanName, argIndex, paramType, 
+					String.format("Could not convert %s argument value of type [%s] to required type [%s]: %s", 
+						methodType, ObjectUtils.nullSafeClassName(argValue), paramType.getName(), ex.getMessage()));
+			}
+		}
+		return resolvedArgs;
 	}
 	
-	protected Object resolveAutowiredArgument() {
-		
+	/**
+	 * Template method for resolving the specified argument which is supposed to be autowired.
+	 * @return
+	 */
+	protected Object resolveAutowiredArgument(MethodParameter param, String beanName, Set<String> autowiredBeanNames, TypeConverter typeConverter) {
+		return beanFactory.resolveDependency(new DependencyDescriptor(param, true), beanName, autowiredBeanNames, typeConverter);
 	}
 	
 	/**

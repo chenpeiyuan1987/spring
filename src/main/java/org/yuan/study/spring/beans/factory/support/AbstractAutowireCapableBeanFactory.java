@@ -714,30 +714,6 @@ public abstract class AbstractAutowireCapableBeanFactory
 			throw new BeanCreationException(mergedBeanDefinition.getResourceDescription(), 
 				beanName, "Error setting property values", ex);
 		}
-		/*
-		BeanDefinitionValueResolver valueResolver = new BeanDefinitionValueResolver(this, beanName, mergedBeanDefinition);
-		
-		MutablePropertyValues deepCopy = new MutablePropertyValues();
-		PropertyValue[] pvArray = pvs.getPropertyValues();
-		for (PropertyValue pv : pvArray) {
-			Object resolvedValue = valueResolver.resolveValueIfNecessary(String.format("bean property '%s'", pv.getName()), pv.getValue());
-			deepCopy.addPropertyValue(pv.getName(), resolvedValue);
-		}
-		
-		try {
-			if (!getCustomEditors().isEmpty()) {
-				synchronized (this) {
-					bw.setPropertyValues(deepCopy);
-				}
-			}
-			else {
-				bw.setPropertyValues(deepCopy);
-			}
-		}
-		catch (BeansException ex) {
-			throw new BeanCreationException(mergedBeanDefinition.getResourceDescription(), beanName, "Error setting property values", ex);
-		}
-		*/
 	}
 	
 	/**
